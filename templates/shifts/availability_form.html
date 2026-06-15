@@ -1,0 +1,11 @@
+<h1>シフト希望提出</h1>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">保存</button>
+</form>
+
+<p>
+  <a href="{% url 'availability_list' %}">提出済み一覧へ</a>
+</p>
