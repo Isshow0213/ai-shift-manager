@@ -8,11 +8,17 @@ class Availability(models.Model):
         on_delete=models.CASCADE
     )
 
-    work_date = models.DateField()
+    membership = models.ForeignKey(
+        "accounts.StoreMembership",
+        on_delete=models.CASCADE,
+        related_name="availabilities",
+        null=True,
+        blank=True,
+    )
 
+    work_date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
-
     created_at = models.DateTimeField(auto_now_add=True)
 
 
@@ -21,13 +27,18 @@ class Availability(models.Model):
 
 
 class Requirement(models.Model):
-    work_date = models.DateField()
+    store = models.ForeignKey(
+        "accounts.Store",
+        on_delete=models.CASCADE,
+        related_name="requirements",
+        null=True,
+        blank=True,
+    )
 
+    work_date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
-
     required_staff_count = models.PositiveIntegerField()
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -47,14 +58,26 @@ class Shift(models.Model):
         on_delete=models.CASCADE,
         related_name="shifts"
     )
+    membership = models.ForeignKey(
+        "accounts.StoreMembership",
+        on_delete=models.CASCADE,
+        related_name="shifts",
+        null=True,
+        blank=True,
+    )
+
+    store = models.ForeignKey(
+        "accounts.Store",
+        on_delete=models.CASCADE,
+        related_name="shifts",
+        null=True,
+        blank=True,
+    )
 
     work_date = models.DateField()
-
     start_time = models.TimeField()
     end_time = models.TimeField()
-
     is_generated = models.BooleanField(default=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

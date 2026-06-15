@@ -1,0 +1,38 @@
+<h1>管理者ダッシュボード</h1>
+
+<p>{{ month_start|date:"Y年m月" }} の状況</p>
+
+<hr>
+
+<h2>提出状況</h2>
+
+<ul>
+  <li>従業員数：{{ total_staff_count }}人</li>
+  <li>提出済み：{{ submitted_count }}人</li>
+  <li>未提出：{{ unsubmitted_count }}人</li>
+</ul>
+
+<hr>
+
+<h2>シフト管理</h2>
+
+<ul>
+  <li>必要人数設定：{{ requirements_count }}件</li>
+  <li>生成済みシフト：{{ shifts_count }}件</li>
+</ul>
+
+<hr>
+
+<h2>操作</h2>
+
+<ul>
+  <li><a href="{% url 'availability_list' %}">提出済みシフト希望を見る</a></li>
+  <li><a href="/admin/shifts/requirement/">必要人数を設定する</a></li>
+  <li><a href="/admin/shifts/shift/">生成済みシフトを見る</a></li>
+  <li><a href="/admin/accounts/user/">従業員を管理する</a></li>
+</ul>
+
+<form method="post" action="{% url 'logout' %}">
+  {% csrf_token %}
+  <button type="submit">ログアウト</button>
+</form>
