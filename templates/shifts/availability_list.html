@@ -1,6 +1,22 @@
 <h1>提出済みシフト希望</h1>
 
 <p>
+  氏名：{{ request.user.full_name_japanese }}
+</p>
+
+{% if membership %}
+  <p>
+    所属店舗：{{ membership.store.name }}
+  </p>
+{% else %}
+  <p>
+    所属店舗：未設定
+  </p>
+{% endif %}
+
+<hr>
+
+<p>
   <a href="{% url 'availability_create' %}">新しく提出する</a>
 </p>
 
@@ -9,6 +25,15 @@
     <li>
       {{ availability.work_date }}
       {{ availability.start_time }}〜{{ availability.end_time }}
+
+      <form
+        method="post"
+        action="{% url 'availability_delete' availability.id %}"
+        style="display: inline;"
+      >
+        {% csrf_token %}
+        <button type="submit">削除</button>
+      </form>
     </li>
   {% empty %}
     <li>まだ提出していません。</li>

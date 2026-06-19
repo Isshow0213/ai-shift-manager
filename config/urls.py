@@ -6,7 +6,7 @@ from django.urls import include, path
 
 def index(request):
     if request.user.is_authenticated:
-        return redirect("dashboard")
+        return redirect("manager_dashboard")
     return redirect("login")
 
 
@@ -27,4 +27,6 @@ urlpatterns = [
     ),
 
     path("", include("shifts.urls")),
+
+    path("manager/", include("manager.urls")),
 ]

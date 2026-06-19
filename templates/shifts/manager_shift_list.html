@@ -1,0 +1,41 @@
+<h1>生成済みシフト一覧</h1>
+
+<p>店舗：{{ store.name }}</p>
+
+<p>
+  <a href="{% url 'dashboard' %}">ダッシュボードへ戻る</a>
+</p>
+
+<table border="1">
+  <thead>
+    <tr>
+      <th>従業員</th>
+      <th>日付</th>
+      <th>開始時刻</th>
+      <th>終了時刻</th>
+      <th>自動生成</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for shift in shifts %}
+      <tr>
+        <td>{{ shift.membership.user.username }}</td>
+        <td>{{ shift.work_date }}</td>
+        <td>{{ shift.start_time }}</td>
+        <td>{{ shift.end_time }}</td>
+        <td>
+          {% if shift.is_generated %}
+            〇
+          {% else %}
+            手動
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="5">まだシフトは生成されていません。</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

@@ -35,6 +35,19 @@ class User(AbstractUser):
         ("C", "C"),
     ]
 
+    # AbstractUser に元々ある first_name / last_name を日本語ラベルに上書き
+    last_name = models.CharField(
+        "苗字",
+        max_length=150,
+        blank=True,
+    )
+
+    first_name = models.CharField(
+        "名前",
+        max_length=150,
+        blank=True,
+    )
+
     # 一旦残す。あとで StoreMembership 側に移す。
     role = models.CharField(
         max_length=10,
@@ -49,6 +62,14 @@ class User(AbstractUser):
     )
 
     desired_shifts_per_week = models.PositiveIntegerField(default=0)
+
+    @property
+    def full_name_japanese(self):
+        full_name = f"{self.last_name} {self.first_name}".strip()
+        return full_name or self.username
+
+    def __str__(self):
+        return self.full_name_japanese
 
 
 class CompanyMembership(models.Model):

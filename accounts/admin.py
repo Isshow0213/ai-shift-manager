@@ -45,3 +45,15 @@ class StoreMembershipAdmin(admin.ModelAdmin):
         "desired_shifts_per_week",
         "is_active",
     )
+    list_filter = (
+        "store",
+        "role",
+        "rank",
+        "is_active",
+    )
+    search_fields = (
+        "user__username",
+        "user__last_name",
+        "user__first_name",
+        "store__name",
+    )

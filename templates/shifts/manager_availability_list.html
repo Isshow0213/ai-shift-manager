@@ -1,0 +1,49 @@
+<h1>提出済みシフト希望</h1>
+
+<p>店舗：{{ store.name }}</p>
+
+<p>
+  <a href="{% url 'dashboard' %}">ダッシュボードへ戻る</a>
+</p>
+
+<hr>
+
+<h2>提出済み一覧</h2>
+
+<table border="1">
+  <thead>
+    <tr>
+      <th>従業員</th>
+      <th>日付</th>
+      <th>開始時刻</th>
+      <th>終了時刻</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for availability in availabilities %}
+      <tr>
+        <td>{{ availability.membership.user.username }}</td>
+        <td>{{ availability.work_date }}</td>
+        <td>{{ availability.start_time }}</td>
+        <td>{{ availability.end_time }}</td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="4">まだ提出がありません。</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<hr>
+
+<h2>未提出者</h2>
+
+<ul>
+  {% for membership in unsubmitted_memberships %}
+    <li>{{ membership.user.username }}</li>
+  {% empty %}
+    <li>未提出者はいません。</li>
+  {% endfor %}
+</ul>

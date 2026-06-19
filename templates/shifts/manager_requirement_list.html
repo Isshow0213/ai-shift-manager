@@ -1,0 +1,47 @@
+<h1>必要人数設定</h1>
+
+<p>店舗：{{ store.name }}</p>
+
+<p>
+  <a href="{% url 'dashboard' %}">ダッシュボードへ戻る</a>
+</p>
+
+<hr>
+
+<h2>必要人数を追加</h2>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">保存</button>
+</form>
+
+<hr>
+
+<h2>設定済み必要人数</h2>
+
+<table border="1">
+  <thead>
+    <tr>
+      <th>日付</th>
+      <th>開始時刻</th>
+      <th>終了時刻</th>
+      <th>必要人数</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for requirement in requirements %}
+      <tr>
+        <td>{{ requirement.work_date }}</td>
+        <td>{{ requirement.start_time }}</td>
+        <td>{{ requirement.end_time }}</td>
+        <td>{{ requirement.required_staff_count }}人</td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="4">まだ必要人数が設定されていません。</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
