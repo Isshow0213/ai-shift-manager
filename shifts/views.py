@@ -1,7 +1,10 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
+import calendar
+from datetime import date
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.contrib import messages
 from accounts.models import StoreMembership
 from scheduler.services import generate_shifts_for_store
@@ -12,21 +15,94 @@ from .models import Availability, Requirement, Shift
 
 @login_required
 def availability_list(request):
-    availabilities = Availability.objects.filter(
-        user=request.user,
-    ).order_by("work_date", "start_time")
+    today = timezone.localdate()
+
+    year = int(request.GET.get("year", today.year))
+    month = int(request.GET.get("month", today.month))
+
+    selected_date_text = request.GET.get("date")
+    selected_date = parse_date(selected_date_text) if selected_date_text else today
+
+    if selected_date is None:
+        selected_date = today
+
+    # 表示中の月のカレンダーを作る
+    calendar_obj = calendar.Calendar(firstweekday=0)
+    month_weeks = calendar_obj.monthdatescalendar(year, month)
+
+    # 前月・翌月
+    if month == 1:
+        prev_year = year - 1
+        prev_month = 12
+    else:
+        prev_year = year
+        prev_month = month - 1
+
+    if month == 12:
+        next_year = year + 1
+        next_month = 1
+    else:
+        next_year = year
+        next_month = month + 1
 
     membership = StoreMembership.objects.filter(
         user=request.user,
         is_active=True,
     ).select_related("store").first()
 
+    # 今月の提出済み希望
+    monthly_availabilities = Availability.objects.filter(
+        user=request.user,
+        work_date__year=year,
+        work_date__month=month,
+    ).order_by("work_date", "start_time")
+
+    # 提出済みの日付だけsetにする
+    submitted_dates = set(
+        monthly_availabilities.values_list("work_date", flat=True)
+    )
+
+    # テンプレートで扱いやすいように、日付ごとの情報に加工する
+    calendar_weeks = []
+
+    for week in month_weeks:
+        week_days = []
+
+        for day in week:
+            week_days.append(
+                {
+                    "date": day,
+                    "day": day.day,
+                    "is_current_month": day.month == month,
+                    "is_today": day == today,
+                    "is_selected": day == selected_date,
+                    "is_submitted": day in submitted_dates,
+                    "url": f"?year={year}&month={month}&date={day.isoformat()}",
+                }
+            )
+
+        calendar_weeks.append(week_days)
+
+    # 選択日の提出済み希望だけ表示
+    selected_availabilities = Availability.objects.filter(
+        user=request.user,
+        work_date=selected_date,
+    ).order_by("start_time")
+
     return render(
         request,
         "shifts/availability_list.html",
         {
-            "availabilities": availabilities,
             "membership": membership,
+            "year": year,
+            "month": month,
+            "calendar_weeks": calendar_weeks,
+            "selected_date": selected_date,
+            "selected_availabilities": selected_availabilities,
+            "prev_year": prev_year,
+            "prev_month": prev_month,
+            "next_year": next_year,
+            "next_month": next_month,
         },
     )
 
@@ -41,6 +117,12 @@ def availability_create(request):
         messages.error(request, "所属している店舗がありません。")
         return redirect("availability_list")
 
+    selected_date_text = request.GET.get("date")
+    selected_date = parse_date(selected_date_text) if selected_date_text else timezone.localdate()
+
+    if selected_date is None:
+        selected_date = timezone.localdate()
+
     if request.method == "POST":
         form = AvailabilityForm(request.POST)
         if form.is_valid():
@@ -48,9 +130,15 @@ def availability_create(request):
             availability.user = request.user
             availability.membership = membership
             availability.save()
-            return redirect("availability_list")
+            return redirect(
+                f"/availability/?year={availability.work_date.year}&month={availability.work_date.month}&date={availability.work_date}"
+            )
     else:
-        form = AvailabilityForm()
+        form = AvailabilityForm(
+            initial={
+                "work_date": selected_date,
+            }
+        )
 
     return render(
         request,
@@ -58,6 +146,7 @@ def availability_create(request):
         {
             "form": form,
             "membership": membership,
+            "selected_date": selected_date,
         },
     )
 

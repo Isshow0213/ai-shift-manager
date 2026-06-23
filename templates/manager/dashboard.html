@@ -33,27 +33,26 @@
 <ul>
   <li>
     <a href="{% url 'manager_availability_list' %}">
-      店舗スタッフの提出済みシフト希望を見る
+      希望提出状況カレンダーを見る
     </a>
   </li>
 
   <li>
     <a href="{% url 'manager_requirement_list' %}">
-      必要人数を設定する
+      必要人数カレンダーを設定する
     </a>
   </li>
 
   <li>
     <a href="{% url 'manager_shift_list' %}">
-      生成済みシフトを見る
+      シフト作成カレンダーを開く
     </a>
   </li>
 
   <li>
-    <form method="post" action="{% url 'generate_shift' %}">
-      {% csrf_token %}
-      <button type="submit">シフト自動生成</button>
-    </form>
+    <a href="{% url 'manager_staff_list' %}">
+      従業員を管理する
+    </a>
   </li>
 </ul>
 

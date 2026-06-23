@@ -1,0 +1,242 @@
+<style>
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 24px 0 16px;
+  }
+
+  .calendar-header a {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #333;
+    background: #fff;
+  }
+
+  .calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+  }
+
+  .calendar-day {
+    min-height: 100px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #222;
+    background: #fff;
+    box-sizing: border-box;
+  }
+
+  .calendar-day:hover {
+    background: #f5f5f5;
+  }
+
+  .other-month {
+    background: #eee;
+    color: #aaa;
+  }
+
+  .today {
+    border: 2px solid #333;
+  }
+
+  .selected {
+    background: #eef5ff;
+  }
+
+  .has-availability {
+    border-color: #4caf50;
+  }
+
+  .has-shift {
+    background: #f7fff7;
+  }
+
+  .day-number {
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+
+  .day-status {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+</style>
+
+<h1>シフト作成カレンダー</h1>
+
+<p>店舗：{{ store.name }}</p>
+
+<p>
+  <a href="{% url 'manager_dashboard' %}">ダッシュボードへ戻る</a>
+</p>
+
+<hr>
+
+<div class="calendar-header">
+  <a href="?year={{ prev_year }}&month={{ prev_month }}">← 前月</a>
+
+  <h2>{{ year }}年{{ month }}月</h2>
+
+  <a href="?year={{ next_year }}&month={{ next_month }}">翌月 →</a>
+</div>
+
+<div class="calendar-weekdays">
+  <div>月</div>
+  <div>火</div>
+  <div>水</div>
+  <div>木</div>
+  <div>金</div>
+  <div>土</div>
+  <div>日</div>
+</div>
+
+<div class="calendar-grid">
+  {% for week in calendar_weeks %}
+    {% for day in week %}
+      {% if day.is_current_month %}
+        <a
+          href="{{ day.url }}"
+          class="calendar-day{% if day.is_today %} today{% endif %}{% if day.is_selected %} selected{% endif %}{% if day.has_availability %} has-availability{% endif %}{% if day.has_shift %} has-shift{% endif %}"
+        >
+          <div class="day-number">{{ day.day }}</div>
+
+          <div class="day-status">
+            {% if day.has_availability %}
+              <div>希望あり</div>
+            {% endif %}
+
+            {% if day.has_requirement %}
+              <div>必要人数あり</div>
+            {% endif %}
+
+            {% if day.has_shift %}
+              <div>シフトあり</div>
+            {% endif %}
+
+            {% if not day.has_availability and not day.has_requirement and not day.has_shift %}
+              <div>登録なし</div>
+            {% endif %}
+          </div>
+        </a>
+      {% else %}
+        <div class="calendar-day other-month">
+          <div class="day-number">{{ day.day }}</div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+</div>
+
+<hr>
+
+<h2>選択日：{{ selected_date|date:"Y年m月d日" }}</h2>
+
+<h3>自動生成</h3>
+
+<form method="post" action="{% url 'generate_shift' %}">
+  {% csrf_token %}
+  <button type="submit">シフトを自動生成する</button>
+</form>
+
+<hr>
+
+<h3>この日の必要人数</h3>
+
+<ul>
+  {% for requirement in requirements %}
+    <li>
+      {{ requirement.start_time }}〜{{ requirement.end_time }}
+      ：{{ requirement.required_staff_count }}人
+    </li>
+  {% empty %}
+    <li>この日の必要人数はまだ設定されていません。</li>
+  {% endfor %}
+</ul>
+
+<hr>
+
+<h3>この日に希望を出しているスタッフ</h3>
+
+<table border="1">
+  <thead>
+    <tr>
+      <th>スタッフ</th>
+      <th>希望開始</th>
+      <th>希望終了</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for availability in availabilities %}
+      <tr>
+        <td>{{ availability.membership.user.full_name_japanese }}</td>
+        <td>{{ availability.start_time }}</td>
+        <td>{{ availability.end_time }}</td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="3">この日に希望を出しているスタッフはいません。</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<hr>
+
+<h3>手動でシフトを追加</h3>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">手動で追加する</button>
+</form>
+
+<hr>
+
+<h3>この日の登録済みシフト</h3>
+
+<table border="1">
+  <thead>
+    <tr>
+      <th>スタッフ</th>
+      <th>開始時刻</th>
+      <th>終了時刻</th>
+      <th>作成方法</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for shift in shifts %}
+      <tr>
+        <td>{{ shift.membership.user.full_name_japanese }}</td>
+        <td>{{ shift.start_time }}</td>
+        <td>{{ shift.end_time }}</td>
+        <td>
+          {% if shift.is_generated %}
+            自動生成
+          {% else %}
+            手動
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="4">この日のシフトはまだありません。</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

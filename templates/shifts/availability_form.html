@@ -1,18 +1,16 @@
 <h1>シフト希望提出</h1>
 
 <p>
-  ログイン中のユーザー：{{ request.user.username }}
+  氏名：{{ request.user.full_name_japanese }}
 </p>
 
 {% if membership %}
-  <p>
-    所属店舗：{{ membership.store.name }}
-  </p>
-{% else %}
-  <p>
-    所属店舗：未設定
-  </p>
+  <p>所属店舗：{{ membership.store.name }}</p>
 {% endif %}
+
+<p>
+  選択日：{{ selected_date|date:"Y年m月d日" }}
+</p>
 
 <hr>
 
@@ -23,5 +21,5 @@
 </form>
 
 <p>
-  <a href="{% url 'availability_list' %}">提出済み一覧へ戻る</a>
+  <a href="{% url 'availability_list' %}">カレンダーへ戻る</a>
 </p>

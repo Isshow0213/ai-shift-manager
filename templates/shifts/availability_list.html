@@ -1,4 +1,4 @@
-<h1>提出済みシフト希望</h1>
+<h1>シフト希望カレンダー</h1>
 
 <p>
   氏名：{{ request.user.full_name_japanese }}
@@ -16,14 +16,75 @@
 
 <hr>
 
+<h2>{{ year }}年{{ month }}月</h2>
+
 <p>
-  <a href="{% url 'availability_create' %}">新しく提出する</a>
+  <a href="?year={{ prev_year }}&month={{ prev_month }}">前月</a>
+  |
+  <a href="?year={{ next_year }}&month={{ next_month }}">翌月</a>
 </p>
 
+<table border="1">
+  <thead>
+    <tr>
+      <th>月</th>
+      <th>火</th>
+      <th>水</th>
+      <th>木</th>
+      <th>金</th>
+      <th>土</th>
+      <th>日</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for week in calendar_weeks %}
+      <tr>
+        {% for day in week %}
+          <td>
+            {% if day.is_current_month %}
+              <a href="{{ day.url }}">
+                {{ day.day }}
+              </a>
+
+              {% if day.is_today %}
+                <br>
+                今日
+              {% endif %}
+
+              {% if day.is_selected %}
+                <br>
+                選択中
+              {% endif %}
+
+              {% if day.is_submitted %}
+                <br>
+                提出済み
+              {% else %}
+                <br>
+                未提出
+              {% endif %}
+            {% else %}
+              <span style="color: #aaa;">
+                {{ day.day }}
+              </span>
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<hr>
+
+<h2>選択日：{{ selected_date|date:"Y年m月d日" }}</h2>
+
+<h3>この日の提出済み希望</h3>
+
 <ul>
-  {% for availability in availabilities %}
+  {% for availability in selected_availabilities %}
     <li>
-      {{ availability.work_date }}
       {{ availability.start_time }}〜{{ availability.end_time }}
 
       <form
@@ -36,9 +97,13 @@
       </form>
     </li>
   {% empty %}
-    <li>まだ提出していません。</li>
+    <li>この日はまだ提出していません。</li>
   {% endfor %}
 </ul>
+
+<a href="{% url 'availability_create' %}?date={{ selected_date|date:'Y-m-d' }}">
+  この日の希望を提出する
+</a>
 
 <form method="post" action="{% url 'logout' %}">
   {% csrf_token %}
