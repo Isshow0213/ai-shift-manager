@@ -1,20 +1,35 @@
 import calendar
+from datetime import date
+from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 
 def get_calendar_context(request, markers=None):
-    today = timezone.localdate()
+    today = timezone.localdate(timezone=ZoneInfo("Asia/Tokyo"))
 
-    year = int(request.GET.get("year", today.year))
-    month = int(request.GET.get("month", today.month))
+    def valid_integer(value, default, minimum, maximum):
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            return default
+        return parsed if minimum <= parsed <= maximum else default
+
+    # 隣接月の日付と前後月リンクも作れる年だけ受け付ける。
+    year = valid_integer(request.GET.get("year"), today.year, 2, 9998)
+    month = valid_integer(request.GET.get("month"), today.month, 1, 12)
+    default_date = (
+        today if (year, month) == (today.year, today.month) else date(year, month, 1)
+    )
 
     selected_date_text = request.GET.get("date")
-    selected_date = parse_date(selected_date_text) if selected_date_text else today
-
-    if selected_date is None:
-        selected_date = today
+    try:
+        selected_date = parse_date(selected_date_text) if selected_date_text else None
+    except (TypeError, ValueError):
+        selected_date = None
+    if selected_date is None or (selected_date.year, selected_date.month) != (year, month):
+        selected_date = default_date
 
     calendar_obj = calendar.Calendar(firstweekday=0)
     month_weeks = calendar_obj.monthdatescalendar(year, month)

@@ -150,7 +150,7 @@ class ShiftGenerationViewTests(TestCase):
         self.assertContains(response, "柴田 一翔")
         self.assertNotContains(response, "staff_login")
 
-        Shift.objects.create(
+        shift = Shift.objects.create(
             user=self.staff,
             membership=None,
             store=self.store,
@@ -159,6 +159,7 @@ class ShiftGenerationViewTests(TestCase):
             end_time=time(18),
         )
         self.client.force_login(self.staff)
-        response = self.client.get(reverse("shift_list"))
+        response = self.client.get(reverse("shift_list"), {"year": 2026, "month": 7})
         self.assertContains(response, "柴田 一翔")
         self.assertNotContains(response, "staff_login")
+        self.assertEqual(list(response.context["shifts"]), [shift])

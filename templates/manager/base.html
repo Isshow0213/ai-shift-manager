@@ -1,0 +1,95 @@
+{% load static i18n tz %}
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}シフト管理{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'manager/app.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  {% include 'manager/icons.html' %}
+  <a class="skip-link" href="#main-content">本文へ移動</a>
+
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="{% block sidebar_label %}管理者メニュー{% endblock %}">
+      <a class="brand" href="{% block brand_url %}{% url 'manager_dashboard' %}{% endblock %}">
+        <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg></span>
+        <span class="brand-copy">
+          <span class="brand-name">シフト管理</span>
+          <span class="brand-store"{% if store %} title="{{ store.name }}"{% elif membership %} title="{{ membership.store.name }}"{% endif %}>{% block brand_store %}{{ store.name }}{% endblock %}</span>
+        </span>
+      </a>
+
+      {% block sidebar_navigation %}
+      {% with current_url=request.resolver_match.url_name %}
+        <nav class="sidebar-nav" aria-label="メインナビゲーション">
+          <a class="nav-link{% if current_url == 'manager_dashboard' or current_url == 'dashboard' %} active{% endif %}" href="{% url 'manager_dashboard' %}"{% if current_url == 'manager_dashboard' or current_url == 'dashboard' %} aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
+            <span>ダッシュボード</span>
+          </a>
+          <a class="nav-link{% if current_url == 'manager_shift_list' %} active{% endif %}" href="{% url 'manager_shift_list' %}"{% if current_url == 'manager_shift_list' %} aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+            <span>シフト作成</span>
+          </a>
+          <a class="nav-link{% if current_url == 'manager_availability_list' %} active{% endif %}" href="{% url 'manager_availability_list' %}"{% if current_url == 'manager_availability_list' %} aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+            <span>希望提出状況</span>
+          </a>
+          <a class="nav-link{% if current_url == 'manager_requirement_list' %} active{% endif %}" href="{% url 'manager_requirement_list' %}"{% if current_url == 'manager_requirement_list' %} aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
+            <span>必要人数の設定</span>
+          </a>
+          <a class="nav-link{% if current_url == 'manager_staff_list' %} active{% endif %}" href="{% url 'manager_staff_list' %}"{% if current_url == 'manager_staff_list' %} aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>
+            <span>従業員管理</span>
+          </a>
+        </nav>
+      {% endwith %}
+      {% endblock %}
+
+      <div class="sidebar-user">
+        <span class="avatar sidebar-avatar" aria-hidden="true"><svg class="icon"><use href="#icon-user"></use></svg></span>
+        <div class="sidebar-user-details">
+          <strong>{% block sidebar_user_label %}店長アカウント{% endblock %}</strong>
+          <span>{{ request.user.full_name_japanese }}</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content" id="main-content">
+      <header class="page-header">
+        <div class="page-heading">
+          <h1>{% block page_title %}ダッシュボード{% endblock %}</h1>
+          <p class="page-subtitle">{% block page_subtitle %}店舗：{{ store.name }}{% endblock %}</p>
+        </div>
+        <div class="header-actions">
+          <div class="header-date">
+            <span>{% language 'ja' %}{% if selected_date %}{{ selected_date|date:'Y年n月j日（D）' }}{% else %}{% timezone 'Asia/Tokyo' %}{% now 'Y年n月j日（D）' %}{% endtimezone %}{% endif %}{% endlanguage %}</span>
+          </div>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="button button-secondary logout-button" type="submit">
+              <svg class="icon" aria-hidden="true"><use href="#icon-logout"></use></svg>
+              <span>ログアウト</span>
+            </button>
+          </form>
+        </div>
+      </header>
+
+      <div class="page-content">
+        {% if messages %}
+          <div class="notice-stack" aria-live="polite">
+            {% for message in messages %}
+              <div class="notice{% if message.tags %} notice-{{ message.tags }}{% endif %}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

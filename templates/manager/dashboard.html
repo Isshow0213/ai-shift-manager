@@ -1,62 +1,84 @@
-<h1>管理者ダッシュボード</h1>
+{% extends "manager/base.html" %}
 
-<p>
-  会社：{{ company.name }}<br>
-  店舗：{{ store.name }}
-</p>
+{% block title %}管理者ダッシュボード{% endblock %}
+{% block page_title %}ダッシュボード{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · 今月のシフト管理状況{% endblock %}
 
-<p>{{ month_start|date:"Y年m月" }} の状況</p>
+{% block extra_css %}
+<style>
+  .dashboard-month { margin: 0 0 18px; color: #748096; font-size: 13px; }
+  .dashboard-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 24px; }
+  .dashboard-stat { padding: 23px; }
+  .stat-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: #68758b; font-size: 13px; }
+  .stat-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; background: #edf4ff; color: #4e83db; }
+  .stat-value { margin: 12px 0 4px; color: #24334d; font-size: 32px; font-weight: 700; line-height: 1.2; }
+  .stat-value span { margin-left: 4px; color: #748096; font-size: 13px; font-weight: 500; }
+  .stat-note { margin: 0; color: #8993a3; font-size: 12px; }
+  .dashboard-start { padding: 27px 30px; display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 24px; }
+  .dashboard-start h2 { margin: 0 0 8px; color: #24334d; font-size: 19px; }
+  .dashboard-start p { margin: 0; color: #748096; font-size: 13px; line-height: 1.8; }
+  .dashboard-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .dashboard-action { display: block; padding: 24px; color: inherit; text-decoration: none; transition: border-color .15s, transform .15s; }
+  .dashboard-action:hover { border-color: #8fb0eb; transform: translateY(-2px); }
+  .dashboard-action h2 { margin: 16px 0 7px; color: #293954; font-size: 15px; }
+  .dashboard-action p { margin: 0; color: #748096; font-size: 12px; line-height: 1.8; }
+  @media (max-width: 1100px) { .dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 700px) { .dashboard-start { align-items: flex-start; flex-direction: column; padding: 24px; } .dashboard-actions { grid-template-columns: 1fr; } }
+  @media (max-width: 430px) { .dashboard-stats { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
 
-<hr>
+{% block content %}
+<p class="dashboard-month">{{ month_start|date:"Y年n月" }} の状況 · 会社：{{ company.name }}</p>
+<div class="dashboard-stats">
+  <section class="panel dashboard-stat">
+    <div class="stat-top">提出済み<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg></span></div>
+    <p class="stat-value">{{ submitted_count }}<span>人</span></p>
+    <p class="stat-note">従業員数：{{ total_staff_count }}人</p>
+  </section>
+  <section class="panel dashboard-stat">
+    <div class="stat-top">未提出<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg></span></div>
+    <p class="stat-value">{{ unsubmitted_count }}<span>人</span></p>
+    <p class="stat-note">今月の希望が未提出の従業員</p>
+  </section>
+  <section class="panel dashboard-stat">
+    <div class="stat-top">必要人数設定<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span></div>
+    <p class="stat-value">{{ requirements_count }}<span>件</span></p>
+    <p class="stat-note">今月の設定済み時間帯</p>
+  </section>
+  <section class="panel dashboard-stat">
+    <div class="stat-top">生成済みシフト<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span></div>
+    <p class="stat-value">{{ shifts_count }}<span>件</span></p>
+    <p class="stat-note">今月の登録済みシフト</p>
+  </section>
+</div>
 
-<h2>提出状況</h2>
+<section class="panel dashboard-start">
+  <div>
+    <h2>シフトを作成する</h2>
+    <p>カレンダーから日付を選んで、希望者と必要人数を確認。<br>手動追加や自動生成で、その日のシフトを組めます。</p>
+  </div>
+  <a class="button button-primary" href="{% url 'manager_shift_list' %}">
+    <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+    シフト作成カレンダーを開く
+  </a>
+</section>
 
-<ul>
-  <li>従業員数：{{ total_staff_count }}人</li>
-  <li>提出済み：{{ submitted_count }}人</li>
-  <li>未提出：{{ unsubmitted_count }}人</li>
-</ul>
-
-<hr>
-
-<h2>シフト管理</h2>
-
-<ul>
-  <li>必要人数設定：{{ requirements_count }}件</li>
-  <li>生成済みシフト：{{ shifts_count }}件</li>
-</ul>
-
-<hr>
-
-<h2>操作</h2>
-
-<ul>
-  <li>
-    <a href="{% url 'manager_availability_list' %}">
-      希望提出状況カレンダーを見る
-    </a>
-  </li>
-
-  <li>
-    <a href="{% url 'manager_requirement_list' %}">
-      必要人数カレンダーを設定する
-    </a>
-  </li>
-
-  <li>
-    <a href="{% url 'manager_shift_list' %}">
-      シフト作成カレンダーを開く
-    </a>
-  </li>
-
-  <li>
-    <a href="{% url 'manager_staff_list' %}">
-      従業員を管理する
-    </a>
-  </li>
-</ul>
-
-<form method="post" action="{% url 'logout' %}">
-  {% csrf_token %}
-  <button type="submit">ログアウト</button>
-</form>
+<div class="dashboard-actions">
+  <a class="panel dashboard-action" href="{% url 'manager_availability_list' %}">
+    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg></span>
+    <h2>希望提出状況を見る</h2>
+    <p>提出された希望時間と、まだ提出していない従業員を確認します。</p>
+  </a>
+  <a class="panel dashboard-action" href="{% url 'manager_requirement_list' %}">
+    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span>
+    <h2>必要人数を設定する</h2>
+    <p>日付と時間帯ごとに、お店に必要な人数を登録します。</p>
+  </a>
+  <a class="panel dashboard-action" href="{% url 'manager_staff_list' %}">
+    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg></span>
+    <h2>従業員を管理する</h2>
+    <p>店舗への所属と、権限・ランク・希望勤務回数を管理します。</p>
+  </a>
+</div>
+{% endblock %}

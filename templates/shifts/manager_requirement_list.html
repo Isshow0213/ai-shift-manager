@@ -1,47 +1,74 @@
-<h1>必要人数設定</h1>
+{% extends "manager/base.html" %}
 
-<p>店舗：{{ store.name }}</p>
+{% block title %}必要人数設定{% endblock %}
+{% block page_title %}必要人数設定{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · 日付と時間帯ごとの必要人数{% endblock %}
 
-<p>
-  <a href="{% url 'dashboard' %}">ダッシュボードへ戻る</a>
-</p>
+{% block extra_css %}
+<style>
+  .requirement-panels { display: grid; gap: 24px; }
+  .requirement-form { padding: 24px; }
+  .requirement-fields { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 18px; margin-bottom: 22px; }
+  .requirement-form-actions { display: flex; justify-content: flex-end; }
+  @media (max-width: 900px) { .requirement-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 540px) { .requirement-fields { grid-template-columns: 1fr; } .requirement-form-actions .button { width: 100%; } }
+</style>
+{% endblock %}
 
-<hr>
+{% block content %}
+<div class="requirement-panels">
+  <section class="panel">
+    <div class="panel-heading"><h2>必要人数を追加</h2></div>
+    <form class="requirement-form" method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="requirement-fields">
+        {% for field in form %}
+          <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="requirement-form-actions">
+        <button class="button button-primary" type="submit">
+          <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+          保存
+        </button>
+      </div>
+    </form>
+  </section>
 
-<h2>必要人数を追加</h2>
-
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">保存</button>
-</form>
-
-<hr>
-
-<h2>設定済み必要人数</h2>
-
-<table border="1">
-  <thead>
-    <tr>
-      <th>日付</th>
-      <th>開始時刻</th>
-      <th>終了時刻</th>
-      <th>必要人数</th>
-    </tr>
-  </thead>
-
-  <tbody>
-    {% for requirement in requirements %}
-      <tr>
-        <td>{{ requirement.work_date }}</td>
-        <td>{{ requirement.start_time }}</td>
-        <td>{{ requirement.end_time }}</td>
-        <td>{{ requirement.required_staff_count }}人</td>
-      </tr>
-    {% empty %}
-      <tr>
-        <td colspan="4">まだ必要人数が設定されていません。</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+  <section class="panel">
+    <div class="panel-heading">
+      <h2>設定済み必要人数</h2>
+      <span class="status-badge badge-orange">{{ requirements|length }}件</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">日付</th>
+            <th scope="col">開始時刻</th>
+            <th scope="col">終了時刻</th>
+            <th scope="col">必要人数</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for requirement in requirements %}
+            <tr>
+              <td>{{ requirement.work_date|date:"Y/m/d" }}</td>
+              <td>{{ requirement.start_time|time:"H:i" }}</td>
+              <td>{{ requirement.end_time|time:"H:i" }}</td>
+              <td><span class="status-badge badge-blue">{{ requirement.required_staff_count }}人</span></td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-state" colspan="4">まだ必要人数が設定されていません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

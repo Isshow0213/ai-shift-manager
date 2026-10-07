@@ -1,49 +1,68 @@
-<h1>提出済みシフト希望</h1>
+{% extends "manager/base.html" %}
 
-<p>店舗：{{ store.name }}</p>
+{% block title %}希望提出状況{% endblock %}
+{% block page_title %}希望提出状況{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · 提出済みのシフト希望を確認{% endblock %}
 
-<p>
-  <a href="{% url 'dashboard' %}">ダッシュボードへ戻る</a>
-</p>
+{% block extra_css %}
+<style>
+  .availability-panels { display: grid; gap: 24px; }
+  .availability-person { display: flex; align-items: center; gap: 10px; }
+  .unsubmitted-list { display: flex; flex-wrap: wrap; gap: 12px; padding: 24px; margin: 0; list-style: none; }
+  .unsubmitted-list li { display: flex; align-items: center; gap: 9px; padding: 8px 14px 8px 8px; border: 1px solid #e9edf3; border-radius: 9px; color: #59677f; font-size: 13px; }
+  .unsubmitted-note { color: #8b96a7; font-size: 11px; font-weight: 400; }
+</style>
+{% endblock %}
 
-<hr>
+{% block content %}
+<div class="availability-panels">
+  <section class="panel">
+    <div class="panel-heading">
+      <h2>提出済み一覧</h2>
+      <span class="status-badge badge-blue">{{ availabilities|length }}件</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">従業員</th>
+            <th scope="col">日付</th>
+            <th scope="col">開始時刻</th>
+            <th scope="col">終了時刻</th>
+            <th scope="col">所属店舗</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for availability in availabilities %}
+            <tr>
+              <td><div class="availability-person"><span class="avatar" aria-hidden="true">{{ availability.membership.user.full_name_japanese|slice:":1" }}</span>{{ availability.membership.user.full_name_japanese }}</div></td>
+              <td>{{ availability.work_date|date:"Y/m/d" }}</td>
+              <td>{{ availability.start_time|time:"H:i" }}</td>
+              <td>{{ availability.end_time|time:"H:i" }}</td>
+              <td>{{ store.name }}</td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-state" colspan="5">まだ提出がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-<h2>提出済み一覧</h2>
-
-<table border="1">
-  <thead>
-    <tr>
-      <th>従業員</th>
-      <th>日付</th>
-      <th>開始時刻</th>
-      <th>終了時刻</th>
-    </tr>
-  </thead>
-
-  <tbody>
-    {% for availability in availabilities %}
-      <tr>
-        <td>{{ availability.membership.user.full_name_japanese }}</td>
-        <td>{{ availability.work_date }}</td>
-        <td>{{ availability.start_time }}</td>
-        <td>{{ availability.end_time }}</td>
-      </tr>
-    {% empty %}
-      <tr>
-        <td colspan="4">まだ提出がありません。</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-<hr>
-
-<h2>未提出者</h2>
-
-<ul>
-  {% for membership in unsubmitted_memberships %}
-    <li>{{ membership.user.full_name_japanese }}</li>
-  {% empty %}
-    <li>未提出者はいません。</li>
-  {% endfor %}
-</ul>
+  <section class="panel">
+    <div class="panel-heading">
+      <h2>未提出者 <span class="unsubmitted-note">これまでの提出履歴がない従業員</span></h2>
+      <span class="status-badge badge-orange">{{ unsubmitted_memberships|length }}人</span>
+    </div>
+    {% if unsubmitted_memberships %}
+      <ul class="unsubmitted-list">
+        {% for membership in unsubmitted_memberships %}
+          <li><span class="avatar" aria-hidden="true">{{ membership.user.full_name_japanese|slice:":1" }}</span>{{ membership.user.full_name_japanese }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">未提出者はいません。</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

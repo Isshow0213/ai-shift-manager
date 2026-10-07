@@ -74,8 +74,12 @@ def shift_list(request):
     selected_date_text = request.GET.get("date")
     selected_date = parse_date(selected_date_text) if selected_date_text else today
 
-    if selected_date is None:
-        selected_date = today
+    if selected_date is None or not selected_date_text:
+        selected_date = (
+            today
+            if (year, month) == (today.year, today.month)
+            else today.replace(year=year, month=month, day=1)
+        )
 
     calendar_obj = calendar.Calendar(firstweekday=0)
     month_weeks = calendar_obj.monthdatescalendar(year, month)
@@ -169,6 +173,7 @@ def shift_list(request):
         store=store,
         work_date=selected_date,
     ).select_related(
+        "user",
         "membership",
         "membership__user",
         "store",

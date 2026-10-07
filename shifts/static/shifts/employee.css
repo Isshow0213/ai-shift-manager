@@ -1,0 +1,89 @@
+/* Employee pages share the manager application's colors and navigation. */
+.employee-identity { display: inline-block; margin-right: 18px; }
+.employee-identity:last-child { margin-right: 0; }
+.nav-link-disabled { opacity: .45; cursor: default; }
+.nav-link-disabled:hover { background: transparent; color: #c6cedb; }
+.employee-workspace { align-items: start; }
+.employee-calendar { min-height: 0; }
+.employee-calendar .calendar-toolbar { margin-top: 0; margin-bottom: 24px; }
+.employee-calendar .calendar-grid { grid-auto-rows: minmax(108px, auto); }
+.employee-calendar .calendar-legend { gap: 12px 20px; }
+.employee-calendar .day-context { max-width: 100%; text-align: center; line-height: 1.3; }
+.employee-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.employee-summary-item { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 18px; background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+.employee-summary-item p { margin: 0 0 4px; color: var(--muted); font-size: 12px; font-weight: 550; }
+.summary-value { color: var(--ink); font-size: 26px; font-weight: 750; line-height: 1.2; }
+.summary-value small, .summary-value > span { margin-left: 5px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.summary-icon { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; border-radius: 10px; color: var(--green); background: #eaf8ef; }
+.summary-icon-violet { color: var(--violet); background: #f2edff; }
+.employee-day-details { display: flex; flex-direction: column; gap: 16px; min-width: 0; padding: 20px; }
+.employee-day-heading { padding: 0 2px 4px; }
+.employee-day-heading p { margin: 0 0 3px; color: var(--muted); font-size: 12px; }
+.employee-day-heading h2 { margin: 0; font-size: 26px; font-weight: 750; letter-spacing: -.035em; }
+.schedule-card { min-width: 0; padding: 0; overflow: hidden; box-shadow: none; }
+.schedule-card .panel-heading { padding: 17px 18px; gap: 10px; }
+.schedule-card .panel-heading h2, .schedule-card .panel-heading h3 { font-size: 16px; }
+.schedule-card .panel-heading .icon { width: 20px; height: 20px; }
+.schedule-card .panel-body { padding: 18px; }
+.schedule-list { margin: 0; padding: 0; list-style: none; }
+.schedule-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-top: 1px solid var(--border); }
+.schedule-item:first-child { border-top: 0; }
+.schedule-item form { margin: 0; flex-shrink: 0; }
+.schedule-time { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.schedule-time .icon { width: 18px; height: 18px; color: #9aa8bc; }
+.employee-shift-meta { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.employee-shift-meta .status-badge { font-size: 11px; }
+.employee-guidance { padding: 18px; border: 1px solid #dfe8fc; border-radius: 10px; color: #52647e; background: #f3f7ff; }
+.employee-guidance h3 { margin: 0 0 6px; color: #2854a1; font-size: 15px; font-weight: 650; }
+.employee-guidance p { margin: 0; font-size: 13px; }
+.employee-guidance .button { width: 100%; margin-top: 16px; }
+.employee-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 22px; padding: 18px; border-radius: 9px; background: #f7f9fc; }
+.employee-info p { margin: 0; }
+.employee-info dt { color: var(--muted); font-size: 12px; }
+.employee-info dd { margin: 5px 0 0; color: #344056; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.submission-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, .8fr); gap: 20px; align-items: start; }
+.submission-form { width: 100%; max-width: 720px; min-width: 0; }
+.employee-form-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.employee-form-fields .field-full { grid-column: 1 / -1; }
+.employee-form-fields input, .employee-form-fields select { max-width: 100%; min-width: 0; }
+.submission-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.employee-shifts-layout { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.employee-toolbar, .month-toolbar, .month-nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.month-toolbar, .month-nav { margin-bottom: 20px; }
+.month-toolbar h2, .month-nav h2 { margin: 0; font-size: 26px; font-weight: 750; letter-spacing: -.03em; }
+.employee-toolbar > div, .month-toolbar > div, .month-nav > div { display: flex; align-items: center; gap: 10px; }
+.employee-shift-table { min-width: 620px; }
+.employee-shift-table th, .employee-shift-table td { white-space: nowrap; }
+.employee-shift-table td:first-child { font-weight: 600; }
+.employee-shift-table .weekend-saturday { color: var(--blue); }
+.employee-shift-table .weekend-sunday { color: #e84a62; }
+
+@media (max-width: 1240px) {
+  .submission-layout { grid-template-columns: minmax(0, 1fr); }
+  .employee-day-details { padding: 18px; }
+}
+@media (max-width: 600px) {
+  .employee-identity { display: block; margin-right: 0; }
+  .employee-calendar .calendar-grid { grid-auto-rows: minmax(90px, auto); }
+  .employee-calendar .day-context { font-size: 8px; letter-spacing: -.04em; }
+  .employee-summary { gap: 8px; margin-bottom: 16px; }
+  .employee-summary-item { padding: 12px 9px; gap: 8px; }
+  .employee-summary-item p { font-size: 10px; }
+  .summary-value { font-size: 22px; }
+  .summary-icon { flex-basis: 30px; width: 30px; height: 30px; border-radius: 8px; }
+  .summary-icon .icon { width: 18px; height: 18px; }
+  .employee-day-details { padding: 18px 12px; }
+  .employee-day-heading h2 { font-size: 23px; }
+  .schedule-card .panel-heading, .schedule-card .panel-body, .schedule-item { padding: 15px 13px; }
+  .schedule-card .panel-heading h2, .schedule-card .panel-heading h3 { font-size: 15px; }
+  .schedule-time { font-size: 16px; }
+  .employee-info { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .employee-form-fields { grid-template-columns: minmax(0, 1fr); gap: 17px; }
+  .submission-actions { flex-wrap: wrap; }
+  .submission-actions .button { flex: 1 1 auto; }
+  .employee-toolbar, .month-toolbar, .month-nav { flex-wrap: wrap; gap: 12px; }
+  .month-toolbar h2, .month-nav h2 { flex-basis: 100%; font-size: 23px; }
+  .month-toolbar > div, .month-nav > div { justify-content: space-between; flex: 1 1 auto; }
+  .employee-shift-table { min-width: 500px; font-size: 12px; }
+  .employee-shift-table th, .employee-shift-table td { padding: 13px 12px; }
+}

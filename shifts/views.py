@@ -12,98 +12,58 @@ from scheduler.services import generate_shifts_for_store
 
 from .forms import AvailabilityForm, RequirementForm, ShiftGenerationForm
 from .models import Availability, Requirement, Shift
+from .calendar_utils import get_calendar_context
 
 
 @login_required
 def availability_list(request):
-    today = timezone.localdate()
-
-    year = int(request.GET.get("year", today.year))
-    month = int(request.GET.get("month", today.month))
-
-    selected_date_text = request.GET.get("date")
-    selected_date = parse_date(selected_date_text) if selected_date_text else today
-
-    if selected_date is None:
-        selected_date = today
-
-    # 表示中の月のカレンダーを作る
-    calendar_obj = calendar.Calendar(firstweekday=0)
-    month_weeks = calendar_obj.monthdatescalendar(year, month)
-
-    # 前月・翌月
-    if month == 1:
-        prev_year = year - 1
-        prev_month = 12
-    else:
-        prev_year = year
-        prev_month = month - 1
-
-    if month == 12:
-        next_year = year + 1
-        next_month = 1
-    else:
-        next_year = year
-        next_month = month + 1
+    calendar_context = get_calendar_context(request)
+    year = calendar_context["year"]
+    month = calendar_context["month"]
+    selected_date = calendar_context["selected_date"]
 
     membership = StoreMembership.objects.filter(
         user=request.user,
         is_active=True,
     ).select_related("store").first()
 
-    # 今月の提出済み希望
     monthly_availabilities = Availability.objects.filter(
         user=request.user,
         work_date__year=year,
         work_date__month=month,
     ).order_by("work_date", "start_time")
 
-    # 提出済みの日付だけsetにする
     submitted_dates = set(
         monthly_availabilities.values_list("work_date", flat=True)
     )
 
-    # テンプレートで扱いやすいように、日付ごとの情報に加工する
-    calendar_weeks = []
-
-    for week in month_weeks:
-        week_days = []
-
+    monthly_shifts = Shift.objects.filter(
+        user=request.user, work_date__year=year, work_date__month=month
+    )
+    shift_dates = set(monthly_shifts.values_list("work_date", flat=True))
+    for week in calendar_context["calendar_weeks"]:
         for day in week:
-            week_days.append(
-                {
-                    "date": day,
-                    "day": day.day,
-                    "is_current_month": day.month == month,
-                    "is_today": day == today,
-                    "is_selected": day == selected_date,
-                    "is_submitted": day in submitted_dates,
-                    "url": f"?year={year}&month={month}&date={day.isoformat()}",
-                }
-            )
+            day["is_submitted"] = day["date"] in submitted_dates
+            day["has_shift"] = day["date"] in shift_dates
 
-        calendar_weeks.append(week_days)
-
-    # 選択日の提出済み希望だけ表示
     selected_availabilities = Availability.objects.filter(
         user=request.user,
         work_date=selected_date,
     ).order_by("start_time")
+    selected_shifts = Shift.objects.filter(
+        user=request.user, work_date=selected_date
+    ).select_related("store").order_by("start_time", "id")
 
     return render(
         request,
         "shifts/availability_list.html",
         {
+            **calendar_context,
             "membership": membership,
-            "year": year,
-            "month": month,
-            "calendar_weeks": calendar_weeks,
-            "selected_date": selected_date,
             "selected_availabilities": selected_availabilities,
-            "prev_year": prev_year,
-            "prev_month": prev_month,
-            "next_year": next_year,
-            "next_month": next_month,
+            "selected_shifts": selected_shifts,
+            "submitted_days_count": len(submitted_dates),
+            "monthly_shifts_count": monthly_shifts.count(),
         },
     )
 
@@ -118,11 +78,14 @@ def availability_create(request):
         messages.error(request, "所属している店舗がありません。")
         return redirect("availability_list")
 
+    calendar_context = get_calendar_context(request)
     selected_date_text = request.GET.get("date")
-    selected_date = parse_date(selected_date_text) if selected_date_text else timezone.localdate()
-
+    try:
+        selected_date = parse_date(selected_date_text) if selected_date_text else None
+    except (TypeError, ValueError):
+        selected_date = None
     if selected_date is None:
-        selected_date = timezone.localdate()
+        selected_date = calendar_context["selected_date"]
 
     if request.method == "POST":
         form = AvailabilityForm(request.POST)
@@ -131,8 +94,10 @@ def availability_create(request):
             availability.user = request.user
             availability.membership = membership
             availability.save()
+            messages.success(request, "シフト希望を提出しました。")
             return redirect(
-                f"/availability/?year={availability.work_date.year}&month={availability.work_date.month}&date={availability.work_date}"
+                f"{reverse('availability_list')}?year={availability.work_date.year}"
+                f"&month={availability.work_date.month}&date={availability.work_date.isoformat()}"
             )
     else:
         form = AvailabilityForm(
@@ -145,6 +110,7 @@ def availability_create(request):
         request,
         "shifts/availability_form.html",
         {
+            **calendar_context,
             "form": form,
             "membership": membership,
             "selected_date": selected_date,
@@ -276,13 +242,29 @@ def dashboard(request):
 
 @login_required
 def shift_list(request):
-    shifts = Shift.objects.filter(user=request.user)
+    calendar_context = get_calendar_context(request)
+    membership = StoreMembership.objects.filter(
+        user=request.user, is_active=True
+    ).select_related("store").first()
+    shifts = Shift.objects.filter(
+        user=request.user,
+        work_date__year=calendar_context["year"],
+        work_date__month=calendar_context["month"],
+    ).select_related("store").order_by("work_date", "start_time", "id")
+    shift_dates = set(shifts.values_list("work_date", flat=True))
+    for week in calendar_context["calendar_weeks"]:
+        for day in week:
+            day["has_shift"] = day["date"] in shift_dates
 
     return render(
         request,
-        "shifts/manager_shift_list.html",
+        "shifts/shift_list.html",
         {
+            **calendar_context,
+            "membership": membership,
             "shifts": shifts,
+            "shift_days_count": len(shift_dates),
+            "shifts_count": shifts.count(),
         },
     )
 
@@ -394,7 +376,12 @@ def manager_requirement_list(request):
             requirement.save()
             return redirect("manager_requirement_list")
     else:
-        form = RequirementForm()
+        selected_date_text = request.GET.get("date")
+        try:
+            selected_date = parse_date(selected_date_text) if selected_date_text else None
+        except ValueError:
+            selected_date = None
+        form = RequirementForm(initial={"work_date": selected_date})
 
     requirements = Requirement.objects.filter(
         store=store,
@@ -421,8 +408,12 @@ def availability_delete(request, availability_id):
         user=request.user,
     )
 
+    return_url = (
+        f"{reverse('availability_list')}?year={availability.work_date.year}"
+        f"&month={availability.work_date.month}&date={availability.work_date.isoformat()}"
+    )
     if request.method == "POST":
         availability.delete()
-        return redirect("availability_list")
+        messages.success(request, "シフト希望を削除しました。")
 
-    return redirect("availability_list")
+    return redirect(return_url)

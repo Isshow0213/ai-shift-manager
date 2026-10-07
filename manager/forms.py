@@ -113,3 +113,4 @@ class ShiftForm(forms.ModelForm):
         self.fields["membership"].label_from_instance = (
             lambda obj: obj.user.full_name_japanese
         )
+        self.fields["membership"].empty_label = "選択してください"

@@ -1,0 +1,95 @@
+{% extends "shifts/base.html" %}
+{% load i18n %}
+
+{% block title %}自分の確定シフト{% endblock %}
+{% block page_title %}自分の確定シフト{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+  <style>
+    .shift-day { display: inline-flex; align-items: center; gap: 5px; }
+    .shift-weekday { color: #8b96a7; font-size: 12px; }
+    .shift-empty h3 { margin: 14px 0 7px; color: #344056; font-size: 16px; }
+    .shift-empty p { margin: 0 0 18px; color: #8b96a7; font-size: 13px; }
+    .shift-empty .icon { width: 32px; height: 32px; color: #8ba5d4; }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="employee-shifts-layout">
+  <div class="month-toolbar">
+    <h2>{{ year }}年{{ month }}月</h2>
+    <div class="employee-toolbar">
+      <a class="button button-secondary button-small" href="?year={{ prev_year }}&amp;month={{ prev_month }}" aria-label="前月の確定シフトを見る">
+        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>
+        前月
+      </a>
+      <a class="button button-secondary button-small" href="?year={{ next_year }}&amp;month={{ next_month }}" aria-label="翌月の確定シフトを見る">
+        翌月
+        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+      </a>
+      <a class="button button-secondary button-small" href="{% url 'availability_list' %}?year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}">
+        <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+        希望カレンダー
+      </a>
+    </div>
+  </div>
+
+  <div class="employee-summary">
+    <section class="employee-summary-item">
+      <span class="summary-icon" aria-hidden="true"><svg class="icon"><use href="#icon-calendar"></use></svg></span>
+      <div>
+        <p>勤務日数</p>
+        <div class="summary-value">{{ shift_days_count }}<small>日</small></div>
+      </div>
+    </section>
+    <section class="employee-summary-item">
+      <span class="summary-icon summary-icon-violet" aria-hidden="true"><svg class="icon"><use href="#icon-clipboard"></use></svg></span>
+      <div>
+        <p>シフト件数</p>
+        <div class="summary-value">{{ shifts_count }}<small>件</small></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel schedule-card">
+    <div class="panel-heading">
+      <h2>{{ year }}年{{ month }}月の確定シフト</h2>
+      <span class="status-badge badge-blue">{{ shifts_count }}件</span>
+    </div>
+    {% if shifts %}
+      <div class="table-wrap">
+        <table class="data-table employee-shift-table">
+          <thead>
+            <tr>
+              <th scope="col">日付</th>
+              <th scope="col">開始時刻</th>
+              <th scope="col">終了時刻</th>
+              <th scope="col">店舗</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% language "ja" %}
+              {% for shift in shifts %}
+                <tr>
+                  <td><span class="shift-day">{{ shift.work_date|date:"n月j日" }}<span class="shift-weekday">（{{ shift.work_date|date:"D" }}）</span></span></td>
+                  <td>{{ shift.start_time|time:"H:i" }}</td>
+                  <td>{{ shift.end_time|time:"H:i" }}</td>
+                  <td>{{ shift.store.name }}</td>
+                </tr>
+              {% endfor %}
+            {% endlanguage %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state shift-empty">
+        <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+        <h3>この月の確定シフトはありません。</h3>
+        <p>{{ year }}年{{ month }}月のシフトが登録されると、ここに表示されます。</p>
+        <a class="button button-secondary" href="{% url 'availability_list' %}?year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}">希望カレンダーを見る</a>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

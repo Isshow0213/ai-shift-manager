@@ -1,25 +1,56 @@
-<h1>シフト希望提出</h1>
+{% extends "shifts/base.html" %}
+{% load i18n %}
 
-<p>
-  氏名：{{ request.user.full_name_japanese }}
-</p>
+{% block title %}シフト希望提出{% endblock %}
+{% block page_title %}シフト希望提出{% endblock %}
 
-{% if membership %}
-  <p>所属店舗：{{ membership.store.name }}</p>
-{% endif %}
+{% block extra_css %}
+  {{ block.super }}
+  <style>
+    .submission-page { max-width: 720px; margin: 0 auto; }
+    .submission-page .employee-guidance { margin-top: 18px; }
+    .submission-date { line-height: 1.6; }
+  </style>
+{% endblock %}
 
-<p>
-  選択日：{{ selected_date|date:"Y年m月d日" }}
-</p>
-
-<hr>
-
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">提出する</button>
-</form>
-
-<p>
-  <a href="{% url 'availability_list' %}">カレンダーへ戻る</a>
-</p>
+{% block content %}
+<div class="submission-page">
+  <section class="panel submission-form">
+    <div class="panel-heading">
+      <h2 class="submission-date">
+        <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+        {% language "ja" %}選択日：{{ selected_date|date:"Y年n月j日（D）" }}{% endlanguage %}
+      </h2>
+    </div>
+    <form class="panel-body" method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="employee-form-fields">
+        <div class="field field-full">
+          <label for="{{ form.work_date.id_for_label }}">日付</label>
+          {{ form.work_date }}
+          {% if form.work_date.errors %}<div class="field-error">{{ form.work_date.errors }}</div>{% endif %}
+        </div>
+        <div class="field">
+          <label for="{{ form.start_time.id_for_label }}">開始時刻</label>
+          {{ form.start_time }}
+          {% if form.start_time.errors %}<div class="field-error">{{ form.start_time.errors }}</div>{% endif %}
+        </div>
+        <div class="field">
+          <label for="{{ form.end_time.id_for_label }}">終了時刻</label>
+          {{ form.end_time }}
+          {% if form.end_time.errors %}<div class="field-error">{{ form.end_time.errors }}</div>{% endif %}
+        </div>
+      </div>
+      <div class="submission-actions">
+        <a class="button button-secondary" href="{% url 'availability_list' %}?year={{ selected_date|date:'Y' }}&amp;month={{ selected_date|date:'n' }}&amp;date={{ selected_date|date:'Y-m-d' }}">カレンダーへ戻る</a>
+        <button class="button button-primary" type="submit">
+          <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+          提出する
+        </button>
+      </div>
+    </form>
+  </section>
+  <p class="employee-guidance">勤務できる時間帯を入力してください。提出後は、選択日のカレンダーで内容を確認できます。</p>
+</div>
+{% endblock %}

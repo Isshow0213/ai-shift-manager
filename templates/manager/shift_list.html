@@ -1,260 +1,173 @@
-<style>
-  .calendar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin: 24px 0 16px;
-  }
+{% extends "manager/base.html" %}
+{% load static i18n %}
 
-  .calendar-header a {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    text-decoration: none;
-    color: #333;
-    background: #fff;
-  }
+{% block title %}シフト作成カレンダー | シフト管理{% endblock %}
+{% block page_title %}シフト作成カレンダー{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'manager/calendar.css' %}">
+{% endblock %}
 
-  .calendar-weekdays {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    text-align: center;
-    font-weight: bold;
-    margin-bottom: 8px;
-  }
+{% block content %}
+{% language "ja" %}
+<div class="shift-workspace">
+  <section class="panel calendar-panel" aria-label="シフトカレンダー">
+    <div class="calendar-toolbar">
+      <a class="button button-secondary month-button" href="?year={{ prev_year }}&amp;month={{ prev_month }}" aria-label="前月を表示">
+        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>
+        前月
+      </a>
+      <h2>{{ year }}年{{ month }}月</h2>
+      <a class="button button-secondary month-button" href="?year={{ next_year }}&amp;month={{ next_month }}" aria-label="翌月を表示">
+        翌月
+        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+      </a>
+    </div>
 
-  .calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-  }
-
-  .calendar-day {
-    min-height: 100px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    text-decoration: none;
-    color: #222;
-    background: #fff;
-    box-sizing: border-box;
-  }
-
-  .calendar-day:hover {
-    background: #f5f5f5;
-  }
-
-  .other-month {
-    background: #eee;
-    color: #aaa;
-  }
-
-  .today {
-    border: 2px solid #333;
-  }
-
-  .calendar-day.selected,
-  .calendar-day.selected:hover {
-    background: #eef5ff;
-  }
-
-  .has-availability {
-    border-color: #4caf50;
-  }
-
-  .has-shift {
-    background: #f7fff7;
-  }
-
-  .day-number {
-    font-weight: bold;
-    margin-bottom: 8px;
-  }
-
-  .day-status {
-    font-size: 12px;
-    line-height: 1.5;
-  }
-</style>
-
-<h1>シフト作成カレンダー</h1>
-
-<p>店舗：{{ store.name }}</p>
-
-{% if messages %}
-  <ul class="messages" role="status">
-    {% for message in messages %}
-      <li>{{ message }}</li>
-    {% endfor %}
-  </ul>
-{% endif %}
-
-<p>
-  <a href="{% url 'manager_dashboard' %}">ダッシュボードへ戻る</a>
-</p>
-
-<hr>
-
-<div class="calendar-header">
-  <a href="?year={{ prev_year }}&month={{ prev_month }}">← 前月</a>
-
-  <h2>{{ year }}年{{ month }}月</h2>
-
-  <a href="?year={{ next_year }}&month={{ next_month }}">翌月 →</a>
-</div>
-
-<div class="calendar-weekdays">
-  <div>月</div>
-  <div>火</div>
-  <div>水</div>
-  <div>木</div>
-  <div>金</div>
-  <div>土</div>
-  <div>日</div>
-</div>
-
-<div class="calendar-grid">
-  {% for week in calendar_weeks %}
-    {% for day in week %}
-      {% if day.is_current_month %}
-        <a
-          href="{{ day.url }}"
-          class="calendar-day{% if day.is_today %} today{% endif %}{% if day.is_selected %} selected{% endif %}{% if day.has_availability %} has-availability{% endif %}{% if day.has_shift %} has-shift{% endif %}"
-        >
-          <div class="day-number">{{ day.day }}</div>
-
-          <div class="day-status">
-            {% if day.is_today %}
-              <div>今日</div>
-            {% endif %}
-
-            {% if day.is_selected %}
-              <div>選択中</div>
-            {% endif %}
-
-            {% if day.has_availability %}
-              <div>希望あり</div>
-            {% endif %}
-
-            {% if day.has_requirement %}
-              <div>必要人数あり</div>
-            {% endif %}
-
-            {% if day.has_shift %}
-              <div>シフトあり</div>
-            {% endif %}
-
-            {% if not day.has_availability and not day.has_requirement and not day.has_shift %}
-              <div>登録なし</div>
-            {% endif %}
-          </div>
-        </a>
-      {% else %}
-        <div class="calendar-day other-month">
-          <div class="day-number">{{ day.day }}</div>
-        </div>
-      {% endif %}
-    {% endfor %}
-  {% endfor %}
-</div>
-
-<hr>
-
-<h2>選択日：{{ selected_date|date:"Y年m月d日" }}</h2>
-
-<h3>自動生成</h3>
-
-<form method="post" action="{% url 'generate_shift' %}">
-  {% csrf_token %}
-  <input type="hidden" name="work_date" value="{{ selected_date|date:'Y-m-d' }}">
-  <button type="submit">この日のシフトを自動生成する</button>
-</form>
-
-<hr>
-
-<h3>この日の必要人数</h3>
-
-<ul>
-  {% for requirement in requirements %}
-    <li>
-      {{ requirement.start_time }}〜{{ requirement.end_time }}
-      ：{{ requirement.required_staff_count }}人
-    </li>
-  {% empty %}
-    <li>この日の必要人数はまだ設定されていません。</li>
-  {% endfor %}
-</ul>
-
-<hr>
-
-<h3>この日に希望を出しているスタッフ</h3>
-
-<table border="1">
-  <thead>
-    <tr>
-      <th>スタッフ</th>
-      <th>希望開始</th>
-      <th>希望終了</th>
-    </tr>
-  </thead>
-
-  <tbody>
-    {% for availability in availabilities %}
-      <tr>
-        <td>{{ availability.membership.user.full_name_japanese }}</td>
-        <td>{{ availability.start_time }}</td>
-        <td>{{ availability.end_time }}</td>
-      </tr>
-    {% empty %}
-      <tr>
-        <td colspan="3">この日に希望を出しているスタッフはいません。</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-<hr>
-
-<h3>手動でシフトを追加</h3>
-
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">手動で追加する</button>
-</form>
-
-<hr>
-
-<h3>この日の登録済みシフト</h3>
-
-<table border="1">
-  <thead>
-    <tr>
-      <th>スタッフ</th>
-      <th>開始時刻</th>
-      <th>終了時刻</th>
-      <th>作成方法</th>
-    </tr>
-  </thead>
-
-  <tbody>
-    {% for shift in shifts %}
-      <tr>
-        <td>{{ shift.user.full_name_japanese }}</td>
-        <td>{{ shift.start_time }}</td>
-        <td>{{ shift.end_time }}</td>
-        <td>
-          {% if shift.is_generated %}
-            自動生成
+    <div class="calendar-weekdays" aria-hidden="true">
+      <span>月</span><span>火</span><span>水</span><span>木</span><span>金</span>
+      <span class="saturday">土</span><span class="sunday">日</span>
+    </div>
+    <div class="calendar-grid">
+      {% for week in calendar_weeks %}
+        {% for day in week %}
+          {% if day.is_current_month %}
+            <a href="{{ day.url }}"
+               class="calendar-day{% if day.date.weekday == 5 %} saturday{% elif day.date.weekday == 6 %} sunday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}"
+               aria-label="{{ day.date|date:'n月j日' }}{% if day.is_today %} 今日{% endif %}{% if day.has_availability %} 希望あり{% endif %}{% if day.has_requirement %} 必要人数あり{% endif %}{% if day.has_shift %} シフトあり{% endif %}{% if not day.has_availability and not day.has_requirement and not day.has_shift %} 登録なし{% endif %}"
+               {% if day.is_selected %}aria-current="date"{% endif %}>
+              <span class="day-number">{{ day.day }}</span>
+              <span class="day-status-list{% if day.has_availability and day.has_requirement and day.has_shift %} compact-statuses{% endif %}">
+                {% if day.has_availability %}<span class="calendar-badge availability-badge">希望あり</span>{% endif %}
+                {% if day.has_requirement %}<span class="calendar-badge requirement-badge">必要人数あり</span>{% endif %}
+                {% if day.has_shift %}<span class="calendar-badge shift-badge">シフトあり</span>{% endif %}
+                {% if not day.has_availability and not day.has_requirement and not day.has_shift %}<span class="calendar-badge empty-badge">登録なし</span>{% endif %}
+              </span>
+              {% if day.is_today %}<span class="day-context">今日</span>{% endif %}
+              {% if day.is_selected %}<span class="sr-only">選択中</span>{% endif %}
+            </a>
           {% else %}
-            手動
+            <div class="calendar-day is-muted" aria-hidden="true"><span class="day-number">{{ day.day }}</span></div>
           {% endif %}
-        </td>
-      </tr>
-    {% empty %}
-      <tr>
-        <td colspan="4">この日のシフトはまだありません。</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+        {% endfor %}
+      {% endfor %}
+    </div>
+
+    <div class="calendar-legend" aria-label="カレンダーの凡例">
+      <span><i class="legend-dot availability-dot"></i>希望あり</span>
+      <span><i class="legend-dot requirement-dot"></i>必要人数あり</span>
+      <span><i class="legend-dot shift-dot"></i>シフトあり</span>
+      <span><i class="legend-dot empty-dot"></i>登録なし</span>
+      <span><i class="legend-dot selected-dot"></i>選択日</span>
+      <span><i class="legend-dot today-dot"></i>今日</span>
+    </div>
+  </section>
+
+  <div class="day-details panel">
+    <div class="detail-header">
+      <h2>{{ selected_date|date:"Y年n月j日（D）" }}</h2>
+      <form method="post" action="{% url 'generate_shift' %}">
+        {% csrf_token %}
+        <input type="hidden" name="work_date" value="{{ selected_date|date:'Y-m-d' }}">
+        <button type="submit" class="button button-primary generate-button">
+          <svg class="icon" aria-hidden="true"><use href="#icon-lightning"></use></svg>
+          この日のシフトを自動生成する
+        </button>
+      </form>
+    </div>
+
+    <section class="panel detail-panel">
+      <div class="panel-heading">
+        <h3><span class="section-icon requirement-icon"><svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg></span>この日の必要人数</h3>
+        <a class="button button-secondary button-small" href="{% url 'manager_requirement_list' %}?date={{ selected_date|date:'Y-m-d' }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>必要人数を追加
+        </a>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table requirements-table">
+          <thead><tr><th scope="col">開始時刻</th><th scope="col">終了時刻</th><th scope="col">必要人数</th></tr></thead>
+          <tbody>
+            {% for requirement in requirements %}
+              <tr><td>{{ requirement.start_time|time:"H:i" }}</td><td>{{ requirement.end_time|time:"H:i" }}</td><td>{{ requirement.required_staff_count }}人</td></tr>
+            {% empty %}
+              <tr><td colspan="3" class="empty-state">この日の必要人数はまだ設定されていません。</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel detail-panel">
+      <div class="panel-heading">
+        <h3><span class="section-icon staff-icon"><svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg></span>この日に希望を出しているスタッフ</h3>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table availability-table">
+          <thead><tr><th scope="col">スタッフ名</th><th scope="col">希望開始</th><th scope="col">希望終了</th></tr></thead>
+          <tbody>
+            {% for availability in availabilities %}
+              <tr>
+                <td><span class="person-cell"><span class="avatar avatar-small" aria-hidden="true"><svg class="icon"><use href="#icon-user"></use></svg></span>{{ availability.membership.user.full_name_japanese }}</span></td>
+                <td>{{ availability.start_time|time:"H:i" }}</td><td>{{ availability.end_time|time:"H:i" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="empty-state">この日に希望を出しているスタッフはいません。</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel detail-panel manual-panel">
+      <div class="panel-heading">
+        <h3><span class="section-icon manual-icon"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg></span>手動でシフトを追加</h3>
+      </div>
+      <form method="post" class="manual-shift-form">
+        {% csrf_token %}
+        {{ form.work_date.as_hidden }}
+        {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% if form.work_date.errors %}<div class="field-error" role="alert">{{ form.work_date.errors }}</div>{% endif %}
+        <div class="manual-fields">
+          <div class="field staff-field">
+            <label for="{{ form.membership.id_for_label }}">スタッフ</label>
+            {{ form.membership }}
+            {% if form.membership.errors %}<div class="field-error" role="alert">{{ form.membership.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            <label for="{{ form.start_time.id_for_label }}">開始時刻</label>
+            {{ form.start_time }}
+            {% if form.start_time.errors %}<div class="field-error" role="alert">{{ form.start_time.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            <label for="{{ form.end_time.id_for_label }}">終了時刻</label>
+            {{ form.end_time }}
+            {% if form.end_time.errors %}<div class="field-error" role="alert">{{ form.end_time.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <button type="submit" class="button button-primary manual-submit">手動で追加する</button>
+      </form>
+    </section>
+
+    <section class="panel detail-panel">
+      <div class="panel-heading">
+        <h3><span class="section-icon shift-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span>この日の登録済みシフト</h3>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table shifts-table">
+          <thead><tr><th scope="col">スタッフ名</th><th scope="col">開始時刻</th><th scope="col">終了時刻</th><th scope="col">作成方法</th></tr></thead>
+          <tbody>
+            {% for shift in shifts %}
+              <tr>
+                <td>{{ shift.user.full_name_japanese }}</td><td>{{ shift.start_time|time:"H:i" }}</td><td>{{ shift.end_time|time:"H:i" }}</td>
+                <td>{% if shift.is_generated %}<span class="method-badge generated-badge">自動生成</span>{% else %}<span class="method-badge manual-badge">手動</span>{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="empty-state">この日のシフトはまだありません。</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endlanguage %}
+{% endblock %}

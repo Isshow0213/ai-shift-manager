@@ -15,6 +15,19 @@ class AvailabilityForm(forms.ModelForm):
             "start_time": forms.TimeInput(attrs={"type": "time"}),
             "end_time": forms.TimeInput(attrs={"type": "time"}),
         }
+        labels = {
+            "work_date": "日付",
+            "start_time": "開始時刻",
+            "end_time": "終了時刻",
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_time = cleaned_data.get("start_time")
+        end_time = cleaned_data.get("end_time")
+        if start_time is not None and end_time is not None and start_time >= end_time:
+            raise forms.ValidationError("終了時刻は開始時刻より後にしてください。")
+        return cleaned_data
 
 class RequirementForm(forms.ModelForm):
     class Meta:

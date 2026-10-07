@@ -1,111 +1,122 @@
-<h1>シフト希望カレンダー</h1>
+{% extends 'shifts/base.html' %}
+{% load i18n %}
 
-<p>
-  氏名：{{ request.user.full_name_japanese }}
-</p>
+{% block title %}シフト希望カレンダー｜シフト管理{% endblock %}
+{% block page_title %}シフト希望カレンダー{% endblock %}
 
-{% if membership %}
-  <p>
-    所属店舗：{{ membership.store.name }}
-  </p>
-{% else %}
-  <p>
-    所属店舗：未設定
-  </p>
-{% endif %}
+{% block content %}
+  <div class="shift-workspace employee-workspace">
+    <section class="panel calendar-panel employee-calendar" aria-label="シフト希望カレンダー">
+      <div class="calendar-toolbar">
+        <a class="button button-secondary month-button" href="?year={{ prev_year }}&amp;month={{ prev_month }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>
+          <span>前月</span>
+        </a>
+        <h2>{{ year }}年{{ month }}月</h2>
+        <a class="button button-secondary month-button" href="?year={{ next_year }}&amp;month={{ next_month }}">
+          <span>翌月</span>
+          <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+        </a>
+      </div>
 
-<hr>
+      <div class="employee-summary">
+        <div class="employee-summary-item">
+          <span class="summary-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg></span>
+          <div><p>この月の提出日数</p><strong class="summary-value">{{ submitted_days_count|default:0 }}<small>日</small></strong></div>
+        </div>
+        <div class="employee-summary-item">
+          <span class="summary-icon summary-icon-violet"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span>
+          <div><p>この月の確定シフト</p><strong class="summary-value">{{ monthly_shifts_count|default:0 }}<small>件</small></strong></div>
+        </div>
+      </div>
 
-<h2>{{ year }}年{{ month }}月</h2>
-
-<p>
-  <a href="?year={{ prev_year }}&month={{ prev_month }}">前月</a>
-  |
-  <a href="?year={{ next_year }}&month={{ next_month }}">翌月</a>
-</p>
-
-<table border="1">
-  <thead>
-    <tr>
-      <th>月</th>
-      <th>火</th>
-      <th>水</th>
-      <th>木</th>
-      <th>金</th>
-      <th>土</th>
-      <th>日</th>
-    </tr>
-  </thead>
-
-  <tbody>
-    {% for week in calendar_weeks %}
-      <tr>
-        {% for day in week %}
-          <td>
+      <div class="calendar-weekdays" aria-hidden="true">
+        <div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="saturday">土</div><div class="sunday">日</div>
+      </div>
+      <div class="calendar-grid">
+        {% for week in calendar_weeks %}
+          {% for day in week %}
             {% if day.is_current_month %}
-              <a href="{{ day.url }}">
-                {{ day.day }}
+              <a class="calendar-day{% if forloop.counter == 6 %} saturday{% elif forloop.counter == 7 %} sunday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}" href="{{ day.url }}" aria-label="{% language 'ja' %}{{ day.date|date:'n月j日（D）' }}{% endlanguage %}、{% if day.is_submitted %}提出済み{% else %}未提出{% endif %}{% if day.is_today %}、今日{% endif %}{% if day.is_selected %}、選択中{% endif %}"{% if day.is_selected %} aria-current="date"{% endif %}>
+                <span class="day-number">{{ day.day }}</span>
+                <span class="day-status-list">
+                  {% if day.is_submitted %}<span class="calendar-badge availability-badge">提出済み</span>{% else %}<span class="calendar-badge empty-badge">未提出</span>{% endif %}
+                </span>
+                {% if day.is_today or day.is_selected %}<span class="day-context">{% if day.is_today %}今日{% endif %}{% if day.is_today and day.is_selected %}・{% endif %}{% if day.is_selected %}選択中{% endif %}</span>{% endif %}
               </a>
-
-              {% if day.is_today %}
-                <br>
-                今日
-              {% endif %}
-
-              {% if day.is_selected %}
-                <br>
-                選択中
-              {% endif %}
-
-              {% if day.is_submitted %}
-                <br>
-                提出済み
-              {% else %}
-                <br>
-                未提出
-              {% endif %}
             {% else %}
-              <span style="color: #aaa;">
-                {{ day.day }}
-              </span>
+              <div class="calendar-day is-muted" aria-hidden="true"><span class="day-number">{{ day.day }}</span></div>
             {% endif %}
-          </td>
+          {% endfor %}
         {% endfor %}
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+      </div>
+      <div class="calendar-legend" aria-label="カレンダーの凡例">
+        <span><i class="legend-dot availability-dot" aria-hidden="true"></i>提出済み</span>
+        <span><i class="legend-dot empty-dot" aria-hidden="true"></i>未提出</span>
+        <span><i class="legend-dot selected-dot" aria-hidden="true"></i>選択中</span>
+        <span><i class="legend-dot today-dot" aria-hidden="true"></i>今日</span>
+      </div>
+    </section>
 
-<hr>
+    <section class="panel employee-day-details" aria-label="選択日の詳細">
+      <div class="employee-day-heading">
+        <p>選択日</p>
+        <h2>{% language 'ja' %}{{ selected_date|date:'Y年n月j日（D）' }}{% endlanguage %}</h2>
+      </div>
 
-<h2>選択日：{{ selected_date|date:"Y年m月d日" }}</h2>
+      <section class="panel schedule-card">
+        <div class="panel-heading">
+          <h3><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>この日の提出済み希望</h3>
+        </div>
+        <ul class="schedule-list">
+          {% for availability in selected_availabilities %}
+            <li class="schedule-item">
+              <div>
+                <div class="schedule-time"><svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}</div>
+                <p class="employee-shift-meta"><span class="status-badge badge-green">提出済み</span></p>
+              </div>
+              <form method="post" action="{% url 'availability_delete' availability.id %}">
+                {% csrf_token %}
+                <button type="submit" class="button button-danger button-small" aria-label="{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}の希望を削除">削除</button>
+              </form>
+            </li>
+          {% empty %}
+            <li class="empty-state">この日はまだ提出していません。</li>
+          {% endfor %}
+        </ul>
+      </section>
 
-<h3>この日の提出済み希望</h3>
+      <section class="panel schedule-card">
+        <div class="panel-heading">
+          <h3><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>この日の確定シフト</h3>
+        </div>
+        <ul class="schedule-list">
+          {% for shift in selected_shifts %}
+            <li class="schedule-item">
+              <div>
+                <div class="schedule-time"><svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>{{ shift.start_time|time:'H:i' }}〜{{ shift.end_time|time:'H:i' }}</div>
+                <p class="employee-shift-meta">{{ shift.store.name }}</p>
+              </div>
+              <span class="status-badge badge-violet">確定</span>
+            </li>
+          {% empty %}
+            <li class="empty-state">この日の確定シフトはまだありません。</li>
+          {% endfor %}
+        </ul>
+      </section>
 
-<ul>
-  {% for availability in selected_availabilities %}
-    <li>
-      {{ availability.start_time }}〜{{ availability.end_time }}
-
-      <form
-        method="post"
-        action="{% url 'availability_delete' availability.id %}"
-        style="display: inline;"
-      >
-        {% csrf_token %}
-        <button type="submit">削除</button>
-      </form>
-    </li>
-  {% empty %}
-    <li>この日はまだ提出していません。</li>
-  {% endfor %}
-</ul>
-
-<a href="{% url 'availability_create' %}?date={{ selected_date|date:'Y-m-d' }}">
-  この日の希望を提出する
-</a>
-
-<form method="post" action="{% url 'logout' %}">
-  {% csrf_token %}
-  <button type="submit">ログアウト</button>
-</form>
+      <div class="employee-guidance">
+        {% if membership %}
+          <h3>勤務できる時間を提出しましょう</h3>
+          <p>選択日の開始時刻と終了時刻を入力して、希望を提出できます。</p>
+          <a class="button button-primary" href="{% url 'availability_create' %}?date={{ selected_date|date:'Y-m-d' }}">
+            <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>この日の希望を提出する
+          </a>
+        {% else %}
+          <h3>所属店舗を確認してください</h3>
+          <p>現在、所属店舗は未設定です。シフト希望を提出するには、店長に店舗への所属登録を依頼してください。</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+{% endblock %}
