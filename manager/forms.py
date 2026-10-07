@@ -30,6 +30,36 @@ class StoreMembershipForm(forms.ModelForm):
             "is_active": "有効",
         }
 
+    def __init__(self, *args, store=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.store = store
+        if store is not None:
+            self.instance.store = store
+        self.fields["user"].queryset = User.objects.order_by(
+            "last_name", "first_name", "username"
+        )
+        self.fields["user"].label_from_instance = (
+            lambda user: user.full_name_japanese
+        )
+        self.fields["role"].choices = [
+            ("manager", "店長・管理者"),
+            ("staff", "従業員"),
+        ]
+        self.fields["desired_shifts_per_week"].help_text = "1週間あたりの希望勤務回数"
+
+    def clean_user(self):
+        user = self.cleaned_data["user"]
+        if self.store is not None:
+            existing_memberships = StoreMembership.objects.filter(
+                user=user, store=self.store
+            )
+            if self.instance.pk:
+                existing_memberships = existing_memberships.exclude(pk=self.instance.pk)
+            if existing_memberships.exists():
+                raise forms.ValidationError("この従業員はすでに店舗に所属しています。")
+        return user
+
+
 class ShiftForm(forms.ModelForm):
     membership = forms.ModelChoiceField(
         queryset=StoreMembership.objects.none(),

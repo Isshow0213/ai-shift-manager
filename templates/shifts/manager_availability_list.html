@@ -23,7 +23,7 @@
   <tbody>
     {% for availability in availabilities %}
       <tr>
-        <td>{{ availability.membership.user.username }}</td>
+        <td>{{ availability.membership.user.full_name_japanese }}</td>
         <td>{{ availability.work_date }}</td>
         <td>{{ availability.start_time }}</td>
         <td>{{ availability.end_time }}</td>
@@ -42,7 +42,7 @@
 
 <ul>
   {% for membership in unsubmitted_memberships %}
-    <li>{{ membership.user.username }}</li>
+    <li>{{ membership.user.full_name_japanese }}</li>
   {% empty %}
     <li>未提出者はいません。</li>
   {% endfor %}

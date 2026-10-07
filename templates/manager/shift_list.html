@@ -53,7 +53,8 @@
     border: 2px solid #333;
   }
 
-  .selected {
+  .calendar-day.selected,
+  .calendar-day.selected:hover {
     background: #eef5ff;
   }
 
@@ -79,6 +80,14 @@
 <h1>シフト作成カレンダー</h1>
 
 <p>店舗：{{ store.name }}</p>
+
+{% if messages %}
+  <ul class="messages" role="status">
+    {% for message in messages %}
+      <li>{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
 
 <p>
   <a href="{% url 'manager_dashboard' %}">ダッシュボードへ戻る</a>
@@ -115,6 +124,14 @@
           <div class="day-number">{{ day.day }}</div>
 
           <div class="day-status">
+            {% if day.is_today %}
+              <div>今日</div>
+            {% endif %}
+
+            {% if day.is_selected %}
+              <div>選択中</div>
+            {% endif %}
+
             {% if day.has_availability %}
               <div>希望あり</div>
             {% endif %}
@@ -149,7 +166,8 @@
 
 <form method="post" action="{% url 'generate_shift' %}">
   {% csrf_token %}
-  <button type="submit">シフトを自動生成する</button>
+  <input type="hidden" name="work_date" value="{{ selected_date|date:'Y-m-d' }}">
+  <button type="submit">この日のシフトを自動生成する</button>
 </form>
 
 <hr>
@@ -222,7 +240,7 @@
   <tbody>
     {% for shift in shifts %}
       <tr>
-        <td>{{ shift.membership.user.full_name_japanese }}</td>
+        <td>{{ shift.user.full_name_japanese }}</td>
         <td>{{ shift.start_time }}</td>
         <td>{{ shift.end_time }}</td>
         <td>

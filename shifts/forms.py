@@ -2,6 +2,10 @@ from django import forms
 from .models import Availability, Requirement
 
 
+class ShiftGenerationForm(forms.Form):
+    work_date = forms.DateField(input_formats=["%Y-%m-%d"])
+
+
 class AvailabilityForm(forms.ModelForm):
     class Meta:
         model = Availability

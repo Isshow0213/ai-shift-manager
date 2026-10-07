@@ -7,6 +7,7 @@ from django.utils.dateparse import parse_date
 from shifts.models import Availability, Requirement, Shift
 from accounts.models import StoreMembership
 from .forms import StoreMembershipForm, ShiftForm
+from shifts.calendar_utils import get_calendar_context
 
 @login_required
 def staff_list(request):
@@ -23,7 +24,7 @@ def staff_list(request):
     store = manager_membership.store
 
     if request.method == "POST":
-        form = StoreMembershipForm(request.POST)
+        form = StoreMembershipForm(request.POST, store=store)
         if form.is_valid():
             membership = form.save(commit=False)
             membership.store = store
@@ -31,12 +32,13 @@ def staff_list(request):
             messages.success(request, "従業員を店舗に追加しました。")
             return redirect("manager_staff_list")
     else:
-        form = StoreMembershipForm()
+        form = StoreMembershipForm(store=store)
 
     memberships = StoreMembership.objects.filter(
         store=store,
-        is_active=True,
-    ).select_related("user").order_by("role", "user__username")
+    ).select_related("user").order_by(
+        "role", "user__last_name", "user__first_name", "user__username"
+    )
 
     return render(
         request,

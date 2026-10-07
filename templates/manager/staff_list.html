@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>従業員管理</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; line-height: 1.6; }
+    main { max-width: 960px; margin: 0 auto; }
+    form { margin-bottom: 32px; }
+    .form-field { margin-bottom: 16px; }
+    label { display: block; font-weight: bold; }
+    input, select, button { font: inherit; }
+    .help-text { margin: 4px 0; color: #555; }
+    .errorlist { color: #b91c1c; }
+    .message { padding: 12px; background: #eef6ff; }
+    .message.error { background: #fef2f2; color: #b91c1c; }
+    .table-wrapper { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background: #f5f5f5; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>従業員管理</h1>
+  <p>店舗：{{ store.name }}</p>
+  <p><a href="{% url 'manager_dashboard' %}">管理者ダッシュボードに戻る</a></p>
+
+  {% for message in messages %}
+    <p class="message {{ message.tags }}" role="status">{{ message }}</p>
+  {% endfor %}
+
+  <h2>従業員を店舗に追加</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <div class="form-field">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <button type="submit">店舗に追加する</button>
+  </form>
+
+  <h2>所属している従業員</h2>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">氏名</th>
+          <th scope="col">権限</th>
+          <th scope="col">ランク</th>
+          <th scope="col">希望勤務回数／週</th>
+          <th scope="col">所属状態</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for membership in memberships %}
+          <tr>
+            <td>{{ membership.user.full_name_japanese }}</td>
+            <td>{% if membership.role == "manager" %}店長・管理者{% else %}従業員{% endif %}</td>
+            <td>{{ membership.rank }}</td>
+            <td>{{ membership.desired_shifts_per_week }}回</td>
+            <td>{% if membership.is_active %}有効{% else %}無効{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">所属している従業員はいません。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

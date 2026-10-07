@@ -20,7 +20,7 @@
   <tbody>
     {% for shift in shifts %}
       <tr>
-        <td>{{ shift.membership.user.username }}</td>
+        <td>{{ shift.user.full_name_japanese }}</td>
         <td>{{ shift.work_date }}</td>
         <td>{{ shift.start_time }}</td>
         <td>{{ shift.end_time }}</td>

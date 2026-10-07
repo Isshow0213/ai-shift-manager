@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 import calendar
 from datetime import date
 from django.utils import timezone
@@ -9,7 +10,7 @@ from django.contrib import messages
 from accounts.models import StoreMembership
 from scheduler.services import generate_shifts_for_store
 
-from .forms import AvailabilityForm, RequirementForm
+from .forms import AvailabilityForm, RequirementForm, ShiftGenerationForm
 from .models import Availability, Requirement, Shift
 
 
@@ -153,7 +154,7 @@ def availability_create(request):
 @login_required
 def generate_shift_view(request):
     if request.method != "POST":
-        return redirect("dashboard")
+        return redirect("manager_shift_list")
 
     membership = StoreMembership.objects.filter(
         user=request.user,
@@ -163,12 +164,33 @@ def generate_shift_view(request):
 
     if membership is None:
         messages.error(request, "管理できる店舗がありません。")
-        return redirect("dashboard")
+        return redirect("manager_dashboard")
 
-    generate_shifts_for_store(membership.store.id)
+    form = ShiftGenerationForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "自動生成する日付を選んでください。")
+        return redirect("manager_shift_list")
 
-    messages.success(request, "シフトを自動生成しました。")
-    return redirect("dashboard")
+    work_date = form.cleaned_data["work_date"]
+    result = generate_shifts_for_store(membership.store.id, work_date)
+
+    if result["requirement_count"] == 0:
+        messages.warning(request, "この日の必要人数が設定されていません。")
+    elif result["shortfall_count"]:
+        messages.warning(
+            request,
+            f"シフトを{result['created_count']}件作成しました。"
+            f"必要人数に対して合計{result['shortfall_count']}人分不足しています。",
+        )
+    else:
+        messages.success(
+            request, f"シフトを{result['created_count']}件自動生成しました。"
+        )
+
+    return redirect(
+        f"{reverse('manager_shift_list')}?year={work_date.year}"
+        f"&month={work_date.month}&date={work_date.isoformat()}"
+    )
 
 def is_manager(user):
     return user.is_authenticated and (
