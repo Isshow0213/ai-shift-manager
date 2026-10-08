@@ -87,30 +87,54 @@ class ShiftForm(forms.ModelForm):
 
     def __init__(self, *args, store=None, selected_date=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.store = store
 
-        if store is not None and selected_date is not None:
-            membership_ids = Availability.objects.filter(
-                membership__store=store,
-                work_date=selected_date,
-            ).values_list(
-                "membership_id",
-                flat=True,
-            ).distinct()
-
-            self.fields["membership"].queryset = StoreMembership.objects.filter(
-                id__in=membership_ids,
-                is_active=True,
-            ).select_related("user")
-
-            self.fields["work_date"].initial = selected_date
-
-        elif store is not None:
-            self.fields["membership"].queryset = StoreMembership.objects.filter(
+        if store is not None:
+            self.instance.store = store
+            memberships = StoreMembership.objects.filter(
                 store=store,
+                role="staff",
                 is_active=True,
+                user__is_active=True,
             ).select_related("user")
+            if selected_date is not None:
+                membership_ids = Availability.objects.filter(
+                    membership__store=store,
+                    work_date=selected_date,
+                ).values_list("membership_id", flat=True)
+                memberships = memberships.filter(id__in=membership_ids)
+                self.fields["work_date"].initial = selected_date
+            self.fields["membership"].queryset = memberships.order_by(
+                "user__last_name", "user__first_name", "user__username"
+            )
 
         self.fields["membership"].label_from_instance = (
             lambda obj: obj.user.full_name_japanese
         )
         self.fields["membership"].empty_label = "選択してください"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_time = cleaned_data.get("start_time")
+        end_time = cleaned_data.get("end_time")
+        if start_time is not None and end_time is not None:
+            if start_time >= end_time:
+                self.add_error("end_time", "終了時刻は開始時刻より後にしてください。")
+                return cleaned_data
+
+        membership = cleaned_data.get("membership")
+        work_date = cleaned_data.get("work_date")
+        if membership and work_date and start_time and end_time:
+            overlapping_shifts = Shift.objects.filter(
+                user=membership.user,
+                work_date=work_date,
+                start_time__lt=end_time,
+                end_time__gt=start_time,
+            )
+            if self.instance.pk:
+                overlapping_shifts = overlapping_shifts.exclude(pk=self.instance.pk)
+            if overlapping_shifts.exists():
+                self.add_error(
+                    None, "この従業員には、同じ時間帯に重なるシフトが登録されています。"
+                )
+        return cleaned_data

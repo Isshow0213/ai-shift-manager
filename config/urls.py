@@ -1,13 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
-from django.shortcuts import redirect
 from django.urls import include, path
 
-
-def index(request):
-    if request.user.is_authenticated:
-        return redirect("manager_dashboard")
-    return redirect("login")
+from accounts.views import MembershipLoginView, index
 
 
 urlpatterns = [
@@ -17,7 +12,7 @@ urlpatterns = [
 
     path(
         "login/",
-        auth_views.LoginView.as_view(template_name="accounts/login.html"),
+        MembershipLoginView.as_view(),
         name="login",
     ),
     path(

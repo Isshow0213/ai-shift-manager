@@ -18,7 +18,10 @@
 {% block content %}
 <div class="requirement-panels">
   <section class="panel">
-    <div class="panel-heading"><h2>必要人数を追加</h2></div>
+    <div class="panel-heading">
+      <h2>必要人数を追加</h2>
+      <a class="button button-primary" href="{% url 'manager_requirement_bulk' %}">区分ごとに一括設定</a>
+    </div>
     <form class="requirement-form" method="post">
       {% csrf_token %}
       {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}

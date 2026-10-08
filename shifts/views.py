@@ -13,6 +13,10 @@ from scheduler.services import generate_shifts_for_store
 from .forms import AvailabilityForm, RequirementForm, ShiftGenerationForm
 from .models import Availability, Requirement, Shift
 from .calendar_utils import get_calendar_context
+from .requirement_bulk_forms import BulkRequirementForm, DAY_TYPES, RequirementTimeSlotFormSet
+from .requirement_bulk import (
+    RequirementOverlapError, apply_plan, build_plan, validate_existing_requirements,
+)
 
 
 @login_required
@@ -374,6 +378,7 @@ def manager_requirement_list(request):
             requirement = form.save(commit=False)
             requirement.store = store
             requirement.save()
+            messages.success(request, "必要人数を保存しました。")
             return redirect("manager_requirement_list")
     else:
         selected_date_text = request.GET.get("date")
@@ -399,6 +404,78 @@ def manager_requirement_list(request):
             "requirements": requirements,
         },
     )
+
+
+@login_required
+def manager_requirement_bulk(request):
+    membership = StoreMembership.objects.filter(
+        user=request.user, role="manager", is_active=True,
+    ).select_related("store").first()
+    if membership is None:
+        messages.error(request, "管理できる店舗がありません。")
+        return redirect("availability_list")
+
+    store = membership.store
+    calendar_context = get_calendar_context(request)
+    month_start = date(calendar_context["year"], calendar_context["month"], 1)
+    month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
+    data = request.POST if request.method == "POST" else None
+    form = BulkRequirementForm(data, initial={"start_date": month_start, "end_date": month_end})
+    selected_post_categories = data.getlist("categories") if data is not None else []
+    groups = [
+        {
+            "key": key, "label": label,
+            "formset": RequirementTimeSlotFormSet(
+                data if key in selected_post_categories else None, prefix=key,
+            ),
+        }
+        for key, label in DAY_TYPES
+    ]
+    plan = None
+    dates_count = slots_count = existing_count = 0
+
+    if request.method == "POST" and form.is_valid():
+        selected_categories = form.cleaned_data["categories"]
+        slots_by_category = {}
+        valid = True
+        for group in groups:
+            if group["key"] in selected_categories:
+                if group["formset"].is_valid():
+                    slots_by_category[group["key"]] = [
+                        row.cleaned_data for row in group["formset"] if row.cleaned_data
+                    ]
+                else:
+                    valid = False
+        if valid:
+            candidate_plan = build_plan(form.cleaned_data, slots_by_category)
+            try:
+                validate_existing_requirements(store, candidate_plan, form.cleaned_data["mode"])
+                dates_count = sum(len(group["dates"]) for group in candidate_plan)
+                slots_count = sum(len(group["dates"]) * len(group["slots"]) for group in candidate_plan)
+                if not dates_count:
+                    form.add_error(None, "指定した期間に、選択した区分の日付がありません。")
+                elif request.POST.get("action") == "apply":
+                    dates_count, slots_count = apply_plan(store, candidate_plan, form.cleaned_data["mode"])
+                    messages.success(request, f"{dates_count}日分・{slots_count}件の必要人数を一括保存しました。")
+                    return redirect("manager_requirement_list")
+                elif request.POST.get("action", "preview") == "preview":
+                    plan = candidate_plan
+                    dates = [day for group in plan for day in group["dates"]]
+                    existing_count = Requirement.objects.filter(store=store, work_date__in=dates).count()
+                else:
+                    form.add_error(None, "確認または保存ボタンから操作してください。")
+            except RequirementOverlapError as error:
+                form.add_error(None, str(error))
+
+    selected_categories = form["categories"].value() or []
+    for group in groups:
+        group["selected"] = group["key"] in selected_categories
+
+    return render(request, "shifts/manager_requirement_bulk.html", {
+        "store": store, "form": form, "groups": groups, "plan": plan,
+        "dates_count": dates_count, "slots_count": slots_count, "existing_count": existing_count,
+    })
+
 
 @login_required
 def availability_delete(request, availability_id):

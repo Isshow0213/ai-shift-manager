@@ -5,6 +5,11 @@
 {% block page_title %}シフト作成カレンダー{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'manager/calendar.css' %}">
+<style>
+  .detail-panel .shifts-table { min-width: 520px; }
+  .shift-list-actions { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .shift-list-actions .button-small { min-height: 30px; padding: 5px 8px; font-size: 11px; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -153,15 +158,19 @@
       </div>
       <div class="table-wrap">
         <table class="data-table shifts-table">
-          <thead><tr><th scope="col">スタッフ名</th><th scope="col">開始時刻</th><th scope="col">終了時刻</th><th scope="col">作成方法</th></tr></thead>
+          <thead><tr><th scope="col">スタッフ名</th><th scope="col">開始時刻</th><th scope="col">終了時刻</th><th scope="col">作成方法</th><th scope="col">操作</th></tr></thead>
           <tbody>
             {% for shift in shifts %}
               <tr>
                 <td>{{ shift.user.full_name_japanese }}</td><td>{{ shift.start_time|time:"H:i" }}</td><td>{{ shift.end_time|time:"H:i" }}</td>
                 <td>{% if shift.is_generated %}<span class="method-badge generated-badge">自動生成</span>{% else %}<span class="method-badge manual-badge">手動</span>{% endif %}</td>
+                <td><div class="shift-list-actions">
+                  <a class="button button-secondary button-small" href="{% url 'manager_shift_edit' shift.id %}" aria-label="{{ shift.user.full_name_japanese }}のシフトを編集">編集</a>
+                  <a class="button button-danger button-small" href="{% url 'manager_shift_delete' shift.id %}" aria-label="{{ shift.user.full_name_japanese }}のシフトを削除">削除</a>
+                </div></td>
               </tr>
             {% empty %}
-              <tr><td colspan="4" class="empty-state">この日のシフトはまだありません。</td></tr>
+              <tr><td colspan="5" class="empty-state">この日のシフトはまだありません。</td></tr>
             {% endfor %}
           </tbody>
         </table>

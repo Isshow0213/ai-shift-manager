@@ -1,0 +1,39 @@
+{% extends "manager/base.html" %}
+{% load i18n %}
+
+{% block title %}シフトの削除 | シフト管理{% endblock %}
+{% block page_title %}シフトの削除{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+  <style>
+    .shift-delete { max-width: 640px; margin: 0 auto; }
+    .shift-delete-summary { margin: 22px 0; padding: 20px; border-radius: 9px; background: #f7f9fc; }
+    .shift-delete-summary div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; margin-bottom: 10px; }
+    .shift-delete-summary div:last-child { margin-bottom: 0; }
+    .shift-delete-summary dt { color: var(--muted); font-size: 13px; }
+    .shift-delete-summary dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+    @media (max-width: 600px) { .shift-delete .form-actions { flex-wrap: wrap; } }
+  </style>
+{% endblock %}
+
+{% block content %}
+<section class="panel shift-delete">
+  <div class="panel-heading"><h2>このシフトを削除しますか？</h2></div>
+  <div class="panel-body">
+    <dl class="shift-delete-summary">
+      <div><dt>従業員</dt><dd>{{ shift.user.full_name_japanese }}</dd></div>
+      <div><dt>日付</dt><dd>{% language "ja" %}{{ shift.work_date|date:"Y年n月j日（D）" }}{% endlanguage %}</dd></div>
+      <div><dt>勤務時間</dt><dd>{{ shift.start_time|time:"H:i" }}〜{{ shift.end_time|time:"H:i" }}</dd></div>
+      <div><dt>店舗</dt><dd>{{ store.name }}</dd></div>
+    </dl>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-actions">
+        <a class="button button-secondary" href="{{ calendar_url }}">キャンセル</a>
+        <button class="button button-danger" type="submit">シフトを削除する</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

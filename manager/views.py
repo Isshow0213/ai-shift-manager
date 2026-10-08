@@ -1,9 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
-import calendar
-from django.utils import timezone
-from django.utils.dateparse import parse_date
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_http_methods
 from shifts.models import Availability, Requirement, Shift
 from accounts.models import StoreMembership
 from .forms import StoreMembershipForm, ShiftForm
@@ -66,37 +65,10 @@ def shift_list(request):
         return redirect("manager_dashboard")
 
     store = manager_membership.store
-    today = timezone.localdate()
-
-    year = int(request.GET.get("year", today.year))
-    month = int(request.GET.get("month", today.month))
-
-    selected_date_text = request.GET.get("date")
-    selected_date = parse_date(selected_date_text) if selected_date_text else today
-
-    if selected_date is None or not selected_date_text:
-        selected_date = (
-            today
-            if (year, month) == (today.year, today.month)
-            else today.replace(year=year, month=month, day=1)
-        )
-
-    calendar_obj = calendar.Calendar(firstweekday=0)
-    month_weeks = calendar_obj.monthdatescalendar(year, month)
-
-    if month == 1:
-        prev_year = year - 1
-        prev_month = 12
-    else:
-        prev_year = year
-        prev_month = month - 1
-
-    if month == 12:
-        next_year = year + 1
-        next_month = 1
-    else:
-        next_year = year
-        next_month = month + 1
+    calendar_context = get_calendar_context(request)
+    year = calendar_context["year"]
+    month = calendar_context["month"]
+    selected_date = calendar_context["selected_date"]
 
     monthly_availabilities = Availability.objects.filter(
         membership__store=store,
@@ -128,27 +100,11 @@ def shift_list(request):
         monthly_shifts.values_list("work_date", flat=True)
     )
 
-    calendar_weeks = []
-
-    for week in month_weeks:
-        week_days = []
-
+    for week in calendar_context["calendar_weeks"]:
         for day in week:
-            week_days.append(
-                {
-                    "date": day,
-                    "day": day.day,
-                    "is_current_month": day.month == month,
-                    "is_today": day == today,
-                    "is_selected": day == selected_date,
-                    "has_availability": day in availability_dates,
-                    "has_requirement": day in requirement_dates,
-                    "has_shift": day in shift_dates,
-                    "url": f"?year={year}&month={month}&date={day.isoformat()}",
-                }
-            )
-
-        calendar_weeks.append(week_days)
+            day["has_availability"] = day["date"] in availability_dates
+            day["has_requirement"] = day["date"] in requirement_dates
+            day["has_shift"] = day["date"] in shift_dates
 
     availabilities = Availability.objects.filter(
         membership__store=store,
@@ -196,9 +152,7 @@ def shift_list(request):
             shift.is_generated = False
             shift.save()
             messages.success(request, "手動でシフトを追加しました。")
-            return redirect(
-                f"{request.path}?year={shift.work_date.year}&month={shift.work_date.month}&date={shift.work_date}"
-            )
+            return redirect(_shift_calendar_url(shift.work_date))
     else:
         form = ShiftForm(
             store=store,
@@ -212,18 +166,100 @@ def shift_list(request):
         request,
         "manager/shift_list.html",
         {
+            **calendar_context,
             "store": store,
-            "year": year,
-            "month": month,
-            "calendar_weeks": calendar_weeks,
-            "selected_date": selected_date,
             "availabilities": availabilities,
             "requirements": requirements,
             "shifts": shifts,
             "form": form,
-            "prev_year": prev_year,
-            "prev_month": prev_month,
-            "next_year": next_year,
-            "next_month": next_month,
+        },
+    )
+
+
+def _shift_calendar_url(work_date):
+    return (
+        f"{reverse('manager_shift_list')}?year={work_date.year}"
+        f"&month={work_date.month}&date={work_date.isoformat()}"
+    )
+
+
+def _manager_membership(user):
+    return StoreMembership.objects.filter(
+        user=user, role="manager", is_active=True
+    ).select_related("store").first()
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def shift_edit(request, shift_id):
+    manager_membership = _manager_membership(request.user)
+    if manager_membership is None:
+        messages.error(request, "管理できる店舗がありません。")
+        return redirect("manager_dashboard")
+
+    store = manager_membership.store
+    shift = get_object_or_404(
+        Shift.objects.select_related("user", "membership"), pk=shift_id, store=store
+    )
+    original_date = shift.work_date
+    initial = {}
+    if shift.membership_id is None:
+        initial["membership"] = StoreMembership.objects.filter(
+            user=shift.user, store=store, role="staff", is_active=True, user__is_active=True
+        ).first()
+    form = ShiftForm(
+        request.POST if request.method == "POST" else None,
+        instance=shift,
+        store=store,
+        initial=initial,
+    )
+    if request.method == "POST" and form.is_valid():
+        edited_shift = form.save(commit=False)
+        edited_shift.store = store
+        edited_shift.user = edited_shift.membership.user
+        edited_shift.is_generated = False
+        edited_shift.save()
+        messages.success(request, "シフトを変更しました。")
+        return redirect(_shift_calendar_url(edited_shift.work_date))
+
+    return render(
+        request,
+        "manager/shift_form.html",
+        {
+            "store": store,
+            "shift": shift,
+            "form": form,
+            "selected_date": original_date,
+            "calendar_url": _shift_calendar_url(original_date),
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def shift_delete(request, shift_id):
+    manager_membership = _manager_membership(request.user)
+    if manager_membership is None:
+        messages.error(request, "管理できる店舗がありません。")
+        return redirect("manager_dashboard")
+
+    store = manager_membership.store
+    shift = get_object_or_404(
+        Shift.objects.select_related("user"), pk=shift_id, store=store
+    )
+    calendar_url = _shift_calendar_url(shift.work_date)
+    if request.method == "POST":
+        shift.delete()
+        messages.success(request, "シフトを削除しました。")
+        return redirect(calendar_url)
+
+    return render(
+        request,
+        "manager/shift_confirm_delete.html",
+        {
+            "store": store,
+            "shift": shift,
+            "selected_date": shift.work_date,
+            "calendar_url": calendar_url,
         },
     )

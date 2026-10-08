@@ -30,6 +30,11 @@ class AvailabilityForm(forms.ModelForm):
         return cleaned_data
 
 class RequirementForm(forms.ModelForm):
+    required_staff_count = forms.IntegerField(
+        label="必要人数", min_value=1, max_value=2147483647,
+        widget=forms.NumberInput(attrs={"min": 1, "max": 2147483647})
+    )
+
     class Meta:
         model = Requirement
         fields = ["work_date", "start_time", "end_time", "required_staff_count"]
@@ -45,3 +50,11 @@ class RequirementForm(forms.ModelForm):
             "end_time": "終了時刻",
             "required_staff_count": "必要人数",
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_time = cleaned_data.get("start_time")
+        end_time = cleaned_data.get("end_time")
+        if start_time is not None and end_time is not None and start_time >= end_time:
+            self.add_error("end_time", "終了時刻は開始時刻より後にしてください。")
+        return cleaned_data

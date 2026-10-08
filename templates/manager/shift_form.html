@@ -1,0 +1,41 @@
+{% extends "manager/base.html" %}
+{% load i18n %}
+
+{% block title %}シフトを編集 | シフト管理{% endblock %}
+{% block page_title %}シフトを編集{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+  <style>
+    .shift-editor { max-width: 720px; margin: 0 auto; }
+    .shift-editor .field-error { margin-bottom: 12px; }
+    .shift-editor-note { margin-bottom: 22px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+    @media (max-width: 600px) { .shift-editor .form-grid { grid-template-columns: 1fr; } .shift-editor .form-actions { flex-wrap: wrap; } }
+  </style>
+{% endblock %}
+
+{% block content %}
+<section class="panel shift-editor">
+  <div class="panel-heading">
+    <h2>{% language "ja" %}{{ selected_date|date:"Y年n月j日（D）" }}{% endlanguage %} のシフト</h2>
+  </div>
+  <form class="panel-body" method="post">
+    {% csrf_token %}
+    <p class="shift-editor-note">従業員と勤務日時を変更できます。保存したシフトは「手動」として扱われます。</p>
+    {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="form-grid">
+      {% for field in form %}
+        <div class="field">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.errors %}<div class="field-error" role="alert">{{ field.errors }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="form-actions">
+      <a class="button button-secondary" href="{{ calendar_url }}">カレンダーへ戻る</a>
+      <button class="button button-primary" type="submit">変更を保存する</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
