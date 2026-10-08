@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+
 from .models import (
     Company,
     CompanyMembership,
@@ -9,14 +11,53 @@ from .models import (
 
 
 @admin.register(User)
-class UserAdmin(admin.ModelAdmin):
+class UserAdmin(BaseUserAdmin):
     list_display = (
         "username",
         "email",
+        "last_name",
+        "first_name",
         "role",
         "rank",
         "desired_shifts_per_week",
         "is_staff",
+        "is_superuser",
+    )
+
+    search_fields = (
+        "username",
+        "email",
+        "last_name",
+        "first_name",
+    )
+
+    fieldsets = BaseUserAdmin.fieldsets + (
+        (
+            "シフト管理情報",
+            {
+                "fields": (
+                    "role",
+                    "rank",
+                    "desired_shifts_per_week",
+                )
+            },
+        ),
+    )
+
+    add_fieldsets = BaseUserAdmin.add_fieldsets + (
+        (
+            "追加情報",
+            {
+                "fields": (
+                    "email",
+                    "last_name",
+                    "first_name",
+                    "role",
+                    "rank",
+                    "desired_shifts_per_week",
+                )
+            },
+        ),
     )
 
 
