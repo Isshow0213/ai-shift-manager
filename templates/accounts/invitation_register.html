@@ -1,0 +1,68 @@
+{% load static i18n tz %}
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>従業員アカウント登録｜シフト管理</title>
+  <link rel="stylesheet" href="{% static 'manager/app.css' %}">
+  <link rel="stylesheet" href="{% static 'accounts/invitations.css' %}">
+</head>
+<body class="invitation-page">
+  {% include 'manager/icons.html' %}
+  <main class="invitation-shell">
+    <div class="invitation-brand">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg></span>
+      <span>シフト管理</span>
+    </div>
+    <section class="panel invitation-card">
+      <h1>従業員アカウント登録</h1>
+      <div class="invitation-store">所属店舗：{{ invitation.store.name }}</div>
+      {% if already_authenticated %}
+        <p class="invitation-description">現在、{{ request.user.full_name_japanese }}さんとしてログインしています。招待から新しい従業員アカウントを登録するには、ログアウトしてください。</p>
+        <div class="invitation-actions">
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button class="button button-primary" type="submit">ログアウトして登録へ進む</button>
+          </form>
+          <a class="button button-secondary" href="{% url 'index' %}">自分の画面に戻る</a>
+        </div>
+      {% else %}
+        <p class="invitation-description">氏名とログイン用のメールアドレス・パスワードを登録してください。</p>
+        {% language 'ja' %}
+          <form method="post" class="invitation-form">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="invitation-names">
+              <div class="field">
+                {{ form.last_name.label_tag }}{{ form.last_name }}
+                {% if form.last_name.errors %}<div class="field-error" role="alert">{{ form.last_name.errors }}</div>{% endif %}
+              </div>
+              <div class="field">
+                {{ form.first_name.label_tag }}{{ form.first_name }}
+                {% if form.first_name.errors %}<div class="field-error" role="alert">{{ form.first_name.errors }}</div>{% endif %}
+              </div>
+            </div>
+            <div class="field">
+              {{ form.email.label_tag }}{{ form.email }}
+              {% if form.email.errors %}<div class="field-error" role="alert">{{ form.email.errors }}</div>{% endif %}
+            </div>
+            <div class="field">
+              {{ form.password1.label_tag }}{{ form.password1 }}
+              {% if form.password1.errors %}<div class="field-error" role="alert">{{ form.password1.errors }}</div>{% endif %}
+              <div class="invitation-help">{{ form.password1.help_text }}</div>
+            </div>
+            <div class="field">
+              {{ form.password2.label_tag }}{{ form.password2 }}
+              {% if form.password2.errors %}<div class="field-error" role="alert">{{ form.password2.errors }}</div>{% endif %}
+            </div>
+            <button class="button button-primary" type="submit">アカウントを登録する</button>
+          </form>
+        {% endlanguage %}
+      {% endif %}
+      {% timezone 'Asia/Tokyo' %}<p class="invitation-expiry">招待の有効期限：{{ invitation.expires_at|date:'Y/n/j H:i' }}</p>{% endtimezone %}
+    </section>
+  </main>
+</body>
+</html>

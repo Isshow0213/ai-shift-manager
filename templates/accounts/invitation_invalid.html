@@ -1,0 +1,27 @@
+{% load static %}
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>招待リンクを利用できません｜シフト管理</title>
+  <link rel="stylesheet" href="{% static 'manager/app.css' %}">
+  <link rel="stylesheet" href="{% static 'accounts/invitations.css' %}">
+</head>
+<body class="invitation-page">
+  {% include 'manager/icons.html' %}
+  <main class="invitation-shell">
+    <div class="invitation-brand">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg></span>
+      <span>シフト管理</span>
+    </div>
+    <section class="panel invitation-card">
+      <h1>招待リンクを利用できません</h1>
+      <p class="invitation-description">この招待リンクは無効、期限切れ、または使用済みです。店舗の管理者に、新しい招待リンクの発行を依頼してください。</p>
+      <div class="invitation-actions">
+        <a class="button button-secondary" href="{% url 'login' %}">ログイン画面へ</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

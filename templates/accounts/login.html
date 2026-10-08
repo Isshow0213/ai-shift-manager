@@ -36,7 +36,7 @@
           {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
           {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
           <div class="field">
-            <label for="{{ form.username.id_for_label }}">ユーザー名</label>
+            <label for="{{ form.username.id_for_label }}">メールアドレスまたはユーザー名</label>
             {{ form.username }}
             {% if form.username.errors %}<div class="field-error">{{ form.username.errors }}</div>{% endif %}
           </div>

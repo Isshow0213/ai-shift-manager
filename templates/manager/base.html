@@ -6,6 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}シフト管理{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'manager/app.css' %}">
+  <style>
+    .header-actions { flex-wrap: wrap; max-width: 100%; }
+    .screen-switch { min-height: 36px; }
+    @media (max-width: 760px) {
+      .screen-switch { padding: 7px 10px; font-size: 12px; }
+    }
+  </style>
   {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -68,6 +75,14 @@
           <div class="header-date">
             <span>{% language 'ja' %}{% if selected_date %}{{ selected_date|date:'Y年n月j日（D）' }}{% else %}{% timezone 'Asia/Tokyo' %}{% now 'Y年n月j日（D）' %}{% endtimezone %}{% endif %}{% endlanguage %}</span>
           </div>
+          {% block screen_switch %}
+            {% if can_manage_store %}
+              <a class="button button-secondary screen-switch" href="{% url 'availability_list' %}{% if selected_date %}?year={{ selected_date|date:'Y' }}&amp;month={{ selected_date|date:'n' }}&amp;date={{ selected_date|date:'Y-m-d' }}{% elif year and month %}?year={{ year }}&amp;month={{ month }}{% endif %}">
+                <svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg>
+                <span>従業員画面へ</span>
+              </a>
+            {% endif %}
+          {% endblock %}
           <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
             <button class="button button-secondary logout-button" type="submit">

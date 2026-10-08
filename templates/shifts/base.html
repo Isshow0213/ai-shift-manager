@@ -19,6 +19,15 @@
 {% block brand_store %}{% if membership %}{{ membership.store.name }}{% else %}所属店舗：未設定{% endif %}{% endblock %}
 {% block sidebar_user_label %}従業員アカウント{% endblock %}
 
+{% block screen_switch %}
+  {% if can_manage_store %}
+    <a class="button button-secondary screen-switch" href="{% url 'manager_dashboard' %}{% if selected_date %}?year={{ selected_date|date:'Y' }}&amp;month={{ selected_date|date:'n' }}&amp;date={{ selected_date|date:'Y-m-d' }}{% elif year and month %}?year={{ year }}&amp;month={{ month }}{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
+      <span>管理画面へ</span>
+    </a>
+  {% endif %}
+{% endblock %}
+
 {% block sidebar_navigation %}
   {% with current_url=request.resolver_match.url_name %}
     <nav class="sidebar-nav" aria-label="従業員ナビゲーション">

@@ -2,19 +2,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from shifts.models import Availability, Requirement, Shift
-from accounts.models import StoreMembership
-from .forms import StoreMembershipForm, ShiftForm
+from accounts.models import StaffInvitation, StoreMembership
+from .forms import ShiftForm
 from shifts.calendar_utils import get_calendar_context
 
 @login_required
+@require_GET
 def staff_list(request):
-    manager_membership = StoreMembership.objects.filter(
-        user=request.user,
-        role="manager",
-        is_active=True,
-    ).select_related("store").first()
+    manager_membership = _manager_membership(request.user)
 
     if manager_membership is None:
         messages.error(request, "管理できる店舗がありません。")
@@ -22,32 +20,86 @@ def staff_list(request):
 
     store = manager_membership.store
 
-    if request.method == "POST":
-        form = StoreMembershipForm(request.POST, store=store)
-        if form.is_valid():
-            membership = form.save(commit=False)
-            membership.store = store
-            membership.save()
-            messages.success(request, "従業員を店舗に追加しました。")
-            return redirect("manager_staff_list")
-    else:
-        form = StoreMembershipForm(store=store)
-
     memberships = StoreMembership.objects.filter(
         store=store,
     ).select_related("user").order_by(
         "role", "user__last_name", "user__first_name", "user__username"
     )
+    invitations = list(
+        StaffInvitation.objects.filter(store=store)
+        .select_related("used_by")
+        .order_by("-created_at", "-pk")
+    )
+    now = timezone.now()
+    for invitation in invitations:
+        invitation.can_share = invitation.is_usable
+        invitation.join_url = request.build_absolute_uri(
+            reverse("staff_invitation_accept", args=[invitation.token])
+        )
+        if invitation.used_at is not None:
+            invitation.status_label = "使用済み"
+            invitation.status_class = "badge-blue"
+        elif invitation.revoked_at is not None:
+            invitation.status_label = "無効化"
+            invitation.status_class = "badge-muted"
+        elif invitation.expires_at <= now:
+            invitation.status_label = "期限切れ"
+            invitation.status_class = "badge-orange"
+        elif not invitation.can_share:
+            invitation.status_label = "無効化"
+            invitation.status_class = "badge-muted"
+        else:
+            invitation.status_label = "未使用"
+            invitation.status_class = "badge-green"
+        invitation.can_revoke = (
+            invitation.used_at is None and invitation.revoked_at is None
+        )
 
     return render(
         request,
         "manager/staff_list.html",
         {
             "store": store,
-            "form": form,
             "memberships": memberships,
+            "invitations": invitations,
         },
     )
+
+
+@login_required
+@require_POST
+def staff_invite_create(request):
+    manager_membership = _manager_membership(request.user)
+    if manager_membership is None:
+        messages.error(request, "管理できる店舗がありません。")
+        return redirect("manager_dashboard")
+
+    StaffInvitation.objects.create(
+        store=manager_membership.store, created_by=request.user
+    )
+    messages.success(request, "従業員の招待リンクを発行しました。")
+    return redirect("manager_staff_list")
+
+
+@login_required
+@require_POST
+def staff_invite_revoke(request, invitation_id):
+    manager_membership = _manager_membership(request.user)
+    if manager_membership is None:
+        messages.error(request, "管理できる店舗がありません。")
+        return redirect("manager_dashboard")
+
+    invitation = get_object_or_404(
+        StaffInvitation, pk=invitation_id, store=manager_membership.store
+    )
+    updated = StaffInvitation.objects.filter(
+        pk=invitation.pk, used_at__isnull=True, revoked_at__isnull=True
+    ).update(revoked_at=timezone.now())
+    if updated:
+        messages.success(request, "招待リンクを無効化しました。")
+    else:
+        messages.info(request, "この招待リンクはすでに使用済み、または無効化されています。")
+    return redirect("manager_staff_list")
 
 @login_required
 def shift_list(request):

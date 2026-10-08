@@ -6,6 +6,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from .models import StoreMembership
+from .auth_forms import EmailOrUsernameAuthenticationForm
 
 
 def get_login_destination(user):
@@ -25,6 +26,7 @@ def index(request):
 class MembershipLoginView(LoginView):
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
+    authentication_form = EmailOrUsernameAuthenticationForm
 
     def get_default_redirect_url(self):
         return reverse(get_login_destination(self.request.user))

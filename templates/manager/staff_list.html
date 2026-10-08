@@ -1,51 +1,97 @@
 {% extends "manager/base.html" %}
+{% load static tz %}
 
 {% block title %}従業員管理{% endblock %}
 {% block page_title %}従業員管理{% endblock %}
-{% block page_subtitle %}店舗：{{ store.name }} · 従業員の所属と勤務条件{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · 従業員の招待と所属一覧{% endblock %}
 
 {% block extra_css %}
-<style>
-  .staff-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; }
-  .staff-form { padding: 24px; }
-  .staff-form .field { margin-bottom: 18px; }
-  .staff-form .button { width: 100%; }
-  .staff-checkbox { display: flex; align-items: center; gap: 9px; }
-  .staff-checkbox label { margin: 0; }
-  .staff-checkbox input { width: 16px; height: 16px; }
-  .staff-person { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-  .staff-rank { color: #61718a; font-weight: 600; }
-  .staff-help { margin: 5px 0 0; color: #8993a3; font-size: 11px; }
-  @media (max-width: 1120px) { .staff-layout { grid-template-columns: 1fr; } }
-</style>
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'manager/staff.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="staff-layout">
   <section class="panel">
-    <div class="panel-heading">
-      <h2>従業員を店舗に追加</h2>
+    <div class="panel-heading staff-invite-heading">
+      <h2>従業員を招待</h2>
+      <form method="post" action="{% url 'manager_staff_invite_create' %}">
+        {% csrf_token %}
+        <button class="button button-primary" type="submit">
+          <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+          招待リンクを発行する
+        </button>
+      </form>
     </div>
-    <form class="staff-form" method="post">
-      {% csrf_token %}
-      {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
-      {% for field in form %}
-        <div class="field">
-          {% if field.name == "is_active" %}
-            <div class="staff-checkbox">{{ field }}{{ field.label_tag }}</div>
-          {% else %}
-            {{ field.label_tag }}
-            {{ field }}
-          {% endif %}
-          {% if field.help_text %}<p class="staff-help">{{ field.help_text }}</p>{% endif %}
-          {% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}
-        </div>
-      {% endfor %}
-      <button class="button button-primary" type="submit">
-        <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
-        店舗に追加する
-      </button>
-    </form>
+    <div class="panel-body">
+      <p class="staff-invite-description">招待リンクを従業員に送ると、従業員が自分でアカウントを登録し、この店舗に所属できます。</p>
+      <ol class="staff-invite-steps">
+        <li><span class="staff-step-number" aria-hidden="true">1</span>リンクを発行</li>
+        <li><span class="staff-step-number" aria-hidden="true">2</span>従業員にリンクを送る</li>
+        <li><span class="staff-step-number" aria-hidden="true">3</span>従業員が登録</li>
+      </ol>
+      <p class="staff-invite-help">リンクの有効期限は7日間です。1人につき1つ発行し、登録に使うと使用済みになります。</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <h2>発行済みの招待リンク</h2>
+      <span class="status-badge badge-muted">{{ invitations|length }}件</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table staff-invite-table">
+        <thead>
+          <tr>
+            <th scope="col">発行日</th>
+            <th scope="col">有効期限</th>
+            <th scope="col">状態</th>
+            <th scope="col">登録した従業員</th>
+            <th scope="col">招待リンク</th>
+            <th scope="col">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for invitation in invitations %}
+            <tr>
+              {% timezone "Asia/Tokyo" %}
+                <td class="staff-invite-date" data-label="発行日">{{ invitation.created_at|date:"Y/m/d" }}<span>{{ invitation.created_at|date:"H:i" }}</span></td>
+                <td class="staff-invite-date" data-label="有効期限">{{ invitation.expires_at|date:"Y/m/d" }}<span>{{ invitation.expires_at|date:"H:i" }}</span></td>
+              {% endtimezone %}
+              <td data-label="状態"><span class="status-badge {{ invitation.status_class }}">{{ invitation.status_label }}</span></td>
+              <td data-label="登録した従業員">{% if invitation.used_by %}{{ invitation.used_by.full_name_japanese }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td data-label="招待リンク">
+                {% if invitation.can_share %}
+                  <div class="staff-invite-link">
+                    <label class="sr-only" for="invitation-link-{{ invitation.id }}">招待リンク</label>
+                    <input id="invitation-link-{{ invitation.id }}" type="url" value="{{ invitation.join_url }}" readonly>
+                    <button class="button button-secondary button-small" type="button" data-copy-invitation="invitation-link-{{ invitation.id }}">
+                      <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+                      <span data-copy-label>コピー</span>
+                    </button>
+                  </div>
+                {% else %}
+                  <span class="text-muted">このリンクは使えません</span>
+                {% endif %}
+              </td>
+              <td data-label="操作">
+                {% if invitation.can_revoke %}
+                  <form method="post" action="{% url 'manager_staff_invite_revoke' invitation.id %}">
+                    {% csrf_token %}
+                    <button class="button button-danger button-small" type="submit">無効化する</button>
+                  </form>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-state" colspan="6">まだ招待リンクを発行していません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="staff-copy-status" id="staff-copy-status" role="status" aria-live="polite"></p>
   </section>
 
   <section class="panel">
@@ -81,4 +127,9 @@
     </div>
   </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script src="{% static 'manager/staff.js' %}" defer></script>
 {% endblock %}

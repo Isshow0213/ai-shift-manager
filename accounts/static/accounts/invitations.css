@@ -1,0 +1,43 @@
+.invitation-page {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 32px 16px;
+  background: #f4f7fc;
+}
+.invitation-shell { width: 100%; max-width: 520px; }
+.invitation-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 28px;
+  color: #202a39;
+  font-size: 26px;
+  font-weight: 750;
+}
+.invitation-brand .brand-mark { color: var(--blue); }
+.invitation-card { padding: 32px; }
+.invitation-card h1 { margin: 0 0 10px; font-size: 26px; letter-spacing: -.03em; }
+.invitation-description { color: #687487; font-size: 14px; line-height: 1.8; }
+.invitation-store {
+  margin: 22px 0;
+  padding: 15px 18px;
+  border-radius: 10px;
+  background: #eef4ff;
+  color: #254470;
+  font-weight: 650;
+}
+.invitation-form { display: flex; flex-direction: column; gap: 20px; }
+.invitation-form .button { width: 100%; }
+.invitation-names { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.invitation-help { margin-top: 8px; color: #7a8596; font-size: 12px; line-height: 1.7; }
+.invitation-help ul { margin: 0; padding-left: 18px; }
+.invitation-expiry { margin: 20px 0 0; color: #7a8596; font-size: 12px; }
+.invitation-card .field-error { margin-top: 6px; }
+.invitation-actions { display: grid; gap: 12px; margin-top: 24px; }
+.invitation-actions .button { width: 100%; }
+@media (max-width: 480px) {
+  .invitation-card { padding: 26px 22px; }
+  .invitation-names { grid-template-columns: 1fr; gap: 20px; }
+}
