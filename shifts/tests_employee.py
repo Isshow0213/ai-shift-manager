@@ -349,8 +349,8 @@ class EmployeeShiftViewsTests(TestCase):
         
         self.assertEqual(response.status_code, 200)
         # Check that previous availabilities are passed to template
-        self.assertIn("previous_availabilities", response.context)
-        self.assertEqual(len(response.context["previous_availabilities"]), 2)
+        self.assertIn("previous_availabilities_unique", response.context)
+        self.assertEqual(len(response.context["previous_availabilities_unique"]), 2)
         # Check that requirements for the date are passed to template
         self.assertIn("requirements_for_date", response.context)
         self.assertEqual(len(response.context["requirements_for_date"]), 2)

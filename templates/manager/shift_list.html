@@ -11,6 +11,7 @@
   .shift-list-actions .button-small { min-height: 30px; padding: 5px 8px; font-size: 11px; }
   .manual-extra-fields { display: grid; gap: 12px; margin-top: 14px; }
   .manual-extra-fields textarea { max-width: 100%; resize: vertical; }
+  .manual-availability-field { margin-top: 12px; }
   .shift-list-time { display: inline-block; padding: 4px 6px; border: 1px solid var(--shift-border); border-radius: 5px; color: var(--shift-color); background: var(--shift-background); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .shift-list-note { width: 180px; max-width: 100%; color: var(--muted); font-size: 11px; font-weight: 400; text-align: left; }
   .calendar-overview-link { display: flex; justify-content: center; margin-top: 18px; }
@@ -138,7 +139,7 @@
       <div class="panel-heading">
         <h3><span class="section-icon manual-icon"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg></span>手動でシフトを追加</h3>
       </div>
-      <form method="post" class="manual-shift-form">
+      <form method="post" class="manual-shift-form" data-availability-source="manual-shift-availabilities" data-is-bound="{{ form.is_bound|yesno:'true,false' }}">
         {% csrf_token %}
         {{ form.work_date.as_hidden }}
         {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
@@ -147,6 +148,7 @@
           <div class="field staff-field">
             <label for="{{ form.membership.id_for_label }}">スタッフ</label>
             {{ form.membership }}
+            <p class="field-help">スタッフを選ぶと、その日の希望時間が入力されます。</p>
             {% if form.membership.errors %}<div class="field-error" role="alert">{{ form.membership.errors }}</div>{% endif %}
           </div>
           <div class="field">
@@ -159,6 +161,11 @@
             {{ form.end_time }}
             {% if form.end_time.errors %}<div class="field-error" role="alert">{{ form.end_time.errors }}</div>{% endif %}
           </div>
+        </div>
+        <div class="field manual-availability-field" id="manual-availability-field" hidden>
+          <label for="manual-availability-slot">希望時間帯</label>
+          <select id="manual-availability-slot" aria-describedby="manual-availability-help"></select>
+          <p class="field-help" id="manual-availability-help">複数の希望があるため、追加する時間帯を選べます。入力された時刻は調整できます。</p>
         </div>
         <div class="manual-extra-fields">
           <div class="field">
@@ -207,4 +214,10 @@
   </div>
 </div>
 {% endlanguage %}
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  {{ availability_autofill|json_script:"manual-shift-availabilities" }}
+  <script src="{% static 'manager/shift_autofill.js' %}" defer></script>
 {% endblock %}

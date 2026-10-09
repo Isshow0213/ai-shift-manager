@@ -37,6 +37,29 @@
       color: #666;
       margin-top: 2px;
     }
+    .requirement-memo {
+      background: #f5f5f5;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-top: 4px;
+      color: #555;
+      border-left: 3px solid #28a745;
+    }
+    .all-day-button {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #6c63ff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .all-day-button:hover {
+      background: #5a52d5;
+    }
   </style>
 {% endblock %}
 
@@ -68,15 +91,20 @@
           {{ form.end_time }}
           {% if form.end_time.errors %}<div class="field-error">{{ form.end_time.errors }}</div>{% endif %}
         </div>
+        {% if operating_hours %}
+        <button type="button" class="all-day-button" onclick="setAllDayTime('{{ operating_hours.start_time|time:'H:i' }}', '{{ operating_hours.end_time|time:'H:i' }}')">
+          通しで勤務できます
+        </button>
+        {% endif %}
       </div>
       
-      {% if previous_availabilities or requirements_for_date %}
+      {% if previous_availabilities_unique or requirements_for_date %}
       <div class="quick-select-section">
-        {% if previous_availabilities %}
+        {% if previous_availabilities_unique %}
         <div>
-          <p class="quick-select-title">前回提出した希望時間</p>
+          <p class="quick-select-title">前回提出した希望時間（重複除外）</p>
           <div class="quick-select-list">
-            {% for availability in previous_availabilities %}
+            {% for availability in previous_availabilities_unique %}
             <div class="quick-select-item previous" onclick="setTimeFromPrevious('{{ availability.start_time|time:'H:i' }}', '{{ availability.end_time|time:'H:i' }}')">
               <div class="quick-select-item-label">{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}</div>
               <div class="quick-select-item-meta">{% language 'ja' %}{{ availability.work_date|date:'Y年n月j日' }}{% endlanguage %}</div>
@@ -87,13 +115,14 @@
         {% endif %}
         
         {% if requirements_for_date %}
-        <div{% if previous_availabilities %} style="margin-top: 16px;"{% endif %}>
+        <div{% if previous_availabilities_unique %} style="margin-top: 16px;"{% endif %}>
           <p class="quick-select-title">店長が設定した必要時間</p>
           <div class="quick-select-list">
             {% for requirement in requirements_for_date %}
             <div class="quick-select-item requirement" onclick="setTimeFromRequirement('{{ requirement.start_time|time:'H:i' }}', '{{ requirement.end_time|time:'H:i' }}')">
               <div class="quick-select-item-label">{{ requirement.start_time|time:'H:i' }}〜{{ requirement.end_time|time:'H:i' }}</div>
               <div class="quick-select-item-meta">必要人数: {{ requirement.required_staff_count }}名</div>
+              {% if requirement.memo %}<div class="requirement-memo">{{ requirement.memo }}</div>{% endif %}
             </div>
             {% endfor %}
           </div>
@@ -121,6 +150,11 @@ function setTimeFromPrevious(startTime, endTime) {
 }
 
 function setTimeFromRequirement(startTime, endTime) {
+  document.getElementById('id_start_time').value = startTime;
+  document.getElementById('id_end_time').value = endTime;
+}
+
+function setAllDayTime(startTime, endTime) {
   document.getElementById('id_start_time').value = startTime;
   document.getElementById('id_end_time').value = endTime;
 }

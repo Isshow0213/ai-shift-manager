@@ -3,15 +3,15 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 import calendar
-from datetime import date
+from datetime import date, timedelta
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.contrib import messages
 from accounts.models import StoreMembership
 from scheduler.services import generate_shifts_for_store
 
-from .forms import AvailabilityForm, RequirementForm, ShiftGenerationForm
-from .models import Availability, Requirement, Shift
+from .forms import AvailabilityForm, RequirementForm, ShiftGenerationForm, StoreOperatingHoursForm
+from .models import Availability, Requirement, Shift, StoreOperatingHours
 from .calendar_utils import get_calendar_context
 from .requirement_bulk_forms import BulkRequirementForm, DAY_TYPES, RequirementTimeSlotFormSet
 from .requirement_bulk import (
@@ -92,10 +92,19 @@ def availability_create(request):
         selected_date = calendar_context["selected_date"]
 
     # 前回提出した希望時間を取得（最大5件）
-    previous_availabilities = Availability.objects.filter(
+    all_previous_availabilities = Availability.objects.filter(
         user=request.user,
         work_date__lt=selected_date,
     ).order_by("-work_date", "-start_time")[:5]
+
+    # 重複時間を除外したユニークな前回の希望を取得
+    previous_availabilities_unique = []
+    seen_times = set()
+    for av in all_previous_availabilities:
+        time_key = (av.start_time, av.end_time)
+        if time_key not in seen_times:
+            previous_availabilities_unique.append(av)
+            seen_times.add(time_key)
 
     # 店長が設定した必要時間を取得
     requirements_for_date = Requirement.objects.filter(
@@ -103,8 +112,11 @@ def availability_create(request):
         work_date=selected_date,
     ).order_by("start_time")
 
+    # 営業時間を取得
+    operating_hours = membership.store.operating_hours if hasattr(membership.store, 'operating_hours') else None
+
     if request.method == "POST":
-        form = AvailabilityForm(request.POST)
+        form = AvailabilityForm(request.POST, user=request.user)
         if form.is_valid():
             availability = form.save(commit=False)
             availability.user = request.user
@@ -119,7 +131,8 @@ def availability_create(request):
         form = AvailabilityForm(
             initial={
                 "work_date": selected_date,
-            }
+            },
+            user=request.user,
         )
 
     return render(
@@ -130,8 +143,9 @@ def availability_create(request):
             "form": form,
             "membership": membership,
             "selected_date": selected_date,
-            "previous_availabilities": previous_availabilities,
+            "previous_availabilities_unique": previous_availabilities_unique,
             "requirements_for_date": requirements_for_date,
+            "operating_hours": operating_hours,
         },
     )
 
@@ -386,14 +400,29 @@ def manager_requirement_list(request):
 
     store = manager_membership.store
 
+    # 営業時間を取得または作成
+    operating_hours, created = StoreOperatingHours.objects.get_or_create(store=store)
+
     if request.method == "POST":
-        form = RequirementForm(request.POST)
-        if form.is_valid():
-            requirement = form.save(commit=False)
-            requirement.store = store
-            requirement.save()
-            messages.success(request, "必要人数を保存しました。")
-            return redirect("manager_requirement_list")
+        # フォームのタイプを判定
+        form_type = request.POST.get("form_type", "requirement")
+        
+        if form_type == "operating_hours":
+            operating_hours_form = StoreOperatingHoursForm(request.POST, instance=operating_hours)
+            form = RequirementForm()
+            if operating_hours_form.is_valid():
+                operating_hours_form.save()
+                messages.success(request, "営業時間を保存しました。")
+                return redirect("manager_requirement_list")
+        else:
+            form = RequirementForm(request.POST)
+            operating_hours_form = StoreOperatingHoursForm(instance=operating_hours)
+            if form.is_valid():
+                requirement = form.save(commit=False)
+                requirement.store = store
+                requirement.save()
+                messages.success(request, "必要人数を保存しました。")
+                return redirect("manager_requirement_list")
     else:
         selected_date_text = request.GET.get("date")
         try:
@@ -401,6 +430,7 @@ def manager_requirement_list(request):
         except ValueError:
             selected_date = None
         form = RequirementForm(initial={"work_date": selected_date})
+        operating_hours_form = StoreOperatingHoursForm(instance=operating_hours)
 
     requirements = Requirement.objects.filter(
         store=store,
@@ -409,13 +439,35 @@ def manager_requirement_list(request):
         "start_time",
     )
 
+    # 過去30日分の要件設定を取得（復元用）
+    thirty_days_ago = date.today() - timedelta(days=30)
+    all_past_requirements = Requirement.objects.filter(
+        store=store,
+        work_date__gte=thirty_days_ago,
+        work_date__lt=date.today(),
+    ).order_by("-work_date", "start_time")
+    
+    # Pythonレベルで重複を除外（時刻の組み合わせで）
+    seen_times = set()
+    past_requirements = []
+    for req in all_past_requirements:
+        time_key = (req.start_time, req.end_time)
+        if time_key not in seen_times:
+            past_requirements.append(req)
+            seen_times.add(time_key)
+            if len(past_requirements) >= 20:
+                break
+
     return render(
         request,
         "shifts/manager_requirement_list.html",
         {
             "store": store,
             "form": form,
+            "operating_hours_form": operating_hours_form,
+            "operating_hours": operating_hours,
             "requirements": requirements,
+            "past_requirements": past_requirements,
         },
     )
 

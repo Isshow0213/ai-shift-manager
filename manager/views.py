@@ -203,6 +203,7 @@ def shift_list(request):
         "start_time",
         "end_time",
         "membership__user__username",
+        "pk",
     )
 
     requirements = Requirement.objects.filter(
@@ -249,6 +250,23 @@ def shift_list(request):
             },
         )
 
+    eligible_membership_ids = set(
+        form.fields["membership"].queryset.values_list("pk", flat=True)
+    )
+    availability_autofill = {
+        "date": selected_date.isoformat(),
+        "memberships": {},
+    }
+    for availability in availabilities:
+        if availability.membership_id in eligible_membership_ids:
+            availability_autofill["memberships"].setdefault(
+                str(availability.membership_id), []
+            ).append({
+                "id": availability.pk,
+                "start_time": availability.start_time.strftime("%H:%M"),
+                "end_time": availability.end_time.strftime("%H:%M"),
+            })
+
     return render(
         request,
         "manager/shift_list.html",
@@ -259,6 +277,7 @@ def shift_list(request):
             "requirements": requirements,
             "shifts": shifts,
             "form": form,
+            "availability_autofill": availability_autofill,
         },
     )
 

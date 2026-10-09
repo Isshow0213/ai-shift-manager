@@ -10,8 +10,12 @@
   .requirement-form { padding: 24px; }
   .requirement-fields { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 18px; margin-bottom: 22px; }
   .requirement-form-actions { display: flex; justify-content: flex-end; }
-  @media (max-width: 900px) { .requirement-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 540px) { .requirement-fields { grid-template-columns: 1fr; } .requirement-form-actions .button { width: 100%; } }
+  .operating-hours-form { padding: 24px; background: #f9f9f9; }
+  .operating-hours-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 22px; }
+  .operating-hours-info { background: #e8f4f8; padding: 12px 16px; border-radius: 4px; border-left: 4px solid #0066cc; margin-bottom: 16px; font-size: 14px; color: #333; }
+  .button-small { padding: 6px 12px; font-size: 12px; }
+  @media (max-width: 900px) { .requirement-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .operating-hours-fields { grid-template-columns: 1fr; } }
+  @media (max-width: 540px) { .requirement-fields { grid-template-columns: 1fr; } .requirement-form-actions .button { width: 100%; } .operating-hours-fields { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
 
@@ -19,11 +23,41 @@
 <div class="requirement-panels">
   <section class="panel">
     <div class="panel-heading">
+      <h2>営業時間（通し勤務用）を設定</h2>
+    </div>
+    <form class="operating-hours-form" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="form_type" value="operating_hours">
+      <div class="operating-hours-info">
+        💡 従業員画面の「通しで勤務できます」ボタンでこの時間が自動入力されます。
+      </div>
+      {% if operating_hours_form.non_field_errors %}<div class="field-error">{{ operating_hours_form.non_field_errors }}</div>{% endif %}
+      <div class="operating-hours-fields">
+        {% for field in operating_hours_form %}
+          <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="requirement-form-actions">
+        <button class="button button-primary" type="submit">
+          <svg class="icon" aria-hidden="true"><use href="#icon-save"></use></svg>
+          営業時間を保存
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
       <h2>必要人数を追加</h2>
       <a class="button button-primary" href="{% url 'manager_requirement_bulk' %}">区分ごとに一括設定</a>
     </div>
     <form class="requirement-form" method="post">
       {% csrf_token %}
+      <input type="hidden" name="form_type" value="requirement">
       {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
       <div class="requirement-fields">
         {% for field in form %}
@@ -43,6 +77,45 @@
     </form>
   </section>
 
+  {% if past_requirements %}
+  <section class="panel">
+    <div class="panel-heading">
+      <h2>過去30日間の設定から復元</h2>
+      <span class="status-badge badge-blue">{{ past_requirements|length }}件</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">日付</th>
+            <th scope="col">開始時刻</th>
+            <th scope="col">終了時刻</th>
+            <th scope="col">必要人数</th>
+            <th scope="col">メモ</th>
+            <th scope="col">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in past_requirements %}
+            <tr>
+              <td>{{ req.work_date|date:"Y/m/d" }}</td>
+              <td>{{ req.start_time|time:"H:i" }}</td>
+              <td>{{ req.end_time|time:"H:i" }}</td>
+              <td><span class="status-badge badge-blue">{{ req.required_staff_count }}人</span></td>
+              <td>{{ req.memo|truncatewords:10 }}</td>
+              <td>
+                <button type="button" class="button button-small" onclick="restoreRequirement('{{ req.work_date|date:'Y-m-d' }}', '{{ req.start_time|time:'H:i' }}', '{{ req.end_time|time:'H:i' }}', {{ req.required_staff_count }}, '{{ req.memo|escapejs }}', '{{ req.day_type }}')">
+                  復元
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
   <section class="panel">
     <div class="panel-heading">
       <h2>設定済み必要人数</h2>
@@ -56,6 +129,8 @@
             <th scope="col">開始時刻</th>
             <th scope="col">終了時刻</th>
             <th scope="col">必要人数</th>
+            <th scope="col">曜日種別</th>
+            <th scope="col">締切</th>
           </tr>
         </thead>
         <tbody>
@@ -65,13 +140,41 @@
               <td>{{ requirement.start_time|time:"H:i" }}</td>
               <td>{{ requirement.end_time|time:"H:i" }}</td>
               <td><span class="status-badge badge-blue">{{ requirement.required_staff_count }}人</span></td>
+              <td>{{ requirement.get_day_type_display|default:"-" }}</td>
+              <td>
+                {% if requirement.deadline %}
+                  {{ requirement.deadline|date:"Y/m/d H:i" }}
+                {% else %}
+                  <span style="color: #999;">未設定</span>
+                {% endif %}
+              </td>
             </tr>
           {% empty %}
-            <tr><td class="empty-state" colspan="4">まだ必要人数が設定されていません。</td></tr>
+            <tr><td class="empty-state" colspan="6">まだ必要人数が設定されていません。</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function restoreRequirement(workDate, startTime, endTime, requiredCount, memo, dayType) {
+  // フォームのフィールドに復元
+  document.getElementById('id_work_date').value = workDate;
+  document.getElementById('id_start_time').value = startTime;
+  document.getElementById('id_end_time').value = endTime;
+  document.getElementById('id_required_staff_count').value = requiredCount;
+  document.getElementById('id_memo').value = memo;
+  document.getElementById('id_day_type').value = dayType;
+  
+  // フォームのセクションまでスクロール
+  document.querySelector('form.requirement-form').scrollIntoView({ behavior: 'smooth' });
+  
+  // 必要人数をフォーカス
+  document.getElementById('id_work_date').focus();
+}
+</script>
 {% endblock %}
