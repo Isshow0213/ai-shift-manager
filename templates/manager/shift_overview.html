@@ -81,9 +81,9 @@
   <section class="panel overview-board">
     <div class="panel-heading overview-board-heading">
       <h2>{{ year }}年{{ month }}月のシフト表</h2>
-      <div class="overview-legend" aria-label="シフトの凡例">
-        <span><i class="overview-legend-dot overview-manual-dot" aria-hidden="true"></i>手動</span>
-        <span><i class="overview-legend-dot overview-generated-dot" aria-hidden="true"></i>自動生成</span>
+      <div class="overview-legend" aria-label="シフトの表示について">
+        <span>作成方法：手動 / 自動生成</span>
+        <span>色：シフトごとの設定</span>
         <span><i class="overview-legend-dash" aria-hidden="true">—</i>勤務登録なし</span>
       </div>
     </div>
@@ -129,8 +129,10 @@
               {% for cell in row.cells %}
                 <td class="overview-shift-cell{% if cell.date.weekday == 5 or cell.date.weekday == 6 %} is-weekend{% endif %}{% if cell.date == today %} is-today{% endif %}">
                   {% for shift in cell.shifts %}
-                    <a class="overview-shift {% if shift.is_generated %}overview-shift-generated{% else %}overview-shift-manual{% endif %}" href="{% url 'manager_shift_edit' shift.pk %}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }} {{ shift.start_time|time:'H:i' }}〜{{ shift.end_time|time:'H:i' }}の{% if shift.is_generated %}自動生成{% else %}手動{% endif %}シフトを編集" title="{% if shift.is_generated %}自動生成{% else %}手動{% endif %}">
-                      {{ shift.start_time|time:"H:i" }}<span aria-hidden="true">–</span>{{ shift.end_time|time:"H:i" }}
+                    <a class="overview-shift {{ shift.display_color_class }}" href="{% url 'manager_shift_edit' shift.pk %}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }} {{ shift.start_time|time:'H:i' }}〜{{ shift.end_time|time:'H:i' }}の{% if shift.is_generated %}自動生成{% else %}手動{% endif %}シフトを編集"{% if shift.note %} aria-describedby="overview-shift-note-{{ shift.pk }}"{% endif %}>
+                      <span class="overview-shift-time">{{ shift.start_time|time:"H:i" }}<span aria-hidden="true">–</span>{{ shift.end_time|time:"H:i" }}</span>
+                      <span class="overview-shift-method">{% if shift.is_generated %}自動生成{% else %}手動{% endif %}</span>
+                      {% if shift.note %}<span id="overview-shift-note-{{ shift.pk }}" class="shift-note overview-shift-note">{{ shift.note }}</span>{% endif %}
                     </a>
                   {% empty %}
                     <a class="overview-no-shift" href="{{ cell.url }}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }}は勤務登録なし。この日のシフトを作成">—</a>

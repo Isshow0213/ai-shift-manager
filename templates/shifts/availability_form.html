@@ -10,6 +10,33 @@
     .submission-page { max-width: 720px; margin: 0 auto; }
     .submission-page .employee-guidance { margin-top: 18px; }
     .submission-date { line-height: 1.6; }
+    .quick-select-section { margin-top: 24px; }
+    .quick-select-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 10px; }
+    .quick-select-list { display: flex; flex-direction: column; gap: 8px; }
+    .quick-select-item { 
+      padding: 10px 12px; 
+      border: 1px solid #ddd; 
+      border-radius: 4px; 
+      background: #f9f9f9; 
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    .quick-select-item:hover { 
+      background: #f0f0f0;
+      border-color: #999;
+    }
+    .quick-select-item.previous { border-left: 4px solid #007bff; }
+    .quick-select-item.requirement { border-left: 4px solid #28a745; }
+    .quick-select-item-label { 
+      font-weight: 500;
+      color: #333;
+    }
+    .quick-select-item-meta { 
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+    }
   </style>
 {% endblock %}
 
@@ -22,7 +49,7 @@
         {% language "ja" %}選択日：{{ selected_date|date:"Y年n月j日（D）" }}{% endlanguage %}
       </h2>
     </div>
-    <form class="panel-body" method="post">
+    <form class="panel-body" method="post" id="availability-form">
       {% csrf_token %}
       {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
       <div class="employee-form-fields">
@@ -42,6 +69,39 @@
           {% if form.end_time.errors %}<div class="field-error">{{ form.end_time.errors }}</div>{% endif %}
         </div>
       </div>
+      
+      {% if previous_availabilities or requirements_for_date %}
+      <div class="quick-select-section">
+        {% if previous_availabilities %}
+        <div>
+          <p class="quick-select-title">前回提出した希望時間</p>
+          <div class="quick-select-list">
+            {% for availability in previous_availabilities %}
+            <div class="quick-select-item previous" onclick="setTimeFromPrevious('{{ availability.start_time|time:'H:i' }}', '{{ availability.end_time|time:'H:i' }}')">
+              <div class="quick-select-item-label">{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}</div>
+              <div class="quick-select-item-meta">{% language 'ja' %}{{ availability.work_date|date:'Y年n月j日' }}{% endlanguage %}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        
+        {% if requirements_for_date %}
+        <div{% if previous_availabilities %} style="margin-top: 16px;"{% endif %}>
+          <p class="quick-select-title">店長が設定した必要時間</p>
+          <div class="quick-select-list">
+            {% for requirement in requirements_for_date %}
+            <div class="quick-select-item requirement" onclick="setTimeFromRequirement('{{ requirement.start_time|time:'H:i' }}', '{{ requirement.end_time|time:'H:i' }}')">
+              <div class="quick-select-item-label">{{ requirement.start_time|time:'H:i' }}〜{{ requirement.end_time|time:'H:i' }}</div>
+              <div class="quick-select-item-meta">必要人数: {{ requirement.required_staff_count }}名</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+      
       <div class="submission-actions">
         <a class="button button-secondary" href="{% url 'availability_list' %}?year={{ selected_date|date:'Y' }}&amp;month={{ selected_date|date:'n' }}&amp;date={{ selected_date|date:'Y-m-d' }}">カレンダーへ戻る</a>
         <button class="button button-primary" type="submit">
@@ -53,4 +113,16 @@
   </section>
   <p class="employee-guidance">勤務できる時間帯を入力してください。提出後は、選択日のカレンダーで内容を確認できます。</p>
 </div>
+
+<script>
+function setTimeFromPrevious(startTime, endTime) {
+  document.getElementById('id_start_time').value = startTime;
+  document.getElementById('id_end_time').value = endTime;
+}
+
+function setTimeFromRequirement(startTime, endTime) {
+  document.getElementById('id_start_time').value = startTime;
+  document.getElementById('id_end_time').value = endTime;
+}
+</script>
 {% endblock %}

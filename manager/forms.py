@@ -83,16 +83,25 @@ class ShiftForm(forms.ModelForm):
             "work_date",
             "start_time",
             "end_time",
+            "note",
+            "display_color",
         ]
         widgets = {
             "work_date": forms.DateInput(attrs={"type": "date"}),
             "start_time": forms.TimeInput(attrs={"type": "time"}),
             "end_time": forms.TimeInput(attrs={"type": "time"}),
+            "note": forms.Textarea(attrs={"rows": 3, "placeholder": "例：○○店のヘルプ"}),
         }
         labels = {
             "work_date": "日付",
             "start_time": "開始時刻",
             "end_time": "終了時刻",
+            "note": "メモ（ヘルプ先など）",
+            "display_color": "表示色",
+        }
+        help_texts = {
+            "note": "500文字まで。従業員の確定シフトと全体シフト表に表示されます。",
+            "display_color": "ヘルプ先や勤務の種類を見分ける色を選べます。",
         }
 
     def __init__(self, *args, store=None, selected_date=None, **kwargs):

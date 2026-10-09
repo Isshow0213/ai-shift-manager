@@ -10,6 +10,8 @@
     .shift-editor { max-width: 720px; margin: 0 auto; }
     .shift-editor .field-error { margin-bottom: 12px; }
     .shift-editor-note { margin-bottom: 22px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+    .shift-editor .shift-field-full { grid-column: 1 / -1; }
+    .shift-editor textarea { max-width: 100%; resize: vertical; }
     @media (max-width: 600px) { .shift-editor .form-grid { grid-template-columns: 1fr; } .shift-editor .form-actions { flex-wrap: wrap; } }
   </style>
 {% endblock %}
@@ -25,9 +27,10 @@
     {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     <div class="form-grid">
       {% for field in form %}
-        <div class="field">
+        <div class="field{% if field.name == 'note' %} shift-field-full{% endif %}">
           {{ field.label_tag }}
           {{ field }}
+          {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
           {% if field.errors %}<div class="field-error" role="alert">{{ field.errors }}</div>{% endif %}
         </div>
       {% endfor %}

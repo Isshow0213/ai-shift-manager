@@ -20,9 +20,6 @@
 .overview-board-heading h2 { font-size: 17px; }
 .overview-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12px; }
 .overview-legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.overview-legend-dot { display: inline-block; width: 11px; height: 11px; border-radius: 3px; }
-.overview-manual-dot { background: #5b85e9; }
-.overview-generated-dot { background: #8e6ad2; }
 .overview-legend-dash { color: #a5afbe; font-style: normal; }
 .overview-board-help { margin: 0; padding: 15px 24px; color: #7a8698; font-size: 12px; line-height: 1.7; }
 .overview-empty-month { margin: 0 24px 16px; padding: 12px 15px; border: 1px solid #dfe8fc; border-radius: 8px; background: #f3f7ff; color: #52647e; font-size: 13px; }
@@ -50,10 +47,11 @@
 .overview-shift-cell { padding: 9px 5px; background: #fff; text-align: center; vertical-align: middle; }
 .overview-shift-cell.is-weekend { background: #fcfcfe; }
 .overview-shift-cell.is-today { background: #f5f8ff; }
-.overview-shift { display: flex; align-items: center; justify-content: center; gap: 2px; margin-bottom: 5px; padding: 6px 4px; border: 1px solid transparent; border-radius: 5px; font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.4; white-space: nowrap; }
+.overview-shift { display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; min-width: 0; width: 100%; margin-bottom: 5px; padding: 6px 4px; border: 1px solid var(--shift-border); border-radius: 5px; color: var(--shift-color); background: var(--shift-background); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.4; white-space: normal; }
 .overview-shift:last-child { margin-bottom: 0; }
-.overview-shift-manual { color: #3265c5; background: #eaf1ff; border-color: #dce7fc; }
-.overview-shift-generated { color: #7b52bd; background: #f2ecff; border-color: #e8dff8; }
+.overview-shift-time { display: flex; align-items: center; justify-content: center; gap: 2px; white-space: nowrap; }
+.overview-shift-method { font-size: 9px; font-weight: 500; }
+.overview-shift .overview-shift-note { margin-top: 2px; max-width: 100%; font-size: 10px; font-weight: 400; text-align: left; }
 .overview-shift:hover { filter: brightness(.97); box-shadow: 0 1px 4px #18304912; }
 .overview-no-shift { display: block; padding: 8px; color: #b6bfcc; font-size: 14px; text-align: center; }
 a.overview-no-shift:hover { color: var(--blue); background: #f0f5ff; border-radius: 5px; }

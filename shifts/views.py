@@ -91,6 +91,18 @@ def availability_create(request):
     if selected_date is None:
         selected_date = calendar_context["selected_date"]
 
+    # 前回提出した希望時間を取得（最大5件）
+    previous_availabilities = Availability.objects.filter(
+        user=request.user,
+        work_date__lt=selected_date,
+    ).order_by("-work_date", "-start_time")[:5]
+
+    # 店長が設定した必要時間を取得
+    requirements_for_date = Requirement.objects.filter(
+        store=membership.store,
+        work_date=selected_date,
+    ).order_by("start_time")
+
     if request.method == "POST":
         form = AvailabilityForm(request.POST)
         if form.is_valid():
@@ -118,6 +130,8 @@ def availability_create(request):
             "form": form,
             "membership": membership,
             "selected_date": selected_date,
+            "previous_availabilities": previous_availabilities,
+            "requirements_for_date": requirements_for_date,
         },
     )
 

@@ -1,0 +1,7 @@
+.shift-color-blue { --shift-color: #3265c5; --shift-background: #eaf1ff; --shift-border: #dce7fc; }
+.shift-color-green { --shift-color: #207544; --shift-background: #eaf8ef; --shift-border: #cce8d5; }
+.shift-color-orange { --shift-color: #9a510b; --shift-background: #fff3e4; --shift-border: #f3dec0; }
+.shift-color-purple { --shift-color: #7b52bd; --shift-background: #f2ecff; --shift-border: #e8dff8; }
+.shift-color-pink { --shift-color: #a33d6b; --shift-background: #fff0f6; --shift-border: #f3d4e2; }
+.shift-color-gray { --shift-color: #546174; --shift-background: #f0f3f7; --shift-border: #dce1e9; }
+.shift-note { margin: 7px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }

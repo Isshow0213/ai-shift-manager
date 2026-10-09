@@ -92,12 +92,13 @@
         </div>
         <ul class="schedule-list">
           {% for shift in selected_shifts %}
-            <li class="schedule-item">
-              <div>
+            <li class="schedule-item employee-confirmed-shift {{ shift.display_color_class }}">
+              <div class="employee-shift-content">
                 <div class="schedule-time"><svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>{{ shift.start_time|time:'H:i' }}〜{{ shift.end_time|time:'H:i' }}</div>
                 <p class="employee-shift-meta">{{ shift.store.name }}</p>
+                {% if shift.note %}<div class="employee-shift-note">{{ shift.note }}</div>{% endif %}
               </div>
-              <span class="status-badge badge-violet">確定</span>
+              <span class="status-badge employee-confirmed-badge">確定</span>
             </li>
           {% empty %}
             <li class="empty-state">この日の確定シフトはまだありません。</li>

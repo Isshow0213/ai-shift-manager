@@ -58,7 +58,7 @@
       <span class="status-badge badge-blue">{{ shifts_count }}件</span>
     </div>
     {% if shifts %}
-      <div class="table-wrap">
+      <div class="table-wrap employee-shift-table-wrap">
         <table class="data-table employee-shift-table">
           <thead>
             <tr>
@@ -66,16 +66,18 @@
               <th scope="col">開始時刻</th>
               <th scope="col">終了時刻</th>
               <th scope="col">店舗</th>
+              <th scope="col">メモ</th>
             </tr>
           </thead>
           <tbody>
             {% language "ja" %}
               {% for shift in shifts %}
-                <tr>
-                  <td><span class="shift-day">{{ shift.work_date|date:"n月j日" }}<span class="shift-weekday">（{{ shift.work_date|date:"D" }}）</span></span></td>
-                  <td>{{ shift.start_time|time:"H:i" }}</td>
-                  <td>{{ shift.end_time|time:"H:i" }}</td>
-                  <td>{{ shift.store.name }}</td>
+                <tr class="employee-shift-row {{ shift.display_color_class }}">
+                  <td class="employee-shift-date-cell" data-label="日付"><span class="shift-day"><span class="employee-shift-marker" aria-hidden="true"></span>{{ shift.work_date|date:"n月j日" }}<span class="shift-weekday">（{{ shift.work_date|date:"D" }}）</span></span></td>
+                  <td class="employee-shift-time-cell" data-label="開始時刻">{{ shift.start_time|time:"H:i" }}</td>
+                  <td class="employee-shift-time-cell" data-label="終了時刻">{{ shift.end_time|time:"H:i" }}</td>
+                  <td class="employee-shift-store-cell" data-label="店舗">{{ shift.store.name }}</td>
+                  <td class="employee-shift-note-cell" data-label="メモ">{% if shift.note %}<div class="employee-shift-note">{{ shift.note }}</div>{% else %}<span class="text-muted" aria-label="メモなし">—</span>{% endif %}</td>
                 </tr>
               {% endfor %}
             {% endlanguage %}

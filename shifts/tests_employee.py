@@ -308,3 +308,55 @@ class EmployeeShiftViewsTests(TestCase):
                 self.assertRedirects(
                     response, f"{reverse('login')}?next={url}", fetch_redirect_response=False
                 )
+    def test_availability_form_displays_previous_availabilities_and_requirements(self):
+        from .models import Requirement
+        
+        # Create previous availabilities (before selected_date)
+        Availability.objects.create(
+            user=self.employee,
+            membership=self.membership,
+            work_date=date(2026, 10, 5),
+            start_time=time(9, 0),
+            end_time=time(18, 0),
+        )
+        Availability.objects.create(
+            user=self.employee,
+            membership=self.membership,
+            work_date=date(2026, 10, 1),
+            start_time=time(10, 0),
+            end_time=time(15, 0),
+        )
+        
+        # Create requirements for the selected date
+        Requirement.objects.create(
+            store=self.membership.store,
+            work_date=self.work_date,
+            start_time=time(8, 0),
+            end_time=time(17, 0),
+            required_staff_count=5,
+        )
+        Requirement.objects.create(
+            store=self.membership.store,
+            work_date=self.work_date,
+            start_time=time(18, 0),
+            end_time=time(22, 0),
+            required_staff_count=3,
+        )
+        
+        response = self.client.get(
+            reverse("availability_create"), {"date": self.work_date.isoformat()}
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        # Check that previous availabilities are passed to template
+        self.assertIn("previous_availabilities", response.context)
+        self.assertEqual(len(response.context["previous_availabilities"]), 2)
+        # Check that requirements for the date are passed to template
+        self.assertIn("requirements_for_date", response.context)
+        self.assertEqual(len(response.context["requirements_for_date"]), 2)
+        # Check that the content is displayed in the response
+        self.assertContains(response, "前回提出した希望時間")
+        self.assertContains(response, "店長が設定した必要時間")
+        self.assertContains(response, "09:00〜18:00")  # Previous availability
+        self.assertContains(response, "08:00〜17:00")  # Requirement
+        self.assertContains(response, "18:00〜22:00")  # Requirement

@@ -9,6 +9,10 @@
   .detail-panel .shifts-table { min-width: 520px; }
   .shift-list-actions { display: flex; align-items: center; justify-content: center; gap: 6px; }
   .shift-list-actions .button-small { min-height: 30px; padding: 5px 8px; font-size: 11px; }
+  .manual-extra-fields { display: grid; gap: 12px; margin-top: 14px; }
+  .manual-extra-fields textarea { max-width: 100%; resize: vertical; }
+  .shift-list-time { display: inline-block; padding: 4px 6px; border: 1px solid var(--shift-border); border-radius: 5px; color: var(--shift-color); background: var(--shift-background); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .shift-list-note { width: 180px; max-width: 100%; color: var(--muted); font-size: 11px; font-weight: 400; text-align: left; }
   .calendar-overview-link { display: flex; justify-content: center; margin-top: 18px; }
   @media (max-width: 600px) { .calendar-overview-link .button { width: 100%; } }
 </style>
@@ -156,6 +160,20 @@
             {% if form.end_time.errors %}<div class="field-error" role="alert">{{ form.end_time.errors }}</div>{% endif %}
           </div>
         </div>
+        <div class="manual-extra-fields">
+          <div class="field">
+            {{ form.display_color.label_tag }}
+            {{ form.display_color }}
+            {% if form.display_color.help_text %}<p class="field-help">{{ form.display_color.help_text }}</p>{% endif %}
+            {% if form.display_color.errors %}<div class="field-error" role="alert">{{ form.display_color.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            {{ form.note.label_tag }}
+            {{ form.note }}
+            {% if form.note.help_text %}<p class="field-help">{{ form.note.help_text }}</p>{% endif %}
+            {% if form.note.errors %}<div class="field-error" role="alert">{{ form.note.errors }}</div>{% endif %}
+          </div>
+        </div>
         <button type="submit" class="button button-primary manual-submit">手動で追加する</button>
       </form>
     </section>
@@ -170,7 +188,9 @@
           <tbody>
             {% for shift in shifts %}
               <tr>
-                <td>{{ shift.user.full_name_japanese }}</td><td>{{ shift.start_time|time:"H:i" }}</td><td>{{ shift.end_time|time:"H:i" }}</td>
+                <td>{{ shift.user.full_name_japanese }}{% if shift.note %}<p class="shift-note shift-list-note">{{ shift.note }}</p>{% endif %}</td>
+                <td><span class="shift-list-time {{ shift.display_color_class }}">{{ shift.start_time|time:"H:i" }}</span></td>
+                <td><span class="shift-list-time {{ shift.display_color_class }}">{{ shift.end_time|time:"H:i" }}</span></td>
                 <td>{% if shift.is_generated %}<span class="method-badge generated-badge">自動生成</span>{% else %}<span class="method-badge manual-badge">手動</span>{% endif %}</td>
                 <td><div class="shift-list-actions">
                   <a class="button button-secondary button-small" href="{% url 'manager_shift_edit' shift.id %}" aria-label="{{ shift.user.full_name_japanese }}のシフトを編集">編集</a>
