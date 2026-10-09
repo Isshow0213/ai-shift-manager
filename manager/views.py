@@ -6,7 +6,9 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from shifts.models import Availability, Requirement, Shift
 from accounts.models import StaffInvitation, StoreMembership
-from .forms import ShiftForm, StaffRankForm
+from .forms import (
+    AvailabilityShiftForm, OutsideAvailabilityShiftForm, ShiftForm, StaffRankForm,
+)
 from shifts.calendar_utils import get_calendar_context
 from shifts.overview import build_shift_overview_context
 
@@ -225,29 +227,36 @@ def shift_list(request):
         "membership__user__username",
     )
 
-    if request.method == "POST":
-        form = ShiftForm(
-            request.POST,
-            store=store,
-            selected_date=selected_date,
-        )
+    submitted_mode = (
+        request.POST.get("shift_mode", "availability")
+        if request.method == "POST" else None
+    )
+    form = AvailabilityShiftForm(
+        request.POST if request.method == "POST" and submitted_mode != "outside" else None,
+        store=store, selected_date=selected_date, initial={"work_date": selected_date},
+    )
+    outside_form = OutsideAvailabilityShiftForm(
+        request.POST if request.method == "POST" and submitted_mode == "outside" else None,
+        store=store, selected_date=selected_date,
+        initial={"work_date": selected_date}, prefix="outside",
+    )
 
-        if form.is_valid():
-            shift = form.save(commit=False)
+    if request.method == "POST":
+        submitted_form = outside_form if submitted_mode == "outside" else form
+        if submitted_mode not in ("availability", "outside"):
+            submitted_form.is_valid()
+            submitted_form.add_error(
+                None, "追加方法が不正です。画面の追加ボタンから操作してください。"
+            )
+        elif submitted_form.is_valid():
+            shift = submitted_form.save(commit=False)
             shift.store = store
             shift.user = shift.membership.user
             shift.is_generated = False
             shift.save()
-            messages.success(request, "手動でシフトを追加しました。")
+            label = "希望外のシフト" if submitted_mode == "outside" else "希望通りのシフト"
+            messages.success(request, f"{label}を追加しました。")
             return redirect(_shift_calendar_url(shift.work_date))
-    else:
-        form = ShiftForm(
-            store=store,
-            selected_date=selected_date,
-            initial={
-                "work_date": selected_date,
-            },
-        )
 
     eligible_membership_ids = set(
         form.fields["membership"].queryset.values_list("pk", flat=True)
@@ -276,6 +285,7 @@ def shift_list(request):
             "requirements": requirements,
             "shifts": shifts,
             "form": form,
+            "outside_form": outside_form,
             "availability_autofill": availability_autofill,
         },
     )

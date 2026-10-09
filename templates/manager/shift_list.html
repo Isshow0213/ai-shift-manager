@@ -137,10 +137,11 @@
 
     <section class="panel detail-panel manual-panel">
       <div class="panel-heading">
-        <h3><span class="section-icon manual-icon"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg></span>手動でシフトを追加</h3>
+        <h3><span class="section-icon manual-icon"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg></span>希望通りのシフトを追加</h3>
       </div>
       <form method="post" class="manual-shift-form" data-availability-source="manual-shift-availabilities" data-is-bound="{{ form.is_bound|yesno:'true,false' }}">
         {% csrf_token %}
+        <input type="hidden" name="shift_mode" value="availability">
         {{ form.work_date.as_hidden }}
         {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
         {% if form.work_date.errors %}<div class="field-error" role="alert">{{ form.work_date.errors }}</div>{% endif %}
@@ -148,7 +149,7 @@
           <div class="field staff-field">
             <label for="{{ form.membership.id_for_label }}">スタッフ</label>
             {{ form.membership }}
-            <p class="field-help">スタッフを選ぶと、その日の希望時間が入力されます。</p>
+            <p class="field-help">スタッフを選ぶと、その日の希望時間が入力されます。開始・終了時刻は希望時間内で設定してください。</p>
             {% if form.membership.errors %}<div class="field-error" role="alert">{{ form.membership.errors }}</div>{% endif %}
           </div>
           <div class="field">
@@ -165,7 +166,7 @@
         <div class="field manual-availability-field" id="manual-availability-field" hidden>
           <label for="manual-availability-slot">希望時間帯</label>
           <select id="manual-availability-slot" aria-describedby="manual-availability-help"></select>
-          <p class="field-help" id="manual-availability-help">複数の希望があるため、追加する時間帯を選べます。入力された時刻は調整できます。</p>
+          <p class="field-help" id="manual-availability-help">複数の希望があるため、追加する時間帯を選べます。時刻は希望時間内で調整できます。</p>
         </div>
         <div class="manual-extra-fields">
           <div class="field">
@@ -181,7 +182,55 @@
             {% if form.note.errors %}<div class="field-error" role="alert">{{ form.note.errors }}</div>{% endif %}
           </div>
         </div>
-        <button type="submit" class="button button-primary manual-submit">手動で追加する</button>
+        <button type="submit" class="button button-primary manual-submit">希望通りのシフトを追加する</button>
+      </form>
+    </section>
+
+    <section class="panel detail-panel manual-panel">
+      <div class="panel-heading">
+        <h3><span class="section-icon manual-icon"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg></span>希望外のシフトを追加</h3>
+      </div>
+      <form method="post" data-outside-shift-form>
+        {% csrf_token %}
+        <input type="hidden" name="shift_mode" value="outside">
+        {{ outside_form.work_date.as_hidden }}
+        {{ outside_form.confirm_outside_availability.as_hidden }}
+        {% if outside_form.non_field_errors %}<div class="field-error" role="alert">{{ outside_form.non_field_errors }}</div>{% endif %}
+        {% if outside_form.work_date.errors %}<div class="field-error" role="alert">{{ outside_form.work_date.errors }}</div>{% endif %}
+        {% if outside_form.confirm_outside_availability.errors %}<div class="field-error" role="alert">{{ outside_form.confirm_outside_availability.errors }}</div>{% endif %}
+        <div class="manual-fields">
+          <div class="field staff-field">
+            <label for="{{ outside_form.membership.id_for_label }}">スタッフ</label>
+            {{ outside_form.membership }}
+            <p class="field-help">店舗の全スタッフから選べます。希望の提出状況にかかわらず、開始・終了時刻を設定できます。</p>
+            {% if outside_form.membership.errors %}<div class="field-error" role="alert">{{ outside_form.membership.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            <label for="{{ outside_form.start_time.id_for_label }}">開始時刻</label>
+            {{ outside_form.start_time }}
+            {% if outside_form.start_time.errors %}<div class="field-error" role="alert">{{ outside_form.start_time.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            <label for="{{ outside_form.end_time.id_for_label }}">終了時刻</label>
+            {{ outside_form.end_time }}
+            {% if outside_form.end_time.errors %}<div class="field-error" role="alert">{{ outside_form.end_time.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="manual-extra-fields">
+          <div class="field">
+            {{ outside_form.display_color.label_tag }}
+            {{ outside_form.display_color }}
+            {% if outside_form.display_color.help_text %}<p class="field-help">{{ outside_form.display_color.help_text }}</p>{% endif %}
+            {% if outside_form.display_color.errors %}<div class="field-error" role="alert">{{ outside_form.display_color.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            {{ outside_form.note.label_tag }}
+            {{ outside_form.note }}
+            {% if outside_form.note.help_text %}<p class="field-help">{{ outside_form.note.help_text }}</p>{% endif %}
+            {% if outside_form.note.errors %}<div class="field-error" role="alert">{{ outside_form.note.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <button type="submit" class="button button-primary manual-submit">希望外のシフトを追加する</button>
       </form>
     </section>
 
@@ -220,4 +269,5 @@
   {{ block.super }}
   {{ availability_autofill|json_script:"manual-shift-availabilities" }}
   <script src="{% static 'manager/shift_autofill.js' %}" defer></script>
+  <script src="{% static 'manager/shift_creation.js' %}" defer></script>
 {% endblock %}

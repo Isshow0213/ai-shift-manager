@@ -95,12 +95,12 @@ class ShiftDetailsTests(TestCase):
         self.assertEqual(shift.display_color_class, "shift-color-purple")
         shift.is_generated = False
         self.assertEqual(shift.display_color_class, "shift-color-blue")
-        for color in ["blue", "green", "orange", "purple", "pink", "gray"]:
+        for color in ["blue", "green", "red", "orange", "purple", "pink", "gray"]:
             with self.subTest(color=color):
                 shift.display_color = color
                 self.assertEqual(shift.display_color_class, f"shift-color-{color}")
         for generated in [True, False]:
-            for invalid_color in ["red", 'blue" onclick="alert(1)', "BLUE"]:
+            for invalid_color in ["yellow", 'blue" onclick="alert(1)', "BLUE"]:
                 with self.subTest(generated=generated, color=invalid_color):
                     shift.is_generated = generated
                     shift.display_color = invalid_color
@@ -136,7 +136,7 @@ class ShiftDetailsTests(TestCase):
                 self.assertEqual(form.fields["note"].max_length, 500)
                 self.assertEqual(
                     {value for value, label in form.fields["display_color"].choices},
-                    {"", "blue", "green", "orange", "purple", "pink", "gray"},
+                    {"", "blue", "green", "red", "orange", "purple", "pink", "gray"},
                 )
                 self.assertContains(response, 'name="note"')
                 self.assertContains(response, 'name="display_color"')
@@ -147,7 +147,7 @@ class ShiftDetailsTests(TestCase):
     def test_edit_saves_each_color_and_note_and_changes_generated_shift_to_manual(self):
         shift = self.make_shift(is_generated=True)
 
-        for color in ["blue", "green", "orange", "purple", "pink", "gray"]:
+        for color in ["blue", "green", "red", "orange", "purple", "pink", "gray"]:
             with self.subTest(color=color):
                 note = f"{color}のヘルプ先メモ"
                 response = self.client.post(
@@ -204,7 +204,7 @@ class ShiftDetailsTests(TestCase):
         ]:
             for field, value in [
                 ("note", "あ" * 501),
-                ("display_color", "red"),
+                ("display_color", "yellow"),
                 ("display_color", 'pink" onclick="alert(1)'),
             ]:
                 with self.subTest(url=url, field=field, value=value):

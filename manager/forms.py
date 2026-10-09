@@ -104,7 +104,10 @@ class ShiftForm(forms.ModelForm):
             "display_color": "ヘルプ先や勤務の種類を見分ける色を選べます。",
         }
 
-    def __init__(self, *args, store=None, selected_date=None, **kwargs):
+    def __init__(
+        self, *args, store=None, selected_date=None,
+        only_available_staff=True, **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.store = store
 
@@ -117,11 +120,12 @@ class ShiftForm(forms.ModelForm):
                 user__is_active=True,
             ).select_related("user")
             if selected_date is not None:
-                membership_ids = Availability.objects.filter(
-                    membership__store=store,
-                    work_date=selected_date,
-                ).values_list("membership_id", flat=True)
-                memberships = memberships.filter(id__in=membership_ids)
+                if only_available_staff:
+                    membership_ids = Availability.objects.filter(
+                        membership__store=store,
+                        work_date=selected_date,
+                    ).values_list("membership_id", flat=True)
+                    memberships = memberships.filter(id__in=membership_ids)
                 self.fields["work_date"].initial = selected_date
             self.fields["membership"].queryset = memberships.order_by(
                 "user__last_name", "user__first_name", "user__username"
@@ -157,3 +161,62 @@ class ShiftForm(forms.ModelForm):
                     None, "この従業員には、同じ時間帯に重なるシフトが登録されています。"
                 )
         return cleaned_data
+
+
+class ShiftCreationForm(ShiftForm):
+    def __init__(self, *args, selected_date=None, **kwargs):
+        self.selected_date = selected_date
+        super().__init__(*args, selected_date=selected_date, **kwargs)
+
+    def clean_work_date(self):
+        work_date = self.cleaned_data["work_date"]
+        if not 2 <= work_date.year <= 9998:
+            raise forms.ValidationError("日付は2年〜9998年の範囲で指定してください。")
+        if self.selected_date is not None and work_date != self.selected_date:
+            raise forms.ValidationError("カレンダーで選択した日付のシフトを追加してください。")
+        return work_date
+
+
+class AvailabilityShiftForm(ShiftCreationForm):
+    def clean(self):
+        cleaned_data = super().clean()
+        membership = cleaned_data.get("membership")
+        work_date = cleaned_data.get("work_date")
+        start_time = cleaned_data.get("start_time")
+        end_time = cleaned_data.get("end_time")
+        if (
+            not (membership and work_date and start_time and end_time)
+            or start_time >= end_time
+        ):
+            return cleaned_data
+
+        # 隣接する希望はつなげられるが、希望のない時間をまたぐシフトは作れない。
+        covered_until = start_time
+        availabilities = Availability.objects.filter(
+            membership=membership, work_date=work_date,
+            start_time__lt=end_time, end_time__gt=start_time,
+        ).order_by("start_time", "end_time")
+        for availability in availabilities:
+            if availability.start_time > covered_until:
+                break
+            covered_until = max(covered_until, availability.end_time)
+            if covered_until >= end_time:
+                break
+        if covered_until < end_time:
+            self.add_error(
+                None,
+                "希望時間の範囲外です。希望外の時間で追加する場合は「希望外のシフトを追加」を使ってください。",
+            )
+        return cleaned_data
+
+
+class OutsideAvailabilityShiftForm(ShiftCreationForm):
+    confirm_outside_availability = forms.BooleanField(
+        label="希望外のシフト追加の確認", required=True, initial=False,
+        widget=forms.HiddenInput(),
+        error_messages={"required": "希望外のシフトを追加するには、確認画面で承認してください。"},
+    )
+
+    def __init__(self, *args, **kwargs):
+        kwargs["only_available_staff"] = False
+        super().__init__(*args, **kwargs)
