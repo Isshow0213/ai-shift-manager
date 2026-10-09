@@ -103,7 +103,7 @@
                 <div class="schedule-time"><svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}</div>
                 <p class="employee-shift-meta"><span class="status-badge badge-green">提出済み</span></p>
               </div>
-              {% if submission_closed %}
+              {% if availability.submission_closed %}
                 <span class="status-badge badge-muted">削除不可</span>
               {% else %}
                 <form method="post" action="{% url 'availability_delete' availability.id %}">

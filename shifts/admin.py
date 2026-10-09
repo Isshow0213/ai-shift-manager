@@ -1,9 +1,11 @@
 from django.contrib import admin
+from django import forms
 from .models import (
     Availability,
     Requirement,
     Shift,
     StoreOperatingHours,
+    StoreSubmissionDeadline,
     AvailabilityChangeNotification,
 )
 
@@ -30,7 +32,6 @@ class RequirementAdmin(admin.ModelAdmin):
         "start_time",
         "end_time",
         "required_staff_count",
-        "deadline",
         "day_type",
     )
     list_filter = ("store", "work_date", "day_type")
@@ -43,9 +44,6 @@ class RequirementAdmin(admin.ModelAdmin):
         }),
         ("人数・メモ", {
             "fields": ("required_staff_count", "memo")
-        }),
-        ("締切", {
-            "fields": ("deadline",)
         }),
     )
 
@@ -81,6 +79,20 @@ class StoreOperatingHoursAdmin(admin.ModelAdmin):
             "description": "通し勤務で使用される営業時間を設定します。"
         }),
     )
+
+
+@admin.register(StoreSubmissionDeadline)
+class StoreSubmissionDeadlineAdmin(admin.ModelAdmin):
+    list_display = ("store", "mode", "weekly_deadline_weekday", "monthly_deadline_day", "updated_at")
+    list_filter = ("store", "mode")
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "weekly_deadline_weekday":
+            return forms.TypedChoiceField(
+                label=db_field.verbose_name, coerce=int, initial=2,
+                choices=[(index, f"{label}曜日") for index, label in enumerate("月火水木金土日")],
+            )
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 @admin.register(AvailabilityChangeNotification)

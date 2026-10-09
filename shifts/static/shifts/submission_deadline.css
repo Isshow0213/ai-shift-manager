@@ -1,0 +1,52 @@
+.deadline-settings-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); align-items: start; gap: 20px; }
+.deadline-settings-panel, .deadline-preview-panel { min-width: 0; }
+.deadline-settings-intro { margin-bottom: 24px; padding: 16px 18px; border-radius: 9px; background: #f3f7ff; color: #52647e; }
+.deadline-settings-intro p { margin: 0 0 7px; font-size: 13px; }
+.deadline-settings-intro p:last-child { margin-bottom: 0; }
+.deadline-mode-field { margin-bottom: 22px; }
+.deadline-mode-field select, .deadline-rule input, .deadline-rule select { min-width: 0; max-width: 100%; }
+.deadline-mode-field > div { display: flex; flex-wrap: wrap; gap: 12px 20px; }
+.deadline-mode-field > div label { display: flex; align-items: center; gap: 7px; margin-bottom: 0; }
+.deadline-rule { min-width: 0; margin: 0; padding: 18px; border: 1px solid #e4eaf4; border-radius: 10px; background: #fbfcfe; }
+.deadline-rule[hidden] { display: none; }
+.deadline-rule legend { padding: 0 7px; color: #344056; font-size: 14px; font-weight: 650; }
+.deadline-rule-help { margin: 12px 0 0; color: #748096; font-size: 12px; line-height: 1.8; }
+.deadline-day-input { display: flex; align-items: center; gap: 10px; }
+.deadline-day-input input { flex: 1; }
+.deadline-day-input > span { flex-shrink: 0; color: #687487; font-size: 14px; }
+.deadline-settings-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.deadline-preview-description { margin: 0 0 18px; color: #687487; font-size: 13px; }
+.deadline-preview-list { display: flex; flex-direction: column; gap: 14px; }
+.deadline-preview-period { padding: 17px 18px; border: 1px solid #e2eafa; border-radius: 10px; background: #f6f9ff; }
+.deadline-preview-period h3 { margin: 0 0 9px; color: #687487; font-size: 12px; font-weight: 550; }
+.deadline-preview-range { margin: 0; color: #344056; font-size: 13px; overflow-wrap: anywhere; }
+.deadline-preview-date { display: flex; flex-direction: column; gap: 5px; margin: 15px 0 0; }
+.deadline-preview-date > span { color: #748096; font-size: 11px; }
+.deadline-preview-date strong { color: #2854a1; font-size: 15px; overflow-wrap: anywhere; }
+.deadline-preview-note { margin: 18px 0 0; color: #7b8799; font-size: 12px; line-height: 1.8; }
+.submission-deadline { min-width: 0; margin-bottom: 20px; padding: 17px 18px; border: 1px solid #dce7fb; border-radius: 10px; background: #f3f7ff; }
+.submission-deadline-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 9px 14px; }
+.submission-deadline-heading h3 { margin: 0; color: #2854a1; font-size: 15px; font-weight: 650; }
+.submission-deadline-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.submission-deadline-dates p { margin: 0; color: #748096; font-size: 11px; }
+.submission-deadline-dates strong, .submission-deadline-dates span { display: block; margin-top: 4px; color: #344056; font-size: 13px; overflow-wrap: anywhere; }
+.submission-deadline-closed { border-color: #f0dcb9; background: #fff8ed; }
+.submission-deadline-closed .submission-deadline-heading h3 { color: #95611e; }
+.submission-deadline-message { margin: 12px 0 0; color: #95611e; font-size: 13px; line-height: 1.7; }
+.submission-inputs { min-width: 0; margin: 0; padding: 0; border: 0; }
+.submission-inputs:disabled input { background: #f5f7fa; cursor: not-allowed; }
+.submission-inputs:disabled .quick-select-item { opacity: .65; cursor: not-allowed; }
+.calendar-day.is-submission-closed:not(.is-selected) { background: #faf7f2; }
+.deadline-badge { color: #95611e; background: #fff0da; }
+@media (max-width: 1100px) {
+  .deadline-settings-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .deadline-settings-layout { gap: 16px; }
+  .deadline-settings-intro, .deadline-rule, .deadline-preview-period { padding: 14px; }
+  .deadline-settings-actions { justify-content: stretch; }
+  .deadline-settings-actions .button { width: 100%; }
+  .deadline-preview-date strong { font-size: 14px; }
+  .submission-deadline { padding: 14px; }
+  .submission-deadline-dates { grid-template-columns: minmax(0, 1fr); gap: 9px; }
+}

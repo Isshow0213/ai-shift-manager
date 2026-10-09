@@ -1,0 +1,93 @@
+{% extends 'manager/base.html' %}
+{% load static i18n %}
+
+{% block title %}希望提出の締切設定｜シフト管理{% endblock %}
+{% block page_title %}希望提出の締切設定{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · 毎週・毎月の締切ルール{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'shifts/submission_deadline.css' %}">
+{% endblock %}
+
+{% block content %}
+  <div class="deadline-settings-layout">
+    <section class="panel deadline-settings-panel">
+      <div class="panel-heading">
+        <h2><svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>締切ルール</h2>
+        {% if configured %}<span class="status-badge badge-green">設定済み</span>{% else %}<span class="status-badge badge-muted">未設定</span>{% endif %}
+      </div>
+      <form method="post" class="panel-body deadline-settings-form" id="submission-deadline-form" data-selected-date="{{ selected_date|date:'Y-m-d' }}">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="deadline-settings-intro">
+          <p>一度保存すると、次の週・月も同じルールが適用されます。毎回の設定は不要です。</p>
+          <p>締切当日の<strong>23:59まで</strong>提出できます。</p>
+        </div>
+
+        <div class="field deadline-mode-field" data-deadline-mode-field>
+          {{ form.mode.label_tag }}
+          {{ form.mode }}
+          {% if form.mode.errors %}<div class="field-error">{{ form.mode.errors }}</div>{% endif %}
+        </div>
+
+        <fieldset class="deadline-rule" data-deadline-rule="weekly"{% if form.mode.value != 'weekly' %} hidden{% endif %}>
+          <legend>毎週の提出締切</legend>
+          <div class="field">
+            {{ form.weekly_deadline_weekday.label_tag }}
+            {{ form.weekly_deadline_weekday }}
+            {% if form.weekly_deadline_weekday.errors %}<div class="field-error">{{ form.weekly_deadline_weekday.errors }}</div>{% endif %}
+          </div>
+          <p class="deadline-rule-help">翌週の月曜〜日曜のシフト希望を、前の週の指定曜日までに提出します。</p>
+        </fieldset>
+
+        <fieldset class="deadline-rule" data-deadline-rule="monthly"{% if form.mode.value == 'weekly' %} hidden{% endif %}>
+          <legend>毎月の提出締切</legend>
+          <div class="field">
+            {{ form.monthly_deadline_day.label_tag }}
+            <div class="deadline-day-input">{{ form.monthly_deadline_day }}<span>日</span></div>
+            {% if form.monthly_deadline_day.errors %}<div class="field-error">{{ form.monthly_deadline_day.errors }}</div>{% endif %}
+          </div>
+          <p class="deadline-rule-help">対象月の前月に締め切ります。15日なら、11月分は10月15日、12月分は11月15日が締切です。</p>
+          <p class="deadline-rule-help">指定日がない月は末日になります。31日設定なら、3月分の締切は2月末日です。</p>
+        </fieldset>
+
+        <div class="deadline-settings-actions">
+          <a class="button button-secondary" href="{% url 'manager_requirement_list' %}">必要人数設定へ戻る</a>
+          <button class="button button-primary" type="submit">締切ルールを保存</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel deadline-preview-panel" aria-label="締切の確認">
+      <div class="panel-heading">
+        <h2><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>締切の確認</h2>
+      </div>
+      <div class="panel-body">
+        <p class="deadline-preview-description" id="deadline-preview-description">{% if configured %}現在の設定による締切です。{% else %}以下は設定例です。保存すると、店舗の締切として適用されます。{% endif %}</p>
+        <div class="deadline-preview-list" id="deadline-preview" aria-live="polite">
+          {% language 'ja' %}
+            <article class="deadline-preview-period" data-deadline-period="current">
+              <h3>選択日を含む期間</h3>
+              <p class="deadline-preview-range"><span data-period-start>{{ submission_period.start_date|date:'Y年n月j日' }}</span>〜<span data-period-end>{{ submission_period.end_date|date:'Y年n月j日' }}</span></p>
+              <p class="deadline-preview-date"><span>提出締切</span><strong data-period-deadline>{{ submission_period.deadline_date|date:'Y年n月j日（D）' }} 23:59まで</strong></p>
+            </article>
+            {% if next_submission_period %}
+            <article class="deadline-preview-period" data-deadline-period="next">
+              <h3>次の期間</h3>
+              <p class="deadline-preview-range"><span data-period-start>{{ next_submission_period.start_date|date:'Y年n月j日' }}</span>〜<span data-period-end>{{ next_submission_period.end_date|date:'Y年n月j日' }}</span></p>
+              <p class="deadline-preview-date"><span>提出締切</span><strong data-period-deadline>{{ next_submission_period.deadline_date|date:'Y年n月j日（D）' }} 23:59まで</strong></p>
+            </article>
+            {% endif %}
+          {% endlanguage %}
+        </div>
+        <p class="deadline-preview-note">締切後は、対象期間の希望の提出・削除ができなくなります。ルールを変更した場合は、保存後に適用されます。</p>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script src="{% static 'shifts/submission_deadline_settings.js' %}" defer></script>
+{% endblock %}

@@ -36,7 +36,7 @@
         <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
         <span>シフト希望</span>
       </a>
-      {% if membership %}
+      {% if membership and not submission_closed %}
         <a class="nav-link{% if current_url == 'availability_create' %} active{% endif %}" href="{% url 'availability_create' %}{% if selected_date %}?date={{ selected_date|date:'Y-m-d' }}{% endif %}"{% if current_url == 'availability_create' %} aria-current="page"{% endif %}>
           <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
           <span>希望を提出</span>
@@ -44,7 +44,7 @@
       {% else %}
         <span class="nav-link nav-link-disabled" aria-disabled="true">
           <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
-          <span>希望を提出</span>
+          <span>{% if submission_closed %}希望提出は締切済み{% else %}希望を提出{% endif %}</span>
         </span>
       {% endif %}
       <a class="nav-link{% if current_url == 'shift_list' %} active{% endif %}" href="{% url 'shift_list' %}{% if selected_date %}?year={{ selected_date|date:'Y' }}&amp;month={{ selected_date|date:'n' }}&amp;date={{ selected_date|date:'Y-m-d' }}{% endif %}"{% if current_url == 'shift_list' %} aria-current="page"{% endif %}>

@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class Availability(models.Model):
@@ -151,6 +152,33 @@ class StoreOperatingHours(models.Model):
 
     def __str__(self):
         return f"{self.store.name} {self.start_time}-{self.end_time}"
+
+
+class StoreSubmissionDeadline(models.Model):
+    class Mode(models.TextChoices):
+        WEEKLY = "weekly", "週ごと"
+        MONTHLY = "monthly", "月ごと"
+
+    store = models.OneToOneField(
+        "accounts.Store", on_delete=models.CASCADE,
+        related_name="submission_deadline", verbose_name="店舗",
+    )
+    mode = models.CharField("締切の管理方法", max_length=7, choices=Mode.choices, default=Mode.MONTHLY)
+    weekly_deadline_weekday = models.PositiveSmallIntegerField(
+        "締切曜日", default=2, validators=[MinValueValidator(0), MaxValueValidator(6)],
+    )
+    monthly_deadline_day = models.PositiveSmallIntegerField(
+        "前月の締切日", default=15, validators=[MinValueValidator(1), MaxValueValidator(31)],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "シフト希望の提出締切"
+        verbose_name_plural = "シフト希望の提出締切"
+
+    def __str__(self):
+        return f"{self.store.name} · {self.get_mode_display()}"
 
 
 class AvailabilityChangeNotification(models.Model):

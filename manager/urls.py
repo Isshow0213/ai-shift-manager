@@ -7,6 +7,7 @@ from . import views as manager_views
 urlpatterns = [
     path("dashboard/", shift_views.dashboard, name="manager_dashboard"),
     path("availabilities/", shift_views.manager_availability_list, name="manager_availability_list"),
+    path("submission-deadline/", shift_views.manager_submission_deadline, name="manager_submission_deadline"),
     path("requirements/", shift_views.manager_requirement_list, name="manager_requirement_list"),
     path("requirements/bulk/", shift_views.manager_requirement_bulk, name="manager_requirement_bulk"),
     path("generate/", shift_views.generate_shift_view, name="generate_shift"),
