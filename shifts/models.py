@@ -74,6 +74,26 @@ class Requirement(models.Model):
             f"{self.required_staff_count}人"
         )
 
+class RequirementTimePreset(models.Model):
+    store = models.ForeignKey(
+        "accounts.Store", on_delete=models.CASCADE, related_name="requirement_time_presets",
+    )
+    start_time = models.TimeField("開始時刻")
+    end_time = models.TimeField("終了時刻")
+    required_staff_count = models.PositiveIntegerField("必要人数", validators=[MinValueValidator(1)])
+    memo = models.TextField("メモ", max_length=500, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["start_time", "end_time"]
+        constraints = [models.UniqueConstraint(
+            fields=["store", "start_time", "end_time"], name="unique_store_requirement_time_preset",
+        )]
+        verbose_name = "必要人数の保存済み時間帯"
+        verbose_name_plural = "必要人数の保存済み時間帯"
+
+
 class Shift(models.Model):
     DISPLAY_COLOR_CHOICES = [
         ("", "標準"),

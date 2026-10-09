@@ -43,6 +43,14 @@ class BulkRequirementForm(forms.Form):
         return cleaned_data
 
 
+class RequirementCategoryMemoForm(forms.Form):
+    memo = forms.CharField(
+        label="この区分に共通のメモ", max_length=500, required=False,
+        help_text="この区分に該当するすべての日・時間帯に、同じメモを保存します（500文字まで）。",
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "例：この区分の日は駅前店のヘルプ"}),
+    )
+
+
 class RequirementTimeSlotForm(forms.Form):
     start_time = forms.TimeField(label="開始時刻", widget=forms.TimeInput(attrs={"type": "time"}))
     end_time = forms.TimeField(label="終了時刻", widget=forms.TimeInput(attrs={"type": "time"}))

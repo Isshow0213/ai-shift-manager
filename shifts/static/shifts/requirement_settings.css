@@ -1,0 +1,48 @@
+.requirement-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.requirement-panels > .panel { min-width: 0; }
+.requirement-panels .panel-heading { flex-wrap: wrap; }
+.requirement-form, .operating-hours-form { padding: 24px; }
+.requirement-mode-field { max-width: 440px; margin-bottom: 20px; }
+.requirement-mode-field > div { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.requirement-mode-field > div label { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.requirement-target-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 22px; }
+.requirement-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-bottom: 22px; }
+.requirement-memo-field { grid-column: 1 / -1; }
+.requirement-panels input, .requirement-panels select, .requirement-panels textarea { min-width: 0; max-width: 100%; }
+.requirement-panels [data-requirement-mode][hidden] { display: none; }
+.requirement-help, .requirement-panel-help { color: var(--muted); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.requirement-help { margin: -7px 0 20px; }
+.requirement-panel-help { margin: 0; padding: 18px 24px; }
+.requirement-panels .requirement-memo-help { display: block; padding: 6px 0 0; }
+.requirement-form-actions { display: flex; justify-content: flex-end; }
+.requirement-form-actions .button { white-space: normal; }
+.requirement-preset-feedback { margin: 0 0 16px; color: #2854a1; font-size: 13px; }
+.requirement-preset-feedback:empty { display: none; }
+.requirement-memo { min-width: 160px; max-width: 380px; white-space: pre-wrap !important; overflow-wrap: anywhere; }
+.operating-hours-form { background: #f8faff; }
+.operating-hours-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 22px; }
+.operating-hours-info { padding: 12px 16px; margin-bottom: 16px; border-radius: 8px; border-left: 4px solid #2860ed; background: #edf3ff; color: #52647e; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.operating-hours-info strong { display: block; margin-bottom: 3px; color: #2854a1; }
+.submission-deadline-link { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; }
+.submission-deadline-link h2 { margin: 0 0 6px; font-size: 18px; }
+.submission-deadline-link p { margin: 0; color: #687487; font-size: 13px; line-height: 1.7; }
+.requirement-month-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px; padding: 18px 24px; border-bottom: 1px solid var(--border); }
+.requirement-month-navigation { display: flex; flex-wrap: wrap; gap: 10px; }
+.requirement-month-form { display: flex; align-items: flex-end; gap: 10px; min-width: 0; }
+.requirement-month-form .field { min-width: 0; }
+.requirement-month-form .button { min-height: 42px; }
+.requirement-panels .button-small { padding: 6px 12px; font-size: 12px; }
+@media (max-width: 900px) {
+  .requirement-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .operating-hours-fields { grid-template-columns: 1fr; }
+}
+@media (max-width: 540px) {
+  .requirement-form, .operating-hours-form { padding: 20px 16px; }
+  .requirement-target-fields, .requirement-fields { grid-template-columns: 1fr; }
+  .requirement-form-actions .button { width: 100%; }
+  .submission-deadline-link { flex-direction: column; align-items: flex-start; padding: 20px 16px; }
+  .submission-deadline-link .button { width: 100%; white-space: normal; }
+  .requirement-panel-help, .requirement-month-toolbar { padding: 16px; }
+  .requirement-month-form { width: 100%; }
+  .requirement-month-form .field { flex: 1; }
+}

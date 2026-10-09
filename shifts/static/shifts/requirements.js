@@ -3,13 +3,16 @@
   if (!form) return;
   const invalidatePreview = () => {
     const preview = document.getElementById('bulk-preview');
-    if (preview) preview.hidden = true;
+    if (preview) {
+      preview.hidden = true;
+      preview.querySelectorAll('button[name="action"][value="apply"]').forEach(button => { button.disabled = true; });
+    }
   };
   const updateCategories = () => {
     const selected = new Set([...form.querySelectorAll('input[name="categories"]:checked')].map(input => input.value));
     form.querySelectorAll('.bulk-category').forEach(section => {
       section.hidden = !selected.has(section.dataset.category);
-      section.querySelectorAll('input').forEach(input => { input.disabled = section.hidden; });
+      section.querySelectorAll('input, select, textarea').forEach(input => { input.disabled = section.hidden; });
     });
   };
   form.addEventListener('input', invalidatePreview);
@@ -45,4 +48,12 @@
     invalidatePreview();
   });
   updateCategories();
+  const preview = document.getElementById('bulk-preview');
+  if (preview && !preview.hidden) {
+    requestAnimationFrame(() => {
+      preview.focus({ preventScroll: true });
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      preview.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    });
+  }
 })();

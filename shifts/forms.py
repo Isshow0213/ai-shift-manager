@@ -2,6 +2,8 @@ from django import forms
 from django.contrib.auth import get_user_model
 from .models import Availability, Requirement, StoreOperatingHours, StoreSubmissionDeadline
 from .submission_deadlines import get_submission_period, is_submission_closed
+from .requirement_bulk_forms import RequirementTimeSlotForm
+from .requirement_settings import get_month_dates
 
 
 User = get_user_model()
@@ -113,6 +115,59 @@ class RequirementForm(forms.ModelForm):
         end_time = cleaned_data.get("end_time")
         if start_time is not None and end_time is not None and start_time >= end_time:
             self.add_error("end_time", "終了時刻は開始時刻より後にしてください。")
+        return cleaned_data
+
+
+class ManagerRequirementForm(RequirementTimeSlotForm):
+    schedule_mode = forms.ChoiceField(
+        label="設定方法", choices=[("month", "月・曜日種別でまとめて設定"), ("date", "日付を指定して設定")],
+        initial="month",
+    )
+    work_date = forms.DateField(label="日付", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    target_month = forms.DateField(
+        label="対象月", required=False, input_formats=["%Y-%m"],
+        widget=forms.DateInput(format="%Y-%m", attrs={"type": "month", "min": "1949-01", "max": "2099-12"}),
+    )
+    day_type = forms.ChoiceField(
+        label="曜日種別", required=False, choices=[("", "選択してください"), *Requirement.DAY_TYPE_CHOICES],
+    )
+    memo = forms.CharField(label="メモ", max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 3}))
+
+    def __init__(self, *args, **kwargs):
+        supplied_data = args[0] if args else kwargs.get("data")
+        if supplied_data is not None and "schedule_mode" not in supplied_data:
+            data = supplied_data.copy()
+            data["schedule_mode"] = "month" if data.get("target_month") or not data.get("work_date") else "date"
+            if args:
+                args = (data, *args[1:])
+            else:
+                kwargs["data"] = data
+        super().__init__(*args, **kwargs)
+        mode = self.data.get("schedule_mode") if self.is_bound else self.initial.get("schedule_mode", "month")
+        if mode in ("month", "date"):
+            for field in ("work_date", "target_month", "day_type"):
+                enabled = field == "work_date" if mode == "date" else field != "work_date"
+                self.fields[field].required = enabled
+                self.fields[field].disabled = not enabled
+
+    def clean(self):
+        cleaned_data = super().clean()
+        mode = cleaned_data.get("schedule_mode")
+        if mode == "month":
+            target_month = cleaned_data.get("target_month")
+            day_type = cleaned_data.get("day_type")
+            if target_month and not 1949 <= target_month.year <= 2099:
+                self.add_error("target_month", "対象月は1949年〜2099年の範囲で指定してください。")
+            elif target_month and day_type:
+                dates = get_month_dates(target_month, day_type)
+                if not dates:
+                    self.add_error("day_type", "この月には選択した曜日種別の日がありません。")
+                cleaned_data["work_dates"] = dates
+        elif mode == "date" and cleaned_data.get("work_date"):
+            if not 2 <= cleaned_data["work_date"].year <= 9998:
+                self.add_error("work_date", "日付は2年〜9998年の範囲で指定してください。")
+            else:
+                cleaned_data["work_dates"] = [cleaned_data["work_date"]]
         return cleaned_data
 
 

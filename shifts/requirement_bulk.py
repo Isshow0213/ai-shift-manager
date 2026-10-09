@@ -6,6 +6,7 @@ from jpholiday import JPHoliday
 from accounts.models import Store
 from .models import Requirement
 from .requirement_bulk_forms import DAY_TYPES
+from .requirement_settings import remember_time_preset
 
 
 holiday_calendar = JPHoliday()
@@ -45,6 +46,7 @@ def apply_plan(store, plan, mode):
     if mode == "replace":
         Requirement.objects.filter(store=store, work_date__in=dates).delete()
     saved_count = 0
+    presets = {}
     for group in plan:
         for day in group["dates"]:
             for slot in group["slots"]:
@@ -55,9 +57,16 @@ def apply_plan(store, plan, mode):
                 existing = matches.first()
                 if existing:
                     existing.required_staff_count = slot["required_staff_count"]
-                    existing.save(update_fields=["required_staff_count"])
+                    update_fields = ["required_staff_count"]
+                    if "memo" in slot:
+                        existing.memo = slot["memo"]
+                        update_fields.append("memo")
+                    existing.save(update_fields=update_fields)
                     matches.exclude(pk=existing.pk).delete()
                 else:
-                    Requirement.objects.create(store=store, work_date=day, **slot)
+                    existing = Requirement.objects.create(store=store, work_date=day, **slot)
+                presets[(existing.start_time, existing.end_time)] = (existing.required_staff_count, existing.memo)
                 saved_count += 1
+    for (start_time, end_time), (count, memo) in presets.items():
+        remember_time_preset(store, start_time, end_time, count, memo)
     return len(dates), saved_count

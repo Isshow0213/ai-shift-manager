@@ -11,10 +11,23 @@
 .time-slot-row { display: grid; align-items: end; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 16px; }
 .time-slot-row + .time-slot-row { padding-top: 20px; border-top: 1px solid var(--border); }
 .remove-time-slot { margin-bottom: 2px; }
+.category-memo { margin-bottom: 24px; padding: 16px; border: 1px solid #dbe6ff; border-radius: 8px; background: #f5f8ff; }
+.category-memo label { color: #2854a1; }
+.category-memo textarea { min-height: 96px; resize: vertical; }
+.category-memo .field-help { margin-bottom: 0; line-height: 1.6; }
 .bulk-actions { display: flex; justify-content: flex-end; }
+.bulk-preview { scroll-margin-top: 20px; }
+.bulk-preview:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
+.bulk-preview-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.bulk-unsaved-notice { margin: 0 0 20px; padding: 14px 16px; border: 1px solid #f5d8a7; border-radius: 8px; background: #fff8eb; color: #8a4b0c; font-size: 14px; line-height: 1.7; }
+.bulk-unsaved-notice strong { display: block; }
 .preview-category { margin: 22px 0; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
 .preview-category h3 { margin-bottom: 10px; font-size: 17px; }
 .preview-slots { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 12px; padding: 0; list-style: none; }
+.preview-memo { min-width: 0; margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; background: #f7f9fc; }
+.preview-memo-label { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
+.preview-memo-content { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
+.preview-memo-empty { margin: 0; color: var(--muted); font-size: 13px; }
 .preview-category summary { color: var(--blue); cursor: pointer; font-size: 14px; }
 .preview-dates { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; font-size: 13px; color: var(--muted); }
 @media (max-width: 760px) {
@@ -22,5 +35,6 @@
   .time-slot-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .time-slot-row .button { justify-self: end; }
   .bulk-actions .button, .bulk-apply { width: 100%; white-space: normal; }
+  .bulk-preview-actions { width: 100%; justify-content: flex-start; }
   .bulk-requirement-form .panel-heading { flex-wrap: wrap; }
 }

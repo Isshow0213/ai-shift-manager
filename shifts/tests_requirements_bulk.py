@@ -232,7 +232,7 @@ class BulkRequirementPersistenceTests(TestCase):
 
         response = self.client.post(self.url, bulk_data(store=self.other_store.pk))
 
-        self.assertRedirects(response, reverse("manager_requirement_list"))
+        self.assertRedirects(response, reverse("manager_requirement_list") + "?year=2026&month=10")
         existing.refresh_from_db()
         self.assertEqual(existing.required_staff_count, 3)
         self.assertEqual(
@@ -269,7 +269,7 @@ class BulkRequirementPersistenceTests(TestCase):
 
         response = self.client.post(self.url, bulk_data(mode="replace"))
 
-        self.assertRedirects(response, reverse("manager_requirement_list"))
+        self.assertRedirects(response, reverse("manager_requirement_list") + "?year=2026&month=10")
         self.assertFalse(Requirement.objects.filter(pk__in=[selected_slot.pk, second_slot.pk]).exists())
         self.assertEqual(
             list(Requirement.objects.filter(pk__in=protected_ids).order_by("pk").values()),
@@ -287,7 +287,7 @@ class BulkRequirementPersistenceTests(TestCase):
 
         response = self.client.post(self.url, bulk_data())
 
-        self.assertRedirects(response, reverse("manager_requirement_list"))
+        self.assertRedirects(response, reverse("manager_requirement_list") + "?year=2026&month=10")
         self.assertEqual(
             list(Requirement.objects.filter(pk__in=existing_ids).order_by("pk").values()), before,
         )
@@ -312,7 +312,7 @@ class BulkRequirementPersistenceTests(TestCase):
                     "weekday-2-required_staff_count": "1",
                 }))
 
-                self.assertRedirects(response, reverse("manager_requirement_list"))
+                self.assertRedirects(response, reverse("manager_requirement_list") + "?year=2026&month=10")
                 expected = [
                     (time(9), time(12), 3), (time(10), time(13), 2),
                     (time(10, 15), time(10, 45), 1),
@@ -340,7 +340,7 @@ class BulkRequirementPersistenceTests(TestCase):
 
         for _ in range(2):
             response = self.client.post(self.url, data)
-            self.assertRedirects(response, reverse("manager_requirement_list"))
+            self.assertRedirects(response, reverse("manager_requirement_list") + "?year=2026&month=10")
             self.assertEqual(Requirement.objects.count(), 1)
             existing.refresh_from_db()
             self.assertEqual(existing.required_staff_count, 2)

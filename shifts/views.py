@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 import calendar
 from datetime import date, timedelta
+from types import SimpleNamespace
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.contrib import messages
@@ -11,12 +12,13 @@ from django.views.decorators.http import require_GET
 from accounts.models import StoreMembership
 from scheduler.services import generate_shifts_for_store
 
-from .forms import AvailabilityForm, RequirementForm, ShiftGenerationForm, StoreOperatingHoursForm, SubmissionDeadlineForm
-from .models import Availability, Requirement, Shift, StoreOperatingHours, StoreSubmissionDeadline
+from .forms import AvailabilityForm, ManagerRequirementForm, ShiftGenerationForm, StoreOperatingHoursForm, SubmissionDeadlineForm
+from .models import Availability, Requirement, RequirementTimePreset, Shift, StoreOperatingHours, StoreSubmissionDeadline
 from .calendar_utils import get_calendar_context
 from .overview import build_shift_overview_context
-from .requirement_bulk_forms import BulkRequirementForm, DAY_TYPES, RequirementTimeSlotFormSet
+from .requirement_bulk_forms import BulkRequirementForm, DAY_TYPES, RequirementTimeSlotFormSet, RequirementCategoryMemoForm
 from .requirement_bulk import apply_plan, build_plan
+from .requirement_settings import save_requirements
 from .submission_deadlines import (
     get_store_submission_deadline, get_submission_period, is_submission_closed, submission_context,
 )
@@ -481,8 +483,29 @@ def manager_requirement_list(request):
         return redirect("dashboard")
 
     store = manager_membership.store
-
     operating_hours = StoreOperatingHours.objects.filter(store=store).first()
+
+    query = request.GET.copy()
+    try:
+        browse_date = parse_date(query.get("browse_month", "") + "-01")
+    except (TypeError, ValueError):
+        browse_date = None
+    try:
+        selected_date = parse_date(query.get("date", ""))
+    except (TypeError, ValueError):
+        selected_date = None
+    if selected_date and not 2 <= selected_date.year <= 9998:
+        selected_date = None
+    if browse_date and 2 <= browse_date.year <= 9998:
+        query["year"], query["month"] = str(browse_date.year), str(browse_date.month)
+    elif selected_date and 2 <= selected_date.year <= 9998 and not query.get("year") and not query.get("month"):
+        query["year"], query["month"] = str(selected_date.year), str(selected_date.month)
+    calendar_context = get_calendar_context(SimpleNamespace(GET=query))
+    initial = {
+        "schedule_mode": "date" if selected_date else "month",
+        "work_date": selected_date or calendar_context["selected_date"],
+        "target_month": date(calendar_context["year"], calendar_context["month"], 1),
+    }
 
     if request.method == "POST":
         # フォームのタイプを判定
@@ -490,7 +513,7 @@ def manager_requirement_list(request):
         
         if form_type == "operating_hours":
             operating_hours_form = StoreOperatingHoursForm(request.POST, instance=operating_hours)
-            form = RequirementForm()
+            form = ManagerRequirementForm(initial=initial)
             if operating_hours_form.is_valid():
                 StoreOperatingHours.objects.update_or_create(
                     store=store,
@@ -502,59 +525,45 @@ def manager_requirement_list(request):
                 messages.success(request, "通し勤務の時間帯を保存しました。")
                 return redirect("manager_requirement_list")
         else:
-            form = RequirementForm(request.POST)
+            form = ManagerRequirementForm(request.POST, initial=initial)
             operating_hours_form = StoreOperatingHoursForm(instance=operating_hours)
             if form.is_valid():
-                requirement = form.save(commit=False)
-                requirement.store = store
-                requirement.save()
-                messages.success(request, "必要人数を保存しました。")
+                slot = {field: form.cleaned_data[field] for field in (
+                    "start_time", "end_time", "required_staff_count",
+                )}
+                if "memo" in request.POST:
+                    slot["memo"] = form.cleaned_data["memo"]
+                slot["day_type"] = form.cleaned_data["day_type"] if form.cleaned_data["schedule_mode"] == "month" else None
+                saved_count = save_requirements(store, form.cleaned_data["work_dates"], slot)
+                messages.success(request, f"{saved_count}日分の必要人数とメモを保存しました。時間帯も保存済みの候補に追加しました。")
+                if "schedule_mode" in request.POST:
+                    first_date = form.cleaned_data["work_dates"][0]
+                    return redirect(f"{reverse('manager_requirement_list')}?year={first_date.year}&month={first_date.month}")
                 return redirect("manager_requirement_list")
     else:
-        selected_date_text = request.GET.get("date")
-        try:
-            selected_date = parse_date(selected_date_text) if selected_date_text else None
-        except ValueError:
-            selected_date = None
-        form = RequirementForm(initial={"work_date": selected_date})
+        form = ManagerRequirementForm(initial=initial)
         operating_hours_form = StoreOperatingHoursForm(instance=operating_hours)
 
     requirements = Requirement.objects.filter(
         store=store,
+        work_date__year=calendar_context["year"],
+        work_date__month=calendar_context["month"],
     ).order_by(
         "work_date",
         "start_time",
     )
 
-    # 過去30日分の要件設定を取得（復元用）
-    thirty_days_ago = date.today() - timedelta(days=30)
-    all_past_requirements = Requirement.objects.filter(
-        store=store,
-        work_date__gte=thirty_days_ago,
-        work_date__lt=date.today(),
-    ).order_by("-work_date", "start_time")
-    
-    # Pythonレベルで重複を除外（時刻の組み合わせで）
-    seen_times = set()
-    past_requirements = []
-    for req in all_past_requirements:
-        time_key = (req.start_time, req.end_time)
-        if time_key not in seen_times:
-            past_requirements.append(req)
-            seen_times.add(time_key)
-            if len(past_requirements) >= 20:
-                break
-
     return render(
         request,
         "shifts/manager_requirement_list.html",
         {
+            **calendar_context,
             "store": store,
             "form": form,
             "operating_hours_form": operating_hours_form,
             "operating_hours": operating_hours,
             "requirements": requirements,
-            "past_requirements": past_requirements,
+            "time_presets": RequirementTimePreset.objects.filter(store=store),
         },
     )
 
@@ -581,6 +590,9 @@ def manager_requirement_bulk(request):
             "formset": RequirementTimeSlotFormSet(
                 data if key in selected_post_categories else None, prefix=key,
             ),
+            "memo_form": RequirementCategoryMemoForm(
+                data if key in selected_post_categories else None, prefix=key,
+            ),
         }
         for key, label in DAY_TYPES
     ]
@@ -593,14 +605,21 @@ def manager_requirement_bulk(request):
         valid = True
         for group in groups:
             if group["key"] in selected_categories:
-                if group["formset"].is_valid():
+                slots_valid = group["formset"].is_valid()
+                memo_valid = group["memo_form"].is_valid()
+                if slots_valid and memo_valid:
                     slots_by_category[group["key"]] = [
                         row.cleaned_data for row in group["formset"] if row.cleaned_data
                     ]
+                    if f'{group["key"]}-memo' in request.POST:
+                        for slot in slots_by_category[group["key"]]:
+                            slot["memo"] = group["memo_form"].cleaned_data["memo"]
                 else:
                     valid = False
         if valid:
             candidate_plan = build_plan(form.cleaned_data, slots_by_category)
+            for group in candidate_plan:
+                group["memo"] = slots_by_category[group["key"]][0].get("memo", "")
             dates_count = sum(len(group["dates"]) for group in candidate_plan)
             slots_count = sum(len(group["dates"]) * len(group["slots"]) for group in candidate_plan)
             if not dates_count:
@@ -608,7 +627,8 @@ def manager_requirement_bulk(request):
             elif request.POST.get("action") == "apply":
                 dates_count, slots_count = apply_plan(store, candidate_plan, form.cleaned_data["mode"])
                 messages.success(request, f"{dates_count}日分・{slots_count}件の必要人数を一括保存しました。")
-                return redirect("manager_requirement_list")
+                first_date = min(day for group in candidate_plan for day in group["dates"])
+                return redirect(f"{reverse('manager_requirement_list')}?year={first_date.year}&month={first_date.month}")
             elif request.POST.get("action", "preview") == "preview":
                 plan = candidate_plan
                 dates = [day for group in plan for day in group["dates"]]
@@ -621,6 +641,7 @@ def manager_requirement_bulk(request):
         group["selected"] = group["key"] in selected_categories
 
     return render(request, "shifts/manager_requirement_bulk.html", {
+        **calendar_context,
         "store": store, "form": form, "groups": groups, "plan": plan,
         "dates_count": dates_count, "slots_count": slots_count, "existing_count": existing_count,
     })

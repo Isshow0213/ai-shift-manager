@@ -1,27 +1,13 @@
 {% extends "manager/base.html" %}
+{% load static i18n %}
 
 {% block title %}必要人数設定{% endblock %}
 {% block page_title %}必要人数設定{% endblock %}
-{% block page_subtitle %}店舗：{{ store.name }} · 日付と時間帯ごとの必要人数{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · 日付ごと・月と曜日種別ごとの必要人数{% endblock %}
 
 {% block extra_css %}
-<style>
-  .requirement-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  .requirement-panels > .panel { min-width: 0; }
-  .requirement-form { padding: 24px; }
-  .requirement-fields { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 18px; margin-bottom: 22px; }
-  .requirement-form-actions { display: flex; justify-content: flex-end; }
-  .operating-hours-form { padding: 24px; background: #f8faff; }
-  .operating-hours-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 22px; }
-  .operating-hours-info { background: #edf3ff; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #2860ed; margin-bottom: 16px; font-size: 13px; color: #52647e; }
-  .operating-hours-info strong { display: block; margin-bottom: 3px; color: #2854a1; }
-  .submission-deadline-link { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; }
-  .submission-deadline-link h2 { margin: 0 0 6px; font-size: 18px; }
-  .submission-deadline-link p { margin: 0; color: #687487; font-size: 13px; }
-  .button-small { padding: 6px 12px; font-size: 12px; }
-  @media (max-width: 900px) { .requirement-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .operating-hours-fields { grid-template-columns: 1fr; } }
-  @media (max-width: 540px) { .requirement-fields { grid-template-columns: 1fr; } .requirement-form-actions .button { width: 100%; } .operating-hours-fields { grid-template-columns: 1fr; } .submission-deadline-link { flex-direction: column; align-items: flex-start; padding: 20px; } .submission-deadline-link .button { width: 100%; } }
-</style>
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'shifts/requirement_settings.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -69,41 +55,74 @@
   <section class="panel">
     <div class="panel-heading">
       <h2>必要人数を追加</h2>
-      <a class="button button-primary" href="{% url 'manager_requirement_bulk' %}">区分ごとに一括設定</a>
+      <a class="button button-primary" data-requirement-bulk-link href="{% url 'manager_requirement_bulk' %}?year={{ year }}&amp;month={{ month }}">区分ごとに一括設定</a>
     </div>
-    <form class="requirement-form" method="post">
+    <form class="requirement-form" id="requirement-settings-form" method="post">
       {% csrf_token %}
       <input type="hidden" name="form_type" value="requirement">
       {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
-      <div class="requirement-fields">
-        {% for field in form %}
-          <div class="field">
-            {{ field.label_tag }}
-            {{ field }}
-            {% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}
-          </div>
-        {% endfor %}
+      <div class="field requirement-mode-field">
+        {{ form.schedule_mode.label_tag }}
+        {{ form.schedule_mode }}
+        {% if form.schedule_mode.errors %}<div class="field-error">{{ form.schedule_mode.errors }}</div>{% endif %}
       </div>
+      <div class="requirement-target-fields">
+        <div class="field" data-requirement-mode="date"{% if form.schedule_mode.value == 'month' %} hidden{% endif %}>
+          {{ form.work_date.label_tag }}
+          {{ form.work_date }}
+          {% if form.work_date.errors %}<div class="field-error">{{ form.work_date.errors }}</div>{% endif %}
+        </div>
+        <div class="field" data-requirement-mode="month"{% if form.schedule_mode.value != 'month' %} hidden{% endif %}>
+          {{ form.target_month.label_tag }}
+          {{ form.target_month }}
+          {% if form.target_month.errors %}<div class="field-error">{{ form.target_month.errors }}</div>{% endif %}
+        </div>
+        <div class="field" data-requirement-mode="month"{% if form.schedule_mode.value != 'month' %} hidden{% endif %}>
+          {{ form.day_type.label_tag }}
+          {{ form.day_type }}
+          {% if form.day_type.errors %}<div class="field-error">{{ form.day_type.errors }}</div>{% endif %}
+        </div>
+      </div>
+      <p class="requirement-help" data-requirement-mode="month"{% if form.schedule_mode.value != 'month' %} hidden{% endif %}>対象月の該当日に、同じ時間帯・必要人数・メモをまとめて設定します。平日は月〜金（祝日を除く）、祝日は日本の祝日です。曜日を選ぶと、その曜日の祝日も含みます。</p>
+      <div class="requirement-fields">
+        <div class="field">
+          {{ form.start_time.label_tag }}{{ form.start_time }}
+          {% if form.start_time.errors %}<div class="field-error">{{ form.start_time.errors }}</div>{% endif %}
+        </div>
+        <div class="field">
+          {{ form.end_time.label_tag }}{{ form.end_time }}
+          {% if form.end_time.errors %}<div class="field-error">{{ form.end_time.errors }}</div>{% endif %}
+        </div>
+        <div class="field">
+          {{ form.required_staff_count.label_tag }}{{ form.required_staff_count }}
+          {% if form.required_staff_count.errors %}<div class="field-error">{{ form.required_staff_count.errors }}</div>{% endif %}
+        </div>
+        <div class="field requirement-memo-field">
+          {{ form.memo.label_tag }}{{ form.memo }}
+          <small class="requirement-panel-help requirement-memo-help">任意・500文字まで。まとめて設定する場合は、対象日のすべてに同じメモを保存します。</small>
+          {% if form.memo.errors %}<div class="field-error">{{ form.memo.errors }}</div>{% endif %}
+        </div>
+      </div>
+      <p class="requirement-preset-feedback" id="requirement-preset-feedback" role="status" aria-live="polite"></p>
       <div class="requirement-form-actions">
         <button class="button button-primary" type="submit">
           <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
-          保存
+          <span data-requirement-submit-label>{% if form.schedule_mode.value == 'month' %}この月の該当日に保存{% else %}この日に保存{% endif %}</span>
         </button>
       </div>
     </form>
   </section>
 
-  {% if past_requirements %}
   <section class="panel">
     <div class="panel-heading">
-      <h2>過去30日間の設定から復元</h2>
-      <span class="status-badge badge-blue">{{ past_requirements|length }}件</span>
+      <h2>保存済みの時間帯</h2>
+      <span class="status-badge badge-blue">{{ time_presets|length }}件</span>
     </div>
+    <p class="requirement-panel-help">設定した時間帯をいつでも呼び出せます。同じ開始・終了時刻は1件にまとまり、最後に保存した人数とメモが入ります。</p>
     <div class="table-wrap">
       <table class="data-table">
         <thead>
           <tr>
-            <th scope="col">日付</th>
             <th scope="col">開始時刻</th>
             <th scope="col">終了時刻</th>
             <th scope="col">必要人数</th>
@@ -112,30 +131,44 @@
           </tr>
         </thead>
         <tbody>
-          {% for req in past_requirements %}
+          {% for preset in time_presets %}
             <tr>
-              <td>{{ req.work_date|date:"Y/m/d" }}</td>
-              <td>{{ req.start_time|time:"H:i" }}</td>
-              <td>{{ req.end_time|time:"H:i" }}</td>
-              <td><span class="status-badge badge-blue">{{ req.required_staff_count }}人</span></td>
-              <td>{{ req.memo|truncatewords:10 }}</td>
+              <td>{{ preset.start_time|time:"H:i" }}</td>
+              <td>{{ preset.end_time|time:"H:i" }}</td>
+              <td><span class="status-badge badge-blue">{{ preset.required_staff_count }}人</span></td>
+              <td class="requirement-memo">{{ preset.memo|default:"—" }}</td>
               <td>
-                <button type="button" class="button button-small" onclick="restoreRequirement('{{ req.work_date|date:'Y-m-d' }}', '{{ req.start_time|time:'H:i' }}', '{{ req.end_time|time:'H:i' }}', {{ req.required_staff_count }}, '{{ req.memo|escapejs }}', '{{ req.day_type }}')">
-                  復元
+                <button type="button" class="button button-secondary button-small" data-requirement-preset data-start-time="{{ preset.start_time|time:'H:i' }}" data-end-time="{{ preset.end_time|time:'H:i' }}" data-required-staff-count="{{ preset.required_staff_count }}" data-memo="{{ preset.memo }}">
+                  この時間帯を入力
                 </button>
               </td>
             </tr>
+          {% empty %}
+            <tr><td class="empty-state" colspan="5">必要人数を保存すると、時間帯がここに保存されます。</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </section>
-  {% endif %}
 
   <section class="panel">
     <div class="panel-heading">
-      <h2>設定済み必要人数</h2>
+      <h2>{{ year }}年{{ month }}月の必要人数</h2>
       <span class="status-badge badge-orange">{{ requirements|length }}件</span>
+    </div>
+    <div class="requirement-month-toolbar">
+      <div class="requirement-month-navigation">
+        <a class="button button-secondary button-small" href="?year={{ prev_year }}&amp;month={{ prev_month }}" aria-label="前月の必要人数を見る"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>前月</a>
+        <a class="button button-secondary button-small" href="?year={{ next_year }}&amp;month={{ next_month }}" aria-label="翌月の必要人数を見る">翌月<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></a>
+        <a class="button button-secondary button-small" href="{% url 'manager_shift_list' %}?year={{ year }}&amp;month={{ month }}">この月のシフトを確認</a>
+      </div>
+      <form class="requirement-month-form" method="get">
+        <div class="field">
+          <label for="requirement-browse-month">表示する月</label>
+          <input id="requirement-browse-month" type="month" name="browse_month" value="{{ year|stringformat:'04d' }}-{{ month|stringformat:'02d' }}" required>
+        </div>
+        <button class="button button-secondary button-small" type="submit">表示</button>
+      </form>
     </div>
     <div class="table-wrap">
       <table class="data-table">
@@ -146,19 +179,21 @@
             <th scope="col">終了時刻</th>
             <th scope="col">必要人数</th>
             <th scope="col">曜日種別</th>
+            <th scope="col">メモ</th>
           </tr>
         </thead>
         <tbody>
           {% for requirement in requirements %}
             <tr>
-              <td>{{ requirement.work_date|date:"Y/m/d" }}</td>
+              <td><a href="{% url 'manager_shift_list' %}?year={{ requirement.work_date|date:'Y' }}&amp;month={{ requirement.work_date|date:'n' }}&amp;date={{ requirement.work_date|date:'Y-m-d' }}" aria-label="{{ requirement.work_date|date:'Y年n月j日' }}のシフトを確認">{{ requirement.work_date|date:"Y/m/d" }}</a></td>
               <td>{{ requirement.start_time|time:"H:i" }}</td>
               <td>{{ requirement.end_time|time:"H:i" }}</td>
               <td><span class="status-badge badge-blue">{{ requirement.required_staff_count }}人</span></td>
               <td>{{ requirement.get_day_type_display|default:"-" }}</td>
+              <td class="requirement-memo">{{ requirement.memo|default:"—" }}</td>
             </tr>
           {% empty %}
-            <tr><td class="empty-state" colspan="5">まだ必要人数が設定されていません。</td></tr>
+            <tr><td class="empty-state" colspan="6">この月の必要人数はまだ設定されていません。</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -168,21 +203,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-function restoreRequirement(workDate, startTime, endTime, requiredCount, memo, dayType) {
-  // フォームのフィールドに復元
-  document.getElementById('id_work_date').value = workDate;
-  document.getElementById('id_start_time').value = startTime;
-  document.getElementById('id_end_time').value = endTime;
-  document.getElementById('id_required_staff_count').value = requiredCount;
-  document.getElementById('id_memo').value = memo;
-  document.getElementById('id_day_type').value = dayType;
-  
-  // フォームのセクションまでスクロール
-  document.querySelector('form.requirement-form').scrollIntoView({ behavior: 'smooth' });
-  
-  // 必要人数をフォーカス
-  document.getElementById('id_work_date').focus();
-}
-</script>
+{{ block.super }}
+<script src="{% static 'shifts/requirement_settings.js' %}" defer></script>
 {% endblock %}

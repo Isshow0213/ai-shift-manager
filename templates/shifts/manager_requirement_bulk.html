@@ -3,14 +3,14 @@
 
 {% block title %}必要人数の一括設定 | シフト管理{% endblock %}
 {% block page_title %}必要人数の一括設定{% endblock %}
-{% block page_subtitle %}店舗：{{ store.name }} · 平日・祝前日・休日の時間帯と人数{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · 平日・祝前日・休日の時間帯・人数・メモ{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'shifts/requirements.css' %}">{% endblock %}
 
 {% block content %}
 <form method="post" class="bulk-requirement-form" id="bulk-form">
   {% csrf_token %}
   <section class="panel">
-    <div class="panel-heading"><h2>期間と保存方法</h2><a href="{% url 'manager_requirement_list' %}" class="button button-secondary button-small">必要人数一覧へ</a></div>
+    <div class="panel-heading"><h2>期間と保存方法</h2><a href="{% url 'manager_requirement_list' %}?year={{ year }}&amp;month={{ month }}" class="button button-secondary button-small">必要人数一覧へ</a></div>
     <div class="panel-body">
       {% if form.non_field_errors %}<div class="notice notice-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
       <div class="bulk-settings-grid">
@@ -20,8 +20,9 @@
         <div class="field">{{ form.mode.label_tag }}{{ form.mode }}{{ form.mode.errors }}</div>
       </div>
       <div class="category-picker field"><span class="field-label">{{ form.categories.label }}</span>{{ form.categories }}{{ form.categories.errors }}</div>
+      <p class="bulk-help">各区分の先頭にある「共通メモ」に、ヘルプ先などを入力できます。その区分のすべての対象日・時間帯に同じメモを保存します。</p>
       <p class="bulk-help">休日を優先し、休日ではない「休日の前日」を祝前日として扱います。振替休日も休日に含みます。</p>
-      <p class="bulk-help">「登録・更新」は同じ日付・時間帯の人数を更新します。「すべて置き換える」は選択した区分に該当する日の必要人数を、入力した時間帯に入れ替えます。</p>
+      <p class="bulk-help">「登録・更新」は同じ日付・時間帯の人数とメモを更新します。「すべて置き換える」は選択した区分に該当する日の必要人数を、入力した時間帯と共通メモに入れ替えます。</p>
       <p class="bulk-help">時間帯が重なっていても登録できます。開始・終了時刻が完全に同じ枠は、人数を更新します。</p>
     </div>
   </section>
@@ -33,6 +34,13 @@
         <div class="panel-body">
           {{ group.formset.management_form }}
           {{ group.formset.non_form_errors }}
+          <div class="field category-memo">
+            <label for="{{ group.memo_form.memo.id_for_label }}">{{ group.label }}の共通メモ（任意）</label>
+            {{ group.memo_form.memo }}
+            {{ group.memo_form.memo.errors }}
+            {{ group.memo_form.non_field_errors }}
+            <p class="field-help" id="{{ group.memo_form.memo.auto_id }}_helptext">{{ group.memo_form.memo.help_text }}</p>
+          </div>
           <div class="time-slot-list">
             {% for row in group.formset %}
               <div class="time-slot-row">
@@ -58,15 +66,26 @@
   </div>
 
   {% if plan %}
-    <section class="panel bulk-preview" id="bulk-preview">
-      <div class="panel-heading"><h2>保存内容の確認</h2><span class="status-badge badge-blue">{{ dates_count }}日・{{ slots_count }}件</span></div>
+    <section class="panel bulk-preview" id="bulk-preview" tabindex="-1" aria-labelledby="bulk-preview-title">
+      <div class="panel-heading">
+        <h2 id="bulk-preview-title">保存内容の確認</h2>
+        <div class="bulk-preview-actions">
+          <span class="status-badge badge-blue">{{ dates_count }}日・{{ slots_count }}件</span>
+          <button class="button button-primary bulk-apply" type="submit" name="action" value="apply">この内容で一括保存する</button>
+        </div>
+      </div>
       <div class="panel-body">
-        <p>{% if form.mode.value == 'replace' %}対象日にある{{ existing_count }}件の設定を、以下の時間帯・人数に置き換えます。{% else %}以下の時間帯を登録し、同じ時間帯の設定がある日は人数を更新します。{% endif %}</p>
+        <p class="bulk-unsaved-notice" role="status"><strong>まだ保存されていません。</strong>「この内容で一括保存する」ボタンを押すと、対象日の必要人数に反映されます。</p>
+        <p>{% if form.mode.value == 'replace' %}対象日にある{{ existing_count }}件の設定を、以下の時間帯・人数・メモに置き換えます。{% else %}以下の時間帯を登録し、同じ時間帯の設定がある日は人数とメモを更新します。{% endif %}</p>
         {% language 'ja' %}
         {% for group in plan %}
           <div class="preview-category">
             <h3>{{ group.label }} <span class="status-badge badge-orange">{{ group.dates|length }}日</span></h3>
             <ul class="preview-slots">{% for slot in group.slots %}<li>{{ slot.start_time|time:'H:i' }}〜{{ slot.end_time|time:'H:i' }}：{{ slot.required_staff_count }}人</li>{% endfor %}</ul>
+            <div class="preview-memo">
+              <p class="preview-memo-label">共通メモ（すべての対象日・時間帯）</p>
+              {% if group.memo %}<p class="preview-memo-content">{{ group.memo }}</p>{% else %}<p class="preview-memo-empty">メモなし</p>{% endif %}
+            </div>
             <details><summary>対象日を確認</summary><div class="preview-dates">{% for day in group.dates %}<span>{{ day|date:'Y/n/j（D）' }}</span>{% empty %}<span>該当する日付はありません。</span>{% endfor %}</div></details>
           </div>
         {% endfor %}
