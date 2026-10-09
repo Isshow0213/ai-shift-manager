@@ -88,7 +88,7 @@ class BulkRequirementValidationTests(SimpleTestCase):
             with self.subTest(changes=changes):
                 self.assertFalse(BulkRequirementForm(bulk_data(**changes)).is_valid())
 
-    def test_time_slots_reject_reversed_times_zero_count_and_overlaps(self):
+    def test_time_slots_reject_reversed_times_and_invalid_counts(self):
         invalid_examples = [
             {"weekday-0-end_time": "09:00"},
             {"weekday-0-start_time": "11:00"},
@@ -96,27 +96,26 @@ class BulkRequirementValidationTests(SimpleTestCase):
             {"weekday-0-required_staff_count": "-1"},
             {"weekday-0-required_staff_count": "2147483648"},
             {"weekday-0-start_time": "", "weekday-0-end_time": "", "weekday-0-required_staff_count": ""},
-            {
-                "weekday-TOTAL_FORMS": "2",
-                "weekday-1-start_time": "09:30",
-                "weekday-1-end_time": "11:00",
-                "weekday-1-required_staff_count": "2",
-            },
         ]
         for changes in invalid_examples:
             with self.subTest(changes=changes):
                 formset = RequirementTimeSlotFormSet(bulk_data(**changes), prefix="weekday")
                 self.assertFalse(formset.is_valid())
 
-    def test_adjacent_time_slots_are_valid(self):
-        data = bulk_data(**{
-            "weekday-TOTAL_FORMS": "2",
-            "weekday-1-start_time": "10:00",
-            "weekday-1-end_time": "11:00",
-            "weekday-1-required_staff_count": "2",
-        })
-
-        self.assertTrue(RequirementTimeSlotFormSet(data, prefix="weekday").is_valid())
+    def test_overlapping_containing_identical_and_adjacent_time_slots_are_valid(self):
+        for start, end in [
+            ("09:30", "11:00"), ("08:00", "11:00"), ("09:15", "09:45"),
+            ("09:00", "10:00"), ("10:00", "11:00"),
+        ]:
+            with self.subTest(start=start, end=end):
+                data = bulk_data(**{
+                    "weekday-TOTAL_FORMS": "2",
+                    "weekday-1-start_time": start,
+                    "weekday-1-end_time": end,
+                    "weekday-1-required_staff_count": "2",
+                })
+                formset = RequirementTimeSlotFormSet(data, prefix="weekday")
+                self.assertTrue(formset.is_valid(), formset.errors)
 
 
 class BulkRequirementPersistenceTests(TestCase):
@@ -200,16 +199,21 @@ class BulkRequirementPersistenceTests(TestCase):
         self.assertEqual(requirement.required_staff_count, 3)
 
     def test_preview_does_not_modify_existing_data(self):
-        self.requirement()
+        self.requirement(times=(time(8), time(11)))
         self.protected_requirements()
         before = self.snapshot()
 
-        response = self.client.post(self.url, bulk_data(action="preview"))
+        response = self.client.post(self.url, bulk_data(action="preview", **{
+            "weekday-TOTAL_FORMS": "2",
+            "weekday-1-start_time": "09:30",
+            "weekday-1-end_time": "11:00",
+            "weekday-1-required_staff_count": "2",
+        }))
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(response.context["dates_count"], 1)
-        self.assertEqual(response.context["slots_count"], 1)
+        self.assertEqual(response.context["slots_count"], 2)
         self.assertEqual(response.context["plan"][0]["dates"], [date(2026, 10, 1)])
 
     def test_update_preserves_other_stores_categories_dates_and_time_slots(self):
@@ -275,15 +279,71 @@ class BulkRequirementPersistenceTests(TestCase):
         self.assertEqual((replacement.start_time, replacement.end_time), (time(9), time(10)))
         self.assertEqual(replacement.required_staff_count, 3)
 
-    def test_update_rejects_overlap_without_changing_data(self):
-        self.requirement(times=(time(8), time(11)))
-        before = self.snapshot()
+    def test_update_keeps_existing_overlapping_slots_and_adds_new_slot(self):
+        containing = self.requirement(times=(time(8), time(11)), count=4)
+        partial = self.requirement(times=(time(9, 30), time(10, 30)), count=5)
+        existing_ids = [containing.pk, partial.pk]
+        before = list(Requirement.objects.filter(pk__in=existing_ids).order_by("pk").values())
 
         response = self.client.post(self.url, bulk_data())
 
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context["form"].non_field_errors())
-        self.assertEqual(self.snapshot(), before)
+        self.assertRedirects(response, reverse("manager_requirement_list"))
+        self.assertEqual(
+            list(Requirement.objects.filter(pk__in=existing_ids).order_by("pk").values()), before,
+        )
+        created = Requirement.objects.exclude(pk__in=existing_ids).get()
+        self.assertEqual(created.store, self.store)
+        self.assertEqual(created.work_date, date(2026, 10, 1))
+        self.assertEqual((created.start_time, created.end_time), (time(9), time(10)))
+        self.assertEqual(created.required_staff_count, 3)
+
+    def test_overlapping_submitted_slots_are_saved_in_update_and_replace_modes(self):
+        old = self.requirement(times=(time(8), time(18)), count=8)
+        for mode in ["update", "replace"]:
+            with self.subTest(mode=mode):
+                response = self.client.post(self.url, bulk_data(mode=mode, **{
+                    "weekday-0-end_time": "12:00",
+                    "weekday-TOTAL_FORMS": "3",
+                    "weekday-1-start_time": "10:00",
+                    "weekday-1-end_time": "13:00",
+                    "weekday-1-required_staff_count": "2",
+                    "weekday-2-start_time": "10:15",
+                    "weekday-2-end_time": "10:45",
+                    "weekday-2-required_staff_count": "1",
+                }))
+
+                self.assertRedirects(response, reverse("manager_requirement_list"))
+                expected = [
+                    (time(9), time(12), 3), (time(10), time(13), 2),
+                    (time(10, 15), time(10, 45), 1),
+                ]
+                if mode == "update":
+                    expected.append((time(8), time(18), 8))
+                self.assertCountEqual(
+                    Requirement.objects.filter(store=self.store).values_list(
+                        "start_time", "end_time", "required_staff_count"
+                    ), expected,
+                )
+                self.assertEqual(Requirement.objects.filter(pk=old.pk).exists(), mode == "update")
+
+    def test_identical_submitted_slots_use_last_count_without_creating_duplicate_rows(self):
+        existing = self.requirement(count=7)
+        data = bulk_data(**{
+            "weekday-TOTAL_FORMS": "3",
+            "weekday-1-start_time": "09:00",
+            "weekday-1-end_time": "10:00",
+            "weekday-1-required_staff_count": "4",
+            "weekday-2-start_time": "09:00",
+            "weekday-2-end_time": "10:00",
+            "weekday-2-required_staff_count": "2",
+        })
+
+        for _ in range(2):
+            response = self.client.post(self.url, data)
+            self.assertRedirects(response, reverse("manager_requirement_list"))
+            self.assertEqual(Requirement.objects.count(), 1)
+            existing.refresh_from_db()
+            self.assertEqual(existing.required_staff_count, 2)
 
     def test_invalid_apply_requests_do_not_modify_data(self):
         self.requirement()

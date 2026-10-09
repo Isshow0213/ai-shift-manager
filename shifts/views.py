@@ -16,9 +16,7 @@ from .models import Availability, Requirement, Shift, StoreOperatingHours
 from .calendar_utils import get_calendar_context
 from .overview import build_shift_overview_context
 from .requirement_bulk_forms import BulkRequirementForm, DAY_TYPES, RequirementTimeSlotFormSet
-from .requirement_bulk import (
-    RequirementOverlapError, apply_plan, build_plan, validate_existing_requirements,
-)
+from .requirement_bulk import apply_plan, build_plan
 
 
 @login_required
@@ -542,24 +540,20 @@ def manager_requirement_bulk(request):
                     valid = False
         if valid:
             candidate_plan = build_plan(form.cleaned_data, slots_by_category)
-            try:
-                validate_existing_requirements(store, candidate_plan, form.cleaned_data["mode"])
-                dates_count = sum(len(group["dates"]) for group in candidate_plan)
-                slots_count = sum(len(group["dates"]) * len(group["slots"]) for group in candidate_plan)
-                if not dates_count:
-                    form.add_error(None, "指定した期間に、選択した区分の日付がありません。")
-                elif request.POST.get("action") == "apply":
-                    dates_count, slots_count = apply_plan(store, candidate_plan, form.cleaned_data["mode"])
-                    messages.success(request, f"{dates_count}日分・{slots_count}件の必要人数を一括保存しました。")
-                    return redirect("manager_requirement_list")
-                elif request.POST.get("action", "preview") == "preview":
-                    plan = candidate_plan
-                    dates = [day for group in plan for day in group["dates"]]
-                    existing_count = Requirement.objects.filter(store=store, work_date__in=dates).count()
-                else:
-                    form.add_error(None, "確認または保存ボタンから操作してください。")
-            except RequirementOverlapError as error:
-                form.add_error(None, str(error))
+            dates_count = sum(len(group["dates"]) for group in candidate_plan)
+            slots_count = sum(len(group["dates"]) * len(group["slots"]) for group in candidate_plan)
+            if not dates_count:
+                form.add_error(None, "指定した期間に、選択した区分の日付がありません。")
+            elif request.POST.get("action") == "apply":
+                dates_count, slots_count = apply_plan(store, candidate_plan, form.cleaned_data["mode"])
+                messages.success(request, f"{dates_count}日分・{slots_count}件の必要人数を一括保存しました。")
+                return redirect("manager_requirement_list")
+            elif request.POST.get("action", "preview") == "preview":
+                plan = candidate_plan
+                dates = [day for group in plan for day in group["dates"]]
+                existing_count = Requirement.objects.filter(store=store, work_date__in=dates).count()
+            else:
+                form.add_error(None, "確認または保存ボタンから操作してください。")
 
     selected_categories = form["categories"].value() or []
     for group in groups:

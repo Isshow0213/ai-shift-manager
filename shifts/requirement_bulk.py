@@ -37,34 +37,10 @@ def build_plan(cleaned_data, slots_by_category):
     ]
 
 
-class RequirementOverlapError(ValueError):
-    pass
-
-
-def validate_existing_requirements(store, plan, mode):
-    if mode == "replace":
-        return
-    dates = [day for group in plan for day in group["dates"]]
-    existing_by_date = {}
-    for requirement in Requirement.objects.filter(store=store, work_date__in=dates):
-        existing_by_date.setdefault(requirement.work_date, []).append(requirement)
-    for group in plan:
-        for day in group["dates"]:
-            for slot in group["slots"]:
-                for existing in existing_by_date.get(day, []):
-                    same_slot = existing.start_time == slot["start_time"] and existing.end_time == slot["end_time"]
-                    overlaps = existing.start_time < slot["end_time"] and existing.end_time > slot["start_time"]
-                    if overlaps and not same_slot:
-                        raise RequirementOverlapError(
-                            f"{day:%Y/%m/%d}に重なる時間帯が設定されています。時間帯を変更する場合は保存方法を「すべて置き換える」にしてください。"
-                        )
-
-
 @transaction.atomic
 def apply_plan(store, plan, mode):
     # 同じ店舗への一括適用をまとめて保存する。
     Store.objects.select_for_update().get(pk=store.pk)
-    validate_existing_requirements(store, plan, mode)
     dates = [day for group in plan for day in group["dates"]]
     if mode == "replace":
         Requirement.objects.filter(store=store, work_date__in=dates).delete()

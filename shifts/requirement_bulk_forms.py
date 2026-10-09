@@ -65,15 +65,8 @@ class BaseRequirementTimeSlotFormSet(BaseFormSet):
         super().clean()
         if any(self.errors):
             return
-        slots = sorted(
-            (form.cleaned_data for form in self.forms if form.cleaned_data),
-            key=lambda slot: slot["start_time"],
-        )
-        if not slots:
+        if not any(form.cleaned_data for form in self.forms):
             raise forms.ValidationError("この区分の時間帯を1つ以上入力してください。")
-        for previous, current in zip(slots, slots[1:]):
-            if previous["end_time"] > current["start_time"]:
-                raise forms.ValidationError("同じ区分の時間帯が重ならないようにしてください。")
 
 
 RequirementTimeSlotFormSet = formset_factory(

@@ -49,6 +49,10 @@
             <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
             <span>希望提出状況</span>
           </a>
+          <a class="nav-link{% if current_url == 'manager_submission_deadline' %} active{% endif %}" href="{% url 'manager_submission_deadline' %}"{% if current_url == 'manager_submission_deadline' %} aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
+            <span>提出締切</span>
+          </a>
           <a class="nav-link{% if current_url == 'manager_requirement_list' or current_url == 'manager_requirement_bulk' %} active{% endif %}" href="{% url 'manager_requirement_list' %}"{% if current_url == 'manager_requirement_list' or current_url == 'manager_requirement_bulk' %} aria-current="page"{% endif %}>
             <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
             <span>必要人数の設定</span>

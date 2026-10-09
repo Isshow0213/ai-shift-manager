@@ -15,14 +15,27 @@
   .operating-hours-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 22px; }
   .operating-hours-info { background: #edf3ff; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #2860ed; margin-bottom: 16px; font-size: 13px; color: #52647e; }
   .operating-hours-info strong { display: block; margin-bottom: 3px; color: #2854a1; }
+  .submission-deadline-link { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; }
+  .submission-deadline-link h2 { margin: 0 0 6px; font-size: 18px; }
+  .submission-deadline-link p { margin: 0; color: #687487; font-size: 13px; }
   .button-small { padding: 6px 12px; font-size: 12px; }
   @media (max-width: 900px) { .requirement-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .operating-hours-fields { grid-template-columns: 1fr; } }
-  @media (max-width: 540px) { .requirement-fields { grid-template-columns: 1fr; } .requirement-form-actions .button { width: 100%; } .operating-hours-fields { grid-template-columns: 1fr; } }
+  @media (max-width: 540px) { .requirement-fields { grid-template-columns: 1fr; } .requirement-form-actions .button { width: 100%; } .operating-hours-fields { grid-template-columns: 1fr; } .submission-deadline-link { flex-direction: column; align-items: flex-start; padding: 20px; } .submission-deadline-link .button { width: 100%; } }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="requirement-panels">
+  <section class="panel submission-deadline-link">
+    <div>
+      <h2>希望提出の締切を設定</h2>
+      <p>毎週または毎月のルールを設定すると、締切が繰り返し適用されます。</p>
+    </div>
+    <a class="button button-secondary" href="{% url 'manager_submission_deadline' %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
+      締切設定を開く
+    </a>
+  </section>
   <section class="panel">
     <div class="panel-heading">
       <h2>通し勤務の時間帯を設定</h2>
@@ -133,7 +146,6 @@
             <th scope="col">終了時刻</th>
             <th scope="col">必要人数</th>
             <th scope="col">曜日種別</th>
-            <th scope="col">締切</th>
           </tr>
         </thead>
         <tbody>
@@ -144,16 +156,9 @@
               <td>{{ requirement.end_time|time:"H:i" }}</td>
               <td><span class="status-badge badge-blue">{{ requirement.required_staff_count }}人</span></td>
               <td>{{ requirement.get_day_type_display|default:"-" }}</td>
-              <td>
-                {% if requirement.deadline %}
-                  {{ requirement.deadline|date:"Y/m/d H:i" }}
-                {% else %}
-                  <span style="color: #999;">未設定</span>
-                {% endif %}
-              </td>
             </tr>
           {% empty %}
-            <tr><td class="empty-state" colspan="6">まだ必要人数が設定されていません。</td></tr>
+            <tr><td class="empty-state" colspan="5">まだ必要人数が設定されていません。</td></tr>
           {% endfor %}
         </tbody>
       </table>
