@@ -7,12 +7,14 @@ from datetime import date, timedelta
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.contrib import messages
+from django.views.decorators.http import require_GET
 from accounts.models import StoreMembership
 from scheduler.services import generate_shifts_for_store
 
 from .forms import AvailabilityForm, RequirementForm, ShiftGenerationForm, StoreOperatingHoursForm
 from .models import Availability, Requirement, Shift, StoreOperatingHours
 from .calendar_utils import get_calendar_context
+from .overview import build_shift_overview_context
 from .requirement_bulk_forms import BulkRequirementForm, DAY_TYPES, RequirementTimeSlotFormSet
 from .requirement_bulk import (
     RequirementOverlapError, apply_plan, build_plan, validate_existing_requirements,
@@ -112,8 +114,12 @@ def availability_create(request):
         work_date=selected_date,
     ).order_by("start_time")
 
-    # 営業時間を取得
-    operating_hours = membership.store.operating_hours if hasattr(membership.store, 'operating_hours') else None
+    operating_hours = StoreOperatingHours.objects.filter(store=membership.store).first()
+    has_full_day_hours = bool(
+        operating_hours and operating_hours.start_time is not None
+        and operating_hours.end_time is not None
+        and operating_hours.start_time < operating_hours.end_time
+    )
 
     if request.method == "POST":
         form = AvailabilityForm(request.POST, user=request.user)
@@ -146,8 +152,25 @@ def availability_create(request):
             "previous_availabilities_unique": previous_availabilities_unique,
             "requirements_for_date": requirements_for_date,
             "operating_hours": operating_hours,
+            "has_full_day_hours": has_full_day_hours,
         },
     )
+
+@login_required
+@require_GET
+def store_shift_overview(request):
+    membership = StoreMembership.objects.filter(
+        user=request.user, is_active=True,
+    ).select_related("store").first()
+    if membership is None:
+        messages.error(request, "所属している店舗がありません。")
+        return redirect("availability_list")
+
+    return render(request, "shifts/shift_overview.html", {
+        **build_shift_overview_context(request, membership.store),
+        "membership": membership,
+    })
+
 
 @login_required
 def generate_shift_view(request):
@@ -400,8 +423,7 @@ def manager_requirement_list(request):
 
     store = manager_membership.store
 
-    # 営業時間を取得または作成
-    operating_hours, created = StoreOperatingHours.objects.get_or_create(store=store)
+    operating_hours = StoreOperatingHours.objects.filter(store=store).first()
 
     if request.method == "POST":
         # フォームのタイプを判定
@@ -411,8 +433,14 @@ def manager_requirement_list(request):
             operating_hours_form = StoreOperatingHoursForm(request.POST, instance=operating_hours)
             form = RequirementForm()
             if operating_hours_form.is_valid():
-                operating_hours_form.save()
-                messages.success(request, "営業時間を保存しました。")
+                StoreOperatingHours.objects.update_or_create(
+                    store=store,
+                    defaults={
+                        "start_time": operating_hours_form.cleaned_data["start_time"],
+                        "end_time": operating_hours_form.cleaned_data["end_time"],
+                    },
+                )
+                messages.success(request, "通し勤務の時間帯を保存しました。")
                 return redirect("manager_requirement_list")
         else:
             form = RequirementForm(request.POST)

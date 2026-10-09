@@ -1,0 +1,8 @@
+.employee-store-overview-link { display: flex; justify-content: flex-end; margin-top: 18px; }
+.employee-store-overview .employee-overview-own-row .overview-staff-column { background: #eff5ff; }
+.employee-overview-own-badge { display: inline-block; margin-top: 4px; padding: 2px 7px; border-radius: 4px; background: #dfeaff; color: var(--blue); font-size: 10px; font-weight: 600; line-height: 1.5; }
+.employee-store-overview .overview-shift:hover { filter: none; box-shadow: none; }
+.employee-store-overview .overview-day-link:hover { background: #f7f9fc; }
+@media (max-width: 600px) {
+  .employee-store-overview-link .button { width: 100%; }
+}

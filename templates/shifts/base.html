@@ -12,6 +12,7 @@
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'manager/calendar.css' %}">
   <link rel="stylesheet" href="{% static 'shifts/employee.css' %}">
+  <link rel="stylesheet" href="{% static 'shifts/shift_overview.css' %}">
 {% endblock %}
 
 {% block sidebar_label %}従業員メニュー{% endblock %}
@@ -50,6 +51,17 @@
         <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
         <span>確定シフト</span>
       </a>
+      {% if membership %}
+        <a class="nav-link{% if current_url == 'store_shift_overview' %} active{% endif %}" href="{% url 'store_shift_overview' %}{% if year and month %}?year={{ year }}&amp;month={{ month }}{% if selected_date %}&amp;date={{ selected_date|date:'Y-m-d' }}{% endif %}{% elif selected_date %}?year={{ selected_date|date:'Y' }}&amp;month={{ selected_date|date:'n' }}&amp;date={{ selected_date|date:'Y-m-d' }}{% endif %}"{% if current_url == 'store_shift_overview' %} aria-current="page"{% endif %}>
+          <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>
+          <span>全体シフト</span>
+        </a>
+      {% else %}
+        <span class="nav-link nav-link-disabled" aria-disabled="true">
+          <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>
+          <span>全体シフト</span>
+        </span>
+      {% endif %}
     </nav>
   {% endwith %}
 {% endblock %}

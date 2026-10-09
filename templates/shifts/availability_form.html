@@ -1,5 +1,5 @@
 {% extends "shifts/base.html" %}
-{% load i18n %}
+{% load static i18n %}
 
 {% block title %}シフト希望提出{% endblock %}
 {% block page_title %}シフト希望提出{% endblock %}
@@ -14,6 +14,9 @@
     .quick-select-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 10px; }
     .quick-select-list { display: flex; flex-direction: column; gap: 8px; }
     .quick-select-item { 
+      display: block;
+      width: 100%;
+      text-align: left;
       padding: 10px 12px; 
       border: 1px solid #ddd; 
       border-radius: 4px; 
@@ -38,6 +41,7 @@
       margin-top: 2px;
     }
     .requirement-memo {
+      display: block;
       background: #f5f5f5;
       padding: 8px 10px;
       border-radius: 4px;
@@ -45,21 +49,19 @@
       margin-top: 4px;
       color: #555;
       border-left: 3px solid #28a745;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
+    .quick-select-item-label, .quick-select-item-meta { display: block; }
     .all-day-button {
+      grid-column: 1 / -1;
       margin-top: 8px;
-      padding: 8px 12px;
-      background: #6c63ff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s;
+      width: 100%;
+      padding: 12px;
+      white-space: normal;
     }
-    .all-day-button:hover {
-      background: #5a52d5;
-    }
+    .quickfill-status { margin: 14px 0 0; color: #2854a1; font-size: 13px; }
+    .quickfill-status:empty { margin: 0; }
   </style>
 {% endblock %}
 
@@ -91,9 +93,10 @@
           {{ form.end_time }}
           {% if form.end_time.errors %}<div class="field-error">{{ form.end_time.errors }}</div>{% endif %}
         </div>
-        {% if operating_hours %}
-        <button type="button" class="all-day-button" onclick="setAllDayTime('{{ operating_hours.start_time|time:'H:i' }}', '{{ operating_hours.end_time|time:'H:i' }}')">
-          通しで勤務できます
+        {% if has_full_day_hours %}
+        <button type="button" class="button button-primary all-day-button" id="full-day-fill" data-full-day data-availability-quickfill data-start-time="{{ operating_hours.start_time|time:'H:i' }}" data-end-time="{{ operating_hours.end_time|time:'H:i' }}" aria-describedby="quickfill-status">
+          <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
+          通しで希望する（{{ operating_hours.start_time|time:'H:i' }}〜{{ operating_hours.end_time|time:'H:i' }}）
         </button>
         {% endif %}
       </div>
@@ -105,10 +108,10 @@
           <p class="quick-select-title">前回提出した希望時間（重複除外）</p>
           <div class="quick-select-list">
             {% for availability in previous_availabilities_unique %}
-            <div class="quick-select-item previous" onclick="setTimeFromPrevious('{{ availability.start_time|time:'H:i' }}', '{{ availability.end_time|time:'H:i' }}')">
-              <div class="quick-select-item-label">{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}</div>
-              <div class="quick-select-item-meta">{% language 'ja' %}{{ availability.work_date|date:'Y年n月j日' }}{% endlanguage %}</div>
-            </div>
+            <button type="button" class="quick-select-item previous" data-availability-quickfill data-start-time="{{ availability.start_time|time:'H:i' }}" data-end-time="{{ availability.end_time|time:'H:i' }}" aria-describedby="quickfill-status">
+              <span class="quick-select-item-label">{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}</span>
+              <span class="quick-select-item-meta">{% language 'ja' %}{{ availability.work_date|date:'Y年n月j日' }}{% endlanguage %}</span>
+            </button>
             {% endfor %}
           </div>
         </div>
@@ -119,21 +122,22 @@
           <p class="quick-select-title">店長が設定した必要時間</p>
           <div class="quick-select-list">
             {% for requirement in requirements_for_date %}
-            <div class="quick-select-item requirement" onclick="setTimeFromRequirement('{{ requirement.start_time|time:'H:i' }}', '{{ requirement.end_time|time:'H:i' }}')">
-              <div class="quick-select-item-label">{{ requirement.start_time|time:'H:i' }}〜{{ requirement.end_time|time:'H:i' }}</div>
-              <div class="quick-select-item-meta">必要人数: {{ requirement.required_staff_count }}名</div>
-              {% if requirement.memo %}<div class="requirement-memo">{{ requirement.memo }}</div>{% endif %}
-            </div>
+            <button type="button" class="quick-select-item requirement" data-availability-quickfill data-start-time="{{ requirement.start_time|time:'H:i' }}" data-end-time="{{ requirement.end_time|time:'H:i' }}" aria-describedby="quickfill-status">
+              <span class="quick-select-item-label">{{ requirement.start_time|time:'H:i' }}〜{{ requirement.end_time|time:'H:i' }}</span>
+              <span class="quick-select-item-meta">必要人数: {{ requirement.required_staff_count }}名</span>
+              {% if requirement.memo %}<span class="requirement-memo">{{ requirement.memo }}</span>{% endif %}
+            </button>
             {% endfor %}
           </div>
         </div>
         {% endif %}
       </div>
       {% endif %}
+      <p id="quickfill-status" class="quickfill-status" role="status" aria-live="polite"></p>
       
       <div class="submission-actions">
         <a class="button button-secondary" href="{% url 'availability_list' %}?year={{ selected_date|date:'Y' }}&amp;month={{ selected_date|date:'n' }}&amp;date={{ selected_date|date:'Y-m-d' }}">カレンダーへ戻る</a>
-        <button class="button button-primary" type="submit">
+        <button class="button button-primary" type="submit" id="availability-submit">
           <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
           提出する
         </button>
@@ -143,20 +147,9 @@
   <p class="employee-guidance">勤務できる時間帯を入力してください。提出後は、選択日のカレンダーで内容を確認できます。</p>
 </div>
 
-<script>
-function setTimeFromPrevious(startTime, endTime) {
-  document.getElementById('id_start_time').value = startTime;
-  document.getElementById('id_end_time').value = endTime;
-}
+{% endblock %}
 
-function setTimeFromRequirement(startTime, endTime) {
-  document.getElementById('id_start_time').value = startTime;
-  document.getElementById('id_end_time').value = endTime;
-}
-
-function setAllDayTime(startTime, endTime) {
-  document.getElementById('id_start_time').value = startTime;
-  document.getElementById('id_end_time').value = endTime;
-}
-</script>
+{% block extra_js %}
+  {{ block.super }}
+  <script src="{% static 'shifts/availability_quickfill.js' %}" defer></script>
 {% endblock %}

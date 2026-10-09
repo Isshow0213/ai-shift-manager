@@ -56,6 +56,14 @@
         <span><i class="legend-dot selected-dot" aria-hidden="true"></i>選択中</span>
         <span><i class="legend-dot today-dot" aria-hidden="true"></i>今日</span>
       </div>
+      {% if membership %}
+        <div class="employee-store-overview-link">
+          <a class="button button-secondary button-small" href="{% url 'store_shift_overview' %}?year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}">
+            <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>
+            全体シフトを見る
+          </a>
+        </div>
+      {% endif %}
     </section>
 
     <section class="panel employee-day-details" aria-label="選択日の詳細">

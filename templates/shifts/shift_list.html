@@ -32,6 +32,12 @@
         <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
         希望カレンダー
       </a>
+      {% if membership %}
+        <a class="button button-secondary button-small" href="{% url 'store_shift_overview' %}?year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>
+          全体シフト
+        </a>
+      {% endif %}
     </div>
   </div>
 

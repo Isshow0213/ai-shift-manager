@@ -1,0 +1,163 @@
+{% extends "shifts/base.html" %}
+{% load static %}
+
+{% block title %}全体シフト | シフト管理{% endblock %}
+{% block page_title %}全体シフト{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'manager/shift_overview.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="shift-overview employee-store-overview">
+  <section class="panel overview-toolbar" aria-label="表示月の選択">
+    <div class="overview-month">
+      <a class="button button-secondary button-small" href="?year={{ prev_year }}&amp;month={{ prev_month }}" aria-label="前月の全体シフトを表示">
+        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>
+        前月
+      </a>
+      <h2>{{ year }}年{{ month }}月</h2>
+      <a class="button button-secondary button-small" href="?year={{ next_year }}&amp;month={{ next_month }}" aria-label="翌月の全体シフトを表示">
+        翌月
+        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+      </a>
+    </div>
+    <div class="overview-toolbar-actions">
+      <form class="overview-month-form" method="get" action="{% url 'store_shift_overview' %}">
+        <fieldset class="overview-month-picker">
+          <legend>表示する月</legend>
+          <div class="overview-month-fields">
+            <label class="overview-sr-only" for="overview-year">表示する年</label>
+            <input id="overview-year" name="year" type="number" min="2" max="9998" value="{{ year }}" aria-describedby="overview-month-help" required>
+            <span aria-hidden="true">年</span>
+            <label class="overview-sr-only" for="overview-month">表示する月</label>
+            <select id="overview-month" name="month" aria-describedby="overview-month-help">
+              <option value="1"{% if month == 1 %} selected{% endif %}>1月</option>
+              <option value="2"{% if month == 2 %} selected{% endif %}>2月</option>
+              <option value="3"{% if month == 3 %} selected{% endif %}>3月</option>
+              <option value="4"{% if month == 4 %} selected{% endif %}>4月</option>
+              <option value="5"{% if month == 5 %} selected{% endif %}>5月</option>
+              <option value="6"{% if month == 6 %} selected{% endif %}>6月</option>
+              <option value="7"{% if month == 7 %} selected{% endif %}>7月</option>
+              <option value="8"{% if month == 8 %} selected{% endif %}>8月</option>
+              <option value="9"{% if month == 9 %} selected{% endif %}>9月</option>
+              <option value="10"{% if month == 10 %} selected{% endif %}>10月</option>
+              <option value="11"{% if month == 11 %} selected{% endif %}>11月</option>
+              <option value="12"{% if month == 12 %} selected{% endif %}>12月</option>
+            </select>
+            <button class="button button-secondary button-small" type="submit">表示</button>
+          </div>
+        </fieldset>
+        <p class="overview-month-help" id="overview-month-help">年月を選ぶと、その月のシフトに切り替わります。</p>
+      </form>
+      <a class="button button-secondary button-small" href="{% url 'shift_list' %}?year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}">
+        <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+        自分の確定シフト
+      </a>
+    </div>
+  </section>
+
+  <div class="stats-grid overview-stats">
+    <section class="stat-card">
+      <p class="stat-label">登録済みシフト</p>
+      <div class="stat-value">{{ total_shifts }}<small>件</small></div>
+    </section>
+    <section class="stat-card">
+      <p class="stat-label">勤務予定の従業員</p>
+      <div class="stat-value">{{ scheduled_staff_count }}<small>人</small></div>
+    </section>
+    <section class="stat-card">
+      <p class="stat-label">延べ勤務日数</p>
+      <div class="stat-value">{{ total_working_days }}<small>日</small></div>
+    </section>
+    <section class="stat-card">
+      <p class="stat-label">シフト時間の合計</p>
+      <div class="stat-value overview-hours-value">{{ total_hours_display }}<small>時間:分</small></div>
+    </section>
+  </div>
+
+  <section class="panel overview-board">
+    <div class="panel-heading overview-board-heading">
+      <h2>{{ year }}年{{ month }}月の全体シフト表</h2>
+      <div class="overview-legend" aria-label="シフトの表示について">
+        <span>色：シフトごとの設定</span>
+        <span><i class="overview-legend-dash" aria-hidden="true">—</i>勤務登録なし</span>
+      </div>
+    </div>
+    <p class="overview-board-help" id="overview-board-help">左右にスクロールして、店舗全員の確定シフトを確認できます。自分の行には「自分」と表示しています。</p>
+    {% if not total_shifts %}
+      <p class="overview-empty-month">この月の確定シフトはまだ登録されていません。登録されると、この表に表示されます。</p>
+    {% endif %}
+    <div class="overview-scroll" tabindex="0" role="region" aria-label="{{ year }}年{{ month }}月の店舗全員の確定シフト表。左右にスクロールできます。" aria-describedby="overview-board-help">
+      <table class="shift-overview-table">
+        <caption class="overview-sr-only">{{ store.name }} {{ year }}年{{ month }}月の確定シフト一覧。行は従業員、列は勤務日です。</caption>
+        <thead>
+          <tr>
+            <th scope="col" class="overview-staff-column">従業員</th>
+            {% for day in month_days %}
+              <th scope="col" class="overview-day-header{% if day.is_saturday %} is-saturday{% endif %}{% if day.is_sunday %} is-sunday{% endif %}{% if day.is_today %} is-today{% endif %}">
+                <span class="overview-day-link" aria-label="{{ day.date|date:'n月j日' }}{{ day.weekday }}曜日">
+                  <span class="overview-day-number">{{ day.day }}</span>
+                  <span class="overview-weekday">{{ day.weekday }}</span>
+                  {% if day.is_today %}<span class="overview-sr-only">今日</span>{% endif %}
+                </span>
+              </th>
+            {% endfor %}
+            <th scope="col" class="overview-summary-column">勤務日数</th>
+            <th scope="col" class="overview-summary-column">勤務時間<br><span class="overview-unit">時間:分</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr{% if row.user.pk == request.user.pk %} class="employee-overview-own-row"{% endif %}>
+              <th scope="row" class="overview-staff-column">
+                <div class="overview-person">
+                  <span class="avatar overview-avatar" aria-hidden="true">{{ row.user.full_name_japanese|slice:':1' }}</span>
+                  <div class="overview-person-details">
+                    <span class="overview-user-name">{{ row.user.full_name_japanese }}</span>
+                    {% if row.user.pk == request.user.pk %}<span class="employee-overview-own-badge">自分</span>{% endif %}
+                  </div>
+                </div>
+              </th>
+              {% for cell in row.cells %}
+                <td class="overview-shift-cell{% if cell.date.weekday == 5 or cell.date.weekday == 6 %} is-weekend{% endif %}{% if cell.date == today %} is-today{% endif %}">
+                  {% for shift in cell.shifts %}
+                    <div class="overview-shift {{ shift.display_color_class }}">
+                      <span class="overview-shift-time">{{ shift.start_time|time:"H:i" }}<span aria-hidden="true">–</span>{{ shift.end_time|time:"H:i" }}</span>
+                      {% if shift.note %}<span class="shift-note overview-shift-note">{{ shift.note }}</span>{% endif %}
+                    </div>
+                  {% empty %}
+                    <span class="overview-no-shift" aria-label="勤務登録なし">—</span>
+                  {% endfor %}
+                </td>
+              {% endfor %}
+              <td class="overview-person-total"><strong>{{ row.working_days }}</strong><span class="overview-unit">日</span><small>{{ row.shift_count }}件</small></td>
+              <td class="overview-person-total"><strong>{{ row.hours_display }}</strong></td>
+            </tr>
+          {% empty %}
+            <tr>
+              <th scope="row" class="overview-staff-column overview-empty-row">対象の従業員がいません</th>
+              {% for day in month_days %}<td class="overview-shift-cell"><span class="overview-no-shift" aria-label="勤務登録なし">—</span></td>{% endfor %}
+              <td class="overview-person-total">0日</td><td class="overview-person-total">0:00</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row" class="overview-staff-column">出勤人数</th>
+            {% for count in day_staff_counts %}<td class="overview-day-count">{{ count }}<span>人</span></td>{% endfor %}
+            <td class="overview-month-total">{{ total_working_days }}日</td>
+            <td class="overview-month-total">{{ total_hours_display }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script src="{% static 'manager/shift_overview.js' %}" defer></script>
+{% endblock %}

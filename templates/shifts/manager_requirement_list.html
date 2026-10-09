@@ -6,13 +6,15 @@
 
 {% block extra_css %}
 <style>
-  .requirement-panels { display: grid; gap: 24px; }
+  .requirement-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .requirement-panels > .panel { min-width: 0; }
   .requirement-form { padding: 24px; }
   .requirement-fields { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 18px; margin-bottom: 22px; }
   .requirement-form-actions { display: flex; justify-content: flex-end; }
-  .operating-hours-form { padding: 24px; background: #f9f9f9; }
-  .operating-hours-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 22px; }
-  .operating-hours-info { background: #e8f4f8; padding: 12px 16px; border-radius: 4px; border-left: 4px solid #0066cc; margin-bottom: 16px; font-size: 14px; color: #333; }
+  .operating-hours-form { padding: 24px; background: #f8faff; }
+  .operating-hours-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 22px; }
+  .operating-hours-info { background: #edf3ff; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #2860ed; margin-bottom: 16px; font-size: 13px; color: #52647e; }
+  .operating-hours-info strong { display: block; margin-bottom: 3px; color: #2854a1; }
   .button-small { padding: 6px 12px; font-size: 12px; }
   @media (max-width: 900px) { .requirement-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .operating-hours-fields { grid-template-columns: 1fr; } }
   @media (max-width: 540px) { .requirement-fields { grid-template-columns: 1fr; } .requirement-form-actions .button { width: 100%; } .operating-hours-fields { grid-template-columns: 1fr; } }
@@ -23,13 +25,14 @@
 <div class="requirement-panels">
   <section class="panel">
     <div class="panel-heading">
-      <h2>営業時間（通し勤務用）を設定</h2>
+      <h2>通し勤務の時間帯を設定</h2>
     </div>
     <form class="operating-hours-form" method="post">
       {% csrf_token %}
       <input type="hidden" name="form_type" value="operating_hours">
       <div class="operating-hours-info">
-        💡 従業員画面の「通しで勤務できます」ボタンでこの時間が自動入力されます。
+        <strong>店舗：{{ store.name }}</strong>
+        従業員が「通しで希望する」を押すと、この開始・終了時刻が入力されます。
       </div>
       {% if operating_hours_form.non_field_errors %}<div class="field-error">{{ operating_hours_form.non_field_errors }}</div>{% endif %}
       <div class="operating-hours-fields">
@@ -43,8 +46,8 @@
       </div>
       <div class="requirement-form-actions">
         <button class="button button-primary" type="submit">
-          <svg class="icon" aria-hidden="true"><use href="#icon-save"></use></svg>
-          営業時間を保存
+          <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
+          通し勤務の時間帯を保存
         </button>
       </div>
     </form>
