@@ -8,6 +8,16 @@ from shifts.models import Availability, Shift
 User = get_user_model()
 
 
+class StaffRankForm(forms.Form):
+    rank = forms.ChoiceField(
+        label="ランク", choices=StoreMembership.RANK_CHOICES,
+        error_messages={
+            "required": "ランクを選択してください。",
+            "invalid_choice": "ランクはA・B・Cから選んでください。",
+        },
+    )
+
+
 class StoreMembershipForm(forms.ModelForm):
     user = forms.ModelChoiceField(
         queryset=User.objects.all(),

@@ -9,6 +9,8 @@
   .detail-panel .shifts-table { min-width: 520px; }
   .shift-list-actions { display: flex; align-items: center; justify-content: center; gap: 6px; }
   .shift-list-actions .button-small { min-height: 30px; padding: 5px 8px; font-size: 11px; }
+  .calendar-overview-link { display: flex; justify-content: center; margin-top: 18px; }
+  @media (max-width: 600px) { .calendar-overview-link .button { width: 100%; } }
 </style>
 {% endblock %}
 
@@ -64,6 +66,12 @@
       <span><i class="legend-dot empty-dot"></i>登録なし</span>
       <span><i class="legend-dot selected-dot"></i>選択日</span>
       <span><i class="legend-dot today-dot"></i>今日</span>
+    </div>
+    <div class="calendar-overview-link">
+      <a class="button button-secondary" href="{% url 'manager_shift_overview' %}?year={{ year }}&amp;month={{ month }}">
+        <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+        全体シフトを見る
+      </a>
     </div>
   </section>
 

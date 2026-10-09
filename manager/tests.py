@@ -67,7 +67,7 @@ class StaffManagementTests(TestCase):
         self.assertNotContains(response, "佐藤 美咲")
         self.assertNotContains(response, "staff-login")
         self.assertNotContains(response, "manager-login")
-        self.assertNotContains(response, "<select")
+        self.assertNotContains(response, 'name="user"')
         self.assertEqual(response.context["memberships"].count(), 3)
 
     def test_legacy_user_selection_post_is_no_longer_accepted(self):

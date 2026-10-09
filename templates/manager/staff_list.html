@@ -100,7 +100,7 @@
       <span class="status-badge badge-muted">{{ memberships|length }}人</span>
     </div>
     <div class="table-wrap">
-      <table class="data-table">
+      <table class="data-table staff-membership-table">
         <thead>
           <tr>
             <th scope="col">氏名</th>
@@ -113,11 +113,22 @@
         <tbody>
           {% for membership in memberships %}
             <tr>
-              <td><div class="staff-person"><span class="avatar" aria-hidden="true">{{ membership.user.full_name_japanese|slice:":1" }}</span>{{ membership.user.full_name_japanese }}</div></td>
-              <td>{% if membership.role == "manager" %}店長・管理者{% else %}従業員{% endif %}</td>
-              <td><span class="staff-rank">{{ membership.rank }}</span></td>
-              <td>{{ membership.desired_shifts_per_week }}回</td>
-              <td><span class="status-badge {% if membership.is_active %}badge-green{% else %}badge-muted{% endif %}">{% if membership.is_active %}有効{% else %}無効{% endif %}</span></td>
+              <td data-label="氏名"><div class="staff-person"><span class="avatar" aria-hidden="true">{{ membership.user.full_name_japanese|slice:":1" }}</span>{{ membership.user.full_name_japanese }}</div></td>
+              <td data-label="権限">{% if membership.role == "manager" %}店長・管理者{% else %}従業員{% endif %}</td>
+              <td class="staff-rank-cell" data-label="ランク">
+                <form class="staff-rank-form" method="post" action="{% url 'manager_staff_rank_update' membership.pk %}">
+                  {% csrf_token %}
+                  <label class="sr-only" for="{{ membership.rank_form.rank.id_for_label }}">{{ membership.user.full_name_japanese }}のランク</label>
+                  <div class="staff-rank-controls">
+                    {{ membership.rank_form.rank }}
+                    <button class="button button-secondary button-small" type="submit" aria-label="{{ membership.user.full_name_japanese }}のランクを保存">保存</button>
+                  </div>
+                  {% if membership.rank_form.rank.errors %}<div class="field-error" role="alert">{{ membership.rank_form.rank.errors }}</div>{% endif %}
+                  {% if membership.rank_form.non_field_errors %}<div class="field-error" role="alert">{{ membership.rank_form.non_field_errors }}</div>{% endif %}
+                </form>
+              </td>
+              <td data-label="希望勤務回数／週">{{ membership.desired_shifts_per_week }}回</td>
+              <td data-label="所属状態"><span class="status-badge {% if membership.is_active %}badge-green{% else %}badge-muted{% endif %}">{% if membership.is_active %}有効{% else %}無効{% endif %}</span></td>
             </tr>
           {% empty %}
             <tr><td class="empty-state" colspan="5">所属している従業員はいません。</td></tr>

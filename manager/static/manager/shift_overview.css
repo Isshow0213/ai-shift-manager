@@ -1,0 +1,98 @@
+.shift-overview { --overview-name-width: 180px; display: grid; gap: 20px; min-width: 0; }
+.shift-overview > * { min-width: 0; }
+.overview-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; padding: 20px 24px; }
+.overview-month { display: flex; align-items: center; gap: 14px; }
+.overview-month h2 { margin: 0; color: var(--ink); font-size: 23px; letter-spacing: -.025em; white-space: nowrap; }
+.overview-toolbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.overview-month-form { margin: 0; color: var(--muted); font-size: 12px; }
+.overview-month-picker { margin: 0; padding: 0; border: 0; min-width: 0; }
+.overview-month-picker legend { margin-bottom: 6px; padding: 0; color: #344056; font-size: 12px; font-weight: 600; }
+.overview-month-fields { display: flex; align-items: center; gap: 7px; }
+.overview-month-help { margin: 6px 0 0; font-size: 10px; line-height: 1.5; }
+.overview-month-form input, .overview-month-form select { min-width: 0; height: 34px; border: 1px solid #dfe5ee; border-radius: 6px; background: #fff; color: #344056; font-size: 13px; padding: 5px 8px; }
+.overview-month-form input { width: 86px; }
+.overview-month-form select { width: 70px; }
+.overview-stats .stat-label { margin-bottom: 8px; font-size: 13px; }
+.overview-stats .stat-value { font-variant-numeric: tabular-nums; }
+.overview-hours-value small { display: block; margin: 5px 0 0; font-size: 11px; }
+.overview-board { overflow: hidden; }
+.overview-board-heading { flex-wrap: wrap; }
+.overview-board-heading h2 { font-size: 17px; }
+.overview-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12px; }
+.overview-legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.overview-legend-dot { display: inline-block; width: 11px; height: 11px; border-radius: 3px; }
+.overview-manual-dot { background: #5b85e9; }
+.overview-generated-dot { background: #8e6ad2; }
+.overview-legend-dash { color: #a5afbe; font-style: normal; }
+.overview-board-help { margin: 0; padding: 15px 24px; color: #7a8698; font-size: 12px; line-height: 1.7; }
+.overview-empty-month { margin: 0 24px 16px; padding: 12px 15px; border: 1px solid #dfe8fc; border-radius: 8px; background: #f3f7ff; color: #52647e; font-size: 13px; }
+.overview-scroll { position: relative; width: 100%; max-height: 68vh; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.overview-scroll:focus-visible { outline: 3px solid #9db9ff; outline-offset: -3px; }
+.shift-overview-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; color: #344056; font-size: 12px; }
+.shift-overview-table th, .shift-overview-table td { border-top: 1px solid var(--border); border-right: 1px solid var(--border); }
+.shift-overview-table th:last-child, .shift-overview-table td:last-child { border-right: 0; }
+.shift-overview-table thead th { position: sticky; top: 0; z-index: 3; background: #f7f9fc; color: #657289; font-weight: 550; text-align: center; }
+.shift-overview-table .overview-staff-column { position: sticky; left: 0; z-index: 2; width: var(--overview-name-width); min-width: var(--overview-name-width); max-width: var(--overview-name-width); padding: 14px 12px; background: #fff; text-align: left; box-shadow: 2px 0 5px #1830490a; }
+.shift-overview-table thead .overview-staff-column { z-index: 5; background: #f7f9fc; }
+.overview-day-header, .overview-shift-cell { width: 96px; min-width: 96px; max-width: 96px; }
+.overview-day-link { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 10px 8px; color: inherit; text-decoration: none; }
+.overview-day-link:hover { background: #eaf0fb; }
+.overview-day-number { font-size: 15px; font-weight: 650; }
+.overview-weekday { font-size: 11px; font-weight: 500; }
+.overview-day-header.is-saturday .overview-day-link { color: #4275cd; background: #f0f5ff; }
+.overview-day-header.is-sunday .overview-day-link { color: #dc6576; background: #fff4f5; }
+.overview-day-header.is-today .overview-day-link { color: var(--blue); background: #eaf1ff; box-shadow: inset 0 -3px var(--blue); }
+.overview-person { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.overview-avatar { flex: 0 0 28px; width: 28px; height: 28px; font-size: 12px; }
+.overview-person-details { min-width: 0; }
+.overview-user-name { display: block; color: #344056; font-size: 13px; font-weight: 650; line-height: 1.5; overflow-wrap: anywhere; }
+.overview-user-detail { display: block; margin-top: 3px; color: #8a95a6; font-size: 10px; font-weight: 400; }
+.overview-shift-cell { padding: 9px 5px; background: #fff; text-align: center; vertical-align: middle; }
+.overview-shift-cell.is-weekend { background: #fcfcfe; }
+.overview-shift-cell.is-today { background: #f5f8ff; }
+.overview-shift { display: flex; align-items: center; justify-content: center; gap: 2px; margin-bottom: 5px; padding: 6px 4px; border: 1px solid transparent; border-radius: 5px; font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.4; white-space: nowrap; }
+.overview-shift:last-child { margin-bottom: 0; }
+.overview-shift-manual { color: #3265c5; background: #eaf1ff; border-color: #dce7fc; }
+.overview-shift-generated { color: #7b52bd; background: #f2ecff; border-color: #e8dff8; }
+.overview-shift:hover { filter: brightness(.97); box-shadow: 0 1px 4px #18304912; }
+.overview-no-shift { display: block; padding: 8px; color: #b6bfcc; font-size: 14px; text-align: center; }
+a.overview-no-shift:hover { color: var(--blue); background: #f0f5ff; border-radius: 5px; }
+.overview-summary-column, .overview-person-total, .overview-month-total { width: 100px; min-width: 100px; padding: 12px 10px; text-align: center; white-space: nowrap; }
+.overview-person-total { background: #fbfcfe; font-variant-numeric: tabular-nums; }
+.overview-person-total strong { font-size: 13px; font-weight: 650; }
+.overview-person-total small { display: block; margin-top: 3px; color: #8b96a7; font-size: 10px; }
+.overview-unit { margin-left: 3px; color: #8b96a7; font-size: 10px; font-weight: 400; }
+.overview-day-count, .overview-month-total { position: sticky; bottom: 0; z-index: 1; padding: 13px 8px; background: #f7f9fc; color: #4f607b; text-align: center; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.overview-day-count span { margin-left: 3px; font-size: 10px; font-weight: 400; }
+.shift-overview-table tfoot .overview-staff-column { bottom: 0; z-index: 4; background: #f7f9fc; }
+.overview-empty-row { color: #8994a6; font-weight: 400; font-size: 12px; }
+.overview-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 1100px) {
+  .overview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .shift-overview { --overview-name-width: 140px; gap: 16px; }
+  .overview-toolbar { padding: 16px; gap: 16px; }
+  .overview-month { width: 100%; justify-content: space-between; gap: 8px; }
+  .overview-month h2 { font-size: 20px; }
+  .overview-month .button { padding: 6px 9px; font-size: 11px; }
+  .overview-month .icon { width: 15px; height: 15px; }
+  .overview-toolbar-actions { width: 100%; align-items: stretch; gap: 14px; }
+  .overview-toolbar-actions > .button { width: 100%; }
+  .overview-month-form { width: 100%; }
+  .overview-month-fields { justify-content: center; }
+  .overview-month-help { text-align: center; }
+  .overview-stats { gap: 10px; }
+  .overview-stats .stat-card { padding: 17px 14px; }
+  .overview-stats .stat-label { font-size: 11px; }
+  .overview-stats .stat-value { font-size: 25px; }
+  .overview-stats .stat-value small { font-size: 11px; }
+  .overview-stats .overview-hours-value small { font-size: 10px; }
+  .overview-legend { gap: 10px; font-size: 11px; }
+  .overview-board-help { padding: 13px 16px; font-size: 11px; }
+  .overview-empty-month { margin: 0 16px 14px; font-size: 12px; }
+  .overview-scroll { max-height: 70vh; }
+  .shift-overview-table .overview-staff-column { padding: 12px 9px; }
+  .overview-user-name { font-size: 12px; }
+  .overview-user-detail { font-size: 9px; }
+}

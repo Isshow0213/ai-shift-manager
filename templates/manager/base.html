@@ -40,6 +40,10 @@
             <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
             <span>シフト作成</span>
           </a>
+          <a class="nav-link{% if current_url == 'manager_shift_overview' %} active{% endif %}" href="{% url 'manager_shift_overview' %}{% if year and month %}?year={{ year }}&amp;month={{ month }}{% elif selected_date %}?year={{ selected_date|date:'Y' }}&amp;month={{ selected_date|date:'n' }}{% endif %}"{% if current_url == 'manager_shift_overview' %} aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+            <span>全体シフト</span>
+          </a>
           <a class="nav-link{% if current_url == 'manager_availability_list' %} active{% endif %}" href="{% url 'manager_availability_list' %}"{% if current_url == 'manager_availability_list' %} aria-current="page"{% endif %}>
             <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
             <span>希望提出状況</span>
