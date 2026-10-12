@@ -154,6 +154,27 @@ class Shift(models.Model):
             f"{self.start_time}-{self.end_time}"
         )
 
+class ShiftDisplayOrder(models.Model):
+    """店舗の全体シフト表で共有する従業員の表示順。"""
+
+    store = models.ForeignKey(
+        "accounts.Store", on_delete=models.CASCADE, related_name="shift_display_orders",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="shift_display_orders",
+    )
+    position = models.PositiveIntegerField("表示順")
+
+    class Meta:
+        ordering = ["position", "user_id"]
+        constraints = [models.UniqueConstraint(
+            fields=["store", "user"], name="unique_store_shift_display_order",
+        )]
+        verbose_name = "全体シフトの表示順"
+        verbose_name_plural = "全体シフトの表示順"
+
+
 class StoreOperatingHours(models.Model):
     """店舗の営業時間（通し時間）設定"""
     store = models.OneToOneField(

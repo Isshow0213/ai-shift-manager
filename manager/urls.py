@@ -18,6 +18,7 @@ urlpatterns = [
     path("staff/invitations/<int:invitation_id>/revoke/", manager_views.staff_invite_revoke, name="manager_staff_invite_revoke"),
     path("shifts/", manager_views.shift_list, name="manager_shift_list"),
     path("shifts/overview/", manager_views.shift_overview, name="manager_shift_overview"),
+    path("shifts/overview/order/", manager_views.shift_order_update, name="manager_shift_order_update"),
     path("shifts/<int:shift_id>/edit/", manager_views.shift_edit, name="manager_shift_edit"),
     path("shifts/<int:shift_id>/delete/", manager_views.shift_delete, name="manager_shift_delete"),
 ]

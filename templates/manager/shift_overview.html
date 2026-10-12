@@ -88,6 +88,22 @@
       </div>
     </div>
     <p class="overview-board-help" id="overview-board-help">日付をクリックすると、その日のシフトを作成できます。勤務時間をクリックすると、シフトを編集できます。</p>
+    <form class="overview-order-form" method="post" action="{% url 'manager_shift_order_update' %}?year={{ year }}&amp;month={{ month }}" data-shift-order-form data-order-target="shift-order-rows">
+      {% csrf_token %}
+      <div data-order-fields hidden>
+        {% for row in rows %}<input type="hidden" name="user_ids" value="{{ row.user.pk }}">{% endfor %}
+      </div>
+      <div class="overview-order-copy">
+        <p class="overview-order-title">従業員の表示順</p>
+        <p class="overview-order-help">名前の下の上下ボタンで並べ替え、保存してください。保存した順番は店舗の全月と従業員のシフト表に反映されます。</p>
+        <p class="overview-order-status" role="status" aria-live="polite" aria-atomic="true" data-order-status>{% if rows|length > 1 %}表示順はまだ変更されていません。{% else %}従業員が2人以上になると並べ替えできます。{% endif %}</p>
+        <noscript><p class="overview-order-status">表示順の変更にはJavaScriptを有効にしてください。</p></noscript>
+      </div>
+      <div class="overview-order-actions">
+        <button class="button button-secondary button-small" type="button" data-order-cancel disabled>変更を取り消す</button>
+        <button class="button button-primary button-small" type="submit" data-order-save disabled>表示順を保存</button>
+      </div>
+    </form>
     {% if not total_shifts %}
       <p class="overview-empty-month">この月はまだシフトが登録されていません。日付を選んでシフトを作成できます。</p>
     {% endif %}
@@ -110,9 +126,9 @@
             <th scope="col" class="overview-summary-column">勤務時間<br><span class="overview-unit">時間:分</span></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="shift-order-rows">
           {% for row in rows %}
-            <tr>
+            <tr data-shift-user-id="{{ row.user.pk }}" data-shift-user-name="{{ row.user.full_name_japanese }}">
               <th scope="row" class="overview-staff-column">
                 <div class="overview-person">
                   <span class="avatar overview-avatar" aria-hidden="true">{{ row.user.full_name_japanese|slice:':1' }}</span>
@@ -124,6 +140,10 @@
                       <span class="overview-user-detail">所属なし</span>
                     {% endif %}
                   </div>
+                </div>
+                <div class="overview-order-controls" data-order-controls hidden>
+                  <button class="overview-order-button" type="button" data-order-direction="up" aria-label="{{ row.user.full_name_japanese }}を上に移動" disabled><span aria-hidden="true">↑</span> 上へ</button>
+                  <button class="overview-order-button" type="button" data-order-direction="down" aria-label="{{ row.user.full_name_japanese }}を下に移動" disabled><span aria-hidden="true">↓</span> 下へ</button>
                 </div>
               </th>
               {% for cell in row.cells %}
@@ -167,4 +187,5 @@
 {% block extra_js %}
   {{ block.super }}
   <script src="{% static 'manager/shift_overview.js' %}" defer></script>
+  <script src="{% static 'manager/shift_order.js' %}" defer></script>
 {% endblock %}

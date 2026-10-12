@@ -1,16 +1,17 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from shifts.models import Availability, Requirement, Shift
-from accounts.models import StaffInvitation, StoreMembership
+from accounts.models import StaffInvitation, Store, StoreMembership
 from .forms import (
     AvailabilityShiftForm, OutsideAvailabilityShiftForm, ShiftForm, StaffRankForm,
 )
 from shifts.calendar_utils import get_calendar_context
-from shifts.overview import build_shift_overview_context
+from shifts.overview import build_shift_overview_context, save_overview_order
 
 @login_required
 @require_GET
@@ -317,6 +318,42 @@ def shift_overview(request):
         build_shift_overview_context(
             request, manager_membership.store, calendar_url_name="manager_shift_list",
         ),
+    )
+
+
+@login_required
+@require_POST
+def shift_order_update(request):
+    manager_membership = _manager_membership(request.user)
+    if manager_membership is None:
+        messages.error(request, "管理できる店舗がありません。")
+        return redirect("manager_dashboard")
+
+    store = manager_membership.store
+    with transaction.atomic():
+        Store.objects.select_for_update().get(pk=store.pk)
+        context = build_shift_overview_context(request, store)
+        visible_ids = {row["user"].pk for row in context["rows"]}
+        try:
+            user_ids = [int(value) for value in request.POST.getlist("user_ids")]
+        except ValueError:
+            user_ids = None
+        if (
+            user_ids is None or len(user_ids) != len(visible_ids)
+            or set(user_ids) != visible_ids
+        ):
+            messages.error(
+                request,
+                "表示順を保存できませんでした。画面を再読み込みして、全員の順番を設定してください。",
+            )
+        else:
+            save_overview_order(store, user_ids)
+            messages.success(
+                request, "表示順を保存しました。従業員の全体シフト表にも反映されます。",
+            )
+
+    return redirect(
+        f"{reverse('manager_shift_overview')}?year={context['year']}&month={context['month']}"
     )
 
 

@@ -22,6 +22,21 @@
 .overview-legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .overview-legend-dash { color: #a5afbe; font-style: normal; }
 .overview-board-help { margin: 0; padding: 15px 24px; color: #7a8698; font-size: 12px; line-height: 1.7; }
+.overview-order-form { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin: 0 24px 16px; padding: 14px 16px; border: 1px solid #dfe8fc; border-radius: 8px; background: #f6f9ff; }
+.overview-order-copy { flex: 1 1 320px; min-width: 0; }
+.overview-order-title { margin: 0 0 5px; color: #344056; font-size: 13px; font-weight: 650; }
+.overview-order-help { margin: 0; color: #657289; font-size: 12px; line-height: 1.7; }
+.overview-order-status { margin: 6px 0 0; color: #657289; font-size: 12px; line-height: 1.6; }
+.overview-order-form.is-unsaved .overview-order-status { color: #9b5d12; font-weight: 600; }
+.overview-order-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.overview-order-actions .button { min-height: 40px; }
+.overview-order-actions .button:disabled { opacity: .5; cursor: default; }
+.overview-order-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
+.overview-order-controls[hidden] { display: none; }
+.overview-order-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 36px; padding: 5px; border: 1px solid #dfe5ee; border-radius: 6px; background: #f7f9fc; color: #52647e; font: inherit; font-size: 11px; font-weight: 500; cursor: pointer; }
+.overview-order-button:hover:not(:disabled) { border-color: #b8cdf7; background: #edf3ff; color: var(--blue); }
+.overview-order-button:focus-visible { outline: 3px solid #9db9ff; outline-offset: 2px; }
+.overview-order-button:disabled { opacity: .4; cursor: default; }
 .overview-empty-month { margin: 0 24px 16px; padding: 12px 15px; border: 1px solid #dfe8fc; border-radius: 8px; background: #f3f7ff; color: #52647e; font-size: 13px; }
 .overview-scroll { position: relative; width: 100%; max-height: 68vh; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .overview-scroll:focus-visible { outline: 3px solid #9db9ff; outline-offset: -3px; }
@@ -88,6 +103,12 @@ a.overview-no-shift:hover { color: var(--blue); background: #f0f5ff; border-radi
   .overview-stats .overview-hours-value small { font-size: 10px; }
   .overview-legend { gap: 10px; font-size: 11px; }
   .overview-board-help { padding: 13px 16px; font-size: 11px; }
+  .overview-order-form { margin: 0 16px 14px; padding: 12px; gap: 12px; }
+  .overview-order-copy { flex-basis: 100%; }
+  .overview-order-help, .overview-order-status { font-size: 11px; }
+  .overview-order-actions { width: 100%; flex-wrap: nowrap; }
+  .overview-order-actions .button { flex: 1; min-height: 44px; padding: 8px; font-size: 11px; }
+  .overview-order-button { min-height: 44px; }
   .overview-empty-month { margin: 0 16px 14px; font-size: 12px; }
   .overview-scroll { max-height: 70vh; }
   .shift-overview-table .overview-staff-column { padding: 12px 9px; }
