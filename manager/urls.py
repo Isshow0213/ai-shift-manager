@@ -7,6 +7,7 @@ from . import views as manager_views
 urlpatterns = [
     path("dashboard/", shift_views.dashboard, name="manager_dashboard"),
     path("availabilities/", shift_views.manager_availability_list, name="manager_availability_list"),
+    path("availabilities/<int:availability_id>/edit/", manager_views.availability_edit, name="manager_availability_edit"),
     path("submission-deadline/", shift_views.manager_submission_deadline, name="manager_submission_deadline"),
     path("requirements/", shift_views.manager_requirement_list, name="manager_requirement_list"),
     path("requirements/bulk/", shift_views.manager_requirement_bulk, name="manager_requirement_bulk"),
@@ -14,6 +15,7 @@ urlpatterns = [
 
     path("staff/", manager_views.staff_list, name="manager_staff_list"),
     path("staff/<int:membership_id>/rank/", manager_views.staff_rank_update, name="manager_staff_rank_update"),
+    path("staff/<int:membership_id>/desired-shifts/", manager_views.staff_desired_shifts_update, name="manager_staff_desired_shifts_update"),
     path("staff/invitations/new/", manager_views.staff_invite_create, name="manager_staff_invite_create"),
     path("staff/invitations/<int:invitation_id>/revoke/", manager_views.staff_invite_revoke, name="manager_staff_invite_revoke"),
     path("shifts/", manager_views.shift_list, name="manager_shift_list"),

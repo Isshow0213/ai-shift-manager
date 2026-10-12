@@ -42,12 +42,19 @@
         {% for week in calendar_weeks %}
           {% for day in week %}
             {% if day.is_current_month %}
-              <a class="calendar-day{% if forloop.counter == 6 %} saturday{% elif forloop.counter == 7 %} sunday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}{% if day.submission_closed %} is-submission-closed{% endif %}" href="{{ day.url }}" aria-label="{% language 'ja' %}{{ day.date|date:'n月j日（D）' }}{% endlanguage %}、{% if day.is_submitted %}提出済み{% else %}未提出{% endif %}{% if day.submission_closed %}、締切済み{% endif %}{% if day.is_today %}、今日{% endif %}{% if day.is_selected %}、選択中{% endif %}"{% if day.is_selected %} aria-current="date"{% endif %}>
+              <a class="calendar-day{% if forloop.counter == 6 %} saturday{% elif forloop.counter == 7 %} sunday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}{% if day.submission_closed %} is-submission-closed{% endif %}" href="{{ day.url }}" aria-label="{% language 'ja' %}{{ day.date|date:'n月j日（D）' }}{% endlanguage %}、{% if day.is_submitted %}提出済み{% else %}未提出{% endif %}{% for availability in day.availabilities %}、希望{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}{% endfor %}{% if day.submission_closed %}、締切済み{% endif %}{% if day.is_today %}、今日{% endif %}{% if day.is_selected %}、選択中{% endif %}"{% if day.is_selected %} aria-current="date"{% endif %}>
                 <span class="day-number">{{ day.day }}</span>
                 <span class="day-status-list">
                   {% if day.is_submitted %}<span class="calendar-badge availability-badge">提出済み</span>{% else %}<span class="calendar-badge empty-badge">未提出</span>{% endif %}
                   {% if day.submission_closed %}<span class="calendar-badge deadline-badge">締切済み</span>{% endif %}
                 </span>
+                {% if day.availabilities %}
+                  <span class="employee-day-availabilities">
+                    {% for availability in day.availabilities %}
+                      <span class="employee-day-availability"><span>{{ availability.start_time|time:'H:i' }}</span><span class="employee-day-availability-end"><span>〜</span><span>{{ availability.end_time|time:'H:i' }}</span></span></span>
+                    {% endfor %}
+                  </span>
+                {% endif %}
                 {% if day.is_today or day.is_selected %}<span class="day-context">{% if day.is_today %}今日{% endif %}{% if day.is_today and day.is_selected %}・{% endif %}{% if day.is_selected %}選択中{% endif %}</span>{% endif %}
               </a>
             {% else %}

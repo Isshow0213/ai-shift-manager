@@ -43,11 +43,12 @@ def availability_list(request):
         user=request.user,
         work_date__year=year,
         work_date__month=month,
-    ).order_by("work_date", "start_time")
+    ).order_by("work_date", "start_time", "end_time", "pk")
 
-    submitted_dates = set(
-        monthly_availabilities.values_list("work_date", flat=True)
-    )
+    availabilities_by_date = {}
+    for availability in monthly_availabilities:
+        availabilities_by_date.setdefault(availability.work_date, []).append(availability)
+    submitted_dates = set(availabilities_by_date)
 
     monthly_shifts = Shift.objects.filter(
         user=request.user, work_date__year=year, work_date__month=month
@@ -55,6 +56,7 @@ def availability_list(request):
     shift_dates = set(monthly_shifts.values_list("work_date", flat=True))
     for week in calendar_context["calendar_weeks"]:
         for day in week:
+            day["availabilities"] = availabilities_by_date.get(day["date"], [])
             day["is_submitted"] = day["date"] in submitted_dates
             day["has_shift"] = day["date"] in shift_dates
             day["submission_closed"] = is_submission_closed(submission_deadline, day["date"], now=submission_now)
@@ -251,6 +253,7 @@ def is_manager(user):
 
 
 @login_required
+@require_GET
 def dashboard(request):
     manager_membership = StoreMembership.objects.filter(
         user=request.user,
@@ -267,13 +270,9 @@ def dashboard(request):
 
     store = manager_membership.store
 
-    today = timezone.localdate()
-    month_start = today.replace(day=1)
-
-    if today.month == 12:
-        next_month_start = today.replace(year=today.year + 1, month=1, day=1)
-    else:
-        next_month_start = today.replace(month=today.month + 1, day=1)
+    calendar_context = get_calendar_context(request)
+    year, month = calendar_context["year"], calendar_context["month"]
+    month_start = date(year, month, 1)
 
     staff_memberships = StoreMembership.objects.filter(
         store=store,
@@ -286,8 +285,8 @@ def dashboard(request):
     submitted_membership_ids = (
         Availability.objects.filter(
             membership__store=store,
-            work_date__gte=month_start,
-            work_date__lt=next_month_start,
+            work_date__year=year,
+            work_date__month=month,
         )
         .values_list("membership_id", flat=True)
         .distinct()
@@ -301,20 +300,21 @@ def dashboard(request):
 
     requirements_count = Requirement.objects.filter(
         store=store,
-        work_date__gte=month_start,
-        work_date__lt=next_month_start,
+        work_date__year=year,
+        work_date__month=month,
     ).count()
 
     shifts_count = Shift.objects.filter(
         store=store,
-        work_date__gte=month_start,
-        work_date__lt=next_month_start,
+        work_date__year=year,
+        work_date__month=month,
     ).count()
 
     return render(
         request,
         "manager/dashboard.html",
         {
+            **calendar_context,
             "store": store,
             "company": store.company,
             "month_start": month_start,
@@ -355,6 +355,7 @@ def shift_list(request):
     )
 
 @login_required
+@require_GET
 def manager_availability_list(request):
     manager_membership = StoreMembership.objects.filter(
         user=request.user,
@@ -367,6 +368,7 @@ def manager_availability_list(request):
         return redirect("dashboard")
 
     store = manager_membership.store
+    calendar_context = get_calendar_context(request)
 
     staff_memberships = StoreMembership.objects.filter(
         store=store,
@@ -376,6 +378,8 @@ def manager_availability_list(request):
 
     availabilities = Availability.objects.filter(
         membership__store=store,
+        work_date__year=calendar_context["year"],
+        work_date__month=calendar_context["month"],
     ).select_related(
         "membership",
         "membership__user",
@@ -398,6 +402,7 @@ def manager_availability_list(request):
         request,
         "shifts/manager_availability_list.html",
         {
+            **calendar_context,
             "store": store,
             "availabilities": availabilities,
             "unsubmitted_memberships": unsubmitted_memberships,

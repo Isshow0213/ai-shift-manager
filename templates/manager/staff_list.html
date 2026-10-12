@@ -99,6 +99,7 @@
       <h2>所属している従業員</h2>
       <span class="status-badge badge-muted">{{ memberships|length }}人</span>
     </div>
+    <p class="staff-desired-help">希望出勤数は、1週間あたり0〜7回で設定できます。</p>
     <div class="table-wrap">
       <table class="data-table staff-membership-table">
         <thead>
@@ -106,7 +107,7 @@
             <th scope="col">氏名</th>
             <th scope="col">権限</th>
             <th scope="col">ランク</th>
-            <th scope="col">希望勤務回数／週</th>
+            <th scope="col">希望出勤数／週</th>
             <th scope="col">所属状態</th>
           </tr>
         </thead>
@@ -127,7 +128,19 @@
                   {% if membership.rank_form.non_field_errors %}<div class="field-error" role="alert">{{ membership.rank_form.non_field_errors }}</div>{% endif %}
                 </form>
               </td>
-              <td data-label="希望勤務回数／週">{{ membership.desired_shifts_per_week }}回</td>
+              <td class="staff-desired-cell" data-label="希望出勤数／週">
+                <form class="staff-desired-form" method="post" action="{% url 'manager_staff_desired_shifts_update' membership.pk %}">
+                  {% csrf_token %}
+                  <label class="sr-only" for="{{ membership.desired_shifts_form.desired_shifts_per_week.id_for_label }}">{{ membership.user.full_name_japanese }}の希望出勤数／週</label>
+                  <div class="staff-desired-controls">
+                    {{ membership.desired_shifts_form.desired_shifts_per_week }}
+                    <span class="staff-desired-unit">回</span>
+                    <button class="button button-secondary button-small" type="submit" aria-label="{{ membership.user.full_name_japanese }}の希望出勤数を保存">保存</button>
+                  </div>
+                  {% if membership.desired_shifts_form.desired_shifts_per_week.errors %}<div class="field-error" role="alert">{{ membership.desired_shifts_form.desired_shifts_per_week.errors }}</div>{% endif %}
+                  {% if membership.desired_shifts_form.non_field_errors %}<div class="field-error" role="alert">{{ membership.desired_shifts_form.non_field_errors }}</div>{% endif %}
+                </form>
+              </td>
               <td data-label="所属状態"><span class="status-badge {% if membership.is_active %}badge-green{% else %}badge-muted{% endif %}">{% if membership.is_active %}有効{% else %}無効{% endif %}</span></td>
             </tr>
           {% empty %}

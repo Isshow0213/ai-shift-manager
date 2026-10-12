@@ -1,0 +1,22 @@
+.manager-month-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; padding: 20px 24px; margin-bottom: 24px; }
+.manager-month-navigation { display: flex; align-items: center; gap: 14px; }
+.manager-month-navigation h2 { margin: 0; color: var(--ink); font-size: 22px; white-space: nowrap; }
+.manager-month-form { margin: 0; }
+.manager-month-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
+.manager-month-picker legend { margin-bottom: 6px; padding: 0; color: #344056; font-size: 12px; font-weight: 600; }
+.manager-month-fields { display: flex; align-items: center; gap: 7px; }
+.manager-month-fields label { color: #69778b; font-size: 12px; }
+.manager-month-fields input, .manager-month-fields select { min-width: 0; min-height: 38px; padding: 6px 8px; border: 1px solid #dfe5ee; border-radius: 6px; background: #fff; color: #344056; font-size: 13px; }
+.manager-month-fields input { width: 86px; }
+.manager-month-fields select { width: 74px; }
+.manager-month-fields input:focus-visible, .manager-month-fields select:focus-visible { outline: 3px solid #9db9ff; outline-offset: 2px; }
+@media (max-width: 600px) {
+  .manager-month-toolbar { gap: 16px; padding: 16px; margin-bottom: 18px; }
+  .manager-month-navigation { width: 100%; justify-content: space-between; gap: 8px; }
+  .manager-month-navigation h2 { font-size: 20px; }
+  .manager-month-navigation .button { min-height: 44px; padding: 6px 9px; font-size: 11px; }
+  .manager-month-navigation .icon { width: 15px; height: 15px; }
+  .manager-month-form { width: 100%; }
+  .manager-month-fields { justify-content: center; flex-wrap: wrap; }
+  .manager-month-fields input, .manager-month-fields select, .manager-month-fields .button { min-height: 44px; }
+}

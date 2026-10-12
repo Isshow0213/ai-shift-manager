@@ -33,11 +33,11 @@
       {% block sidebar_navigation %}
       {% with current_url=request.resolver_match.url_name %}
         <nav class="sidebar-nav" aria-label="メインナビゲーション">
-          <a class="nav-link{% if current_url == 'manager_dashboard' or current_url == 'dashboard' %} active{% endif %}" href="{% url 'manager_dashboard' %}"{% if current_url == 'manager_dashboard' or current_url == 'dashboard' %} aria-current="page"{% endif %}>
+          <a class="nav-link{% if current_url == 'manager_dashboard' or current_url == 'dashboard' %} active{% endif %}" href="{% url 'manager_dashboard' %}{% if year and month %}?year={{ year }}&amp;month={{ month }}{% endif %}"{% if current_url == 'manager_dashboard' or current_url == 'dashboard' %} aria-current="page"{% endif %}>
             <svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
             <span>ダッシュボード</span>
           </a>
-          <a class="nav-link{% if current_url == 'manager_shift_list' or current_url == 'manager_shift_edit' or current_url == 'manager_shift_delete' %} active{% endif %}" href="{% url 'manager_shift_list' %}"{% if current_url == 'manager_shift_list' or current_url == 'manager_shift_edit' or current_url == 'manager_shift_delete' %} aria-current="page"{% endif %}>
+          <a class="nav-link{% if current_url == 'manager_shift_list' or current_url == 'manager_shift_edit' or current_url == 'manager_shift_delete' %} active{% endif %}" href="{% url 'manager_shift_list' %}{% if year and month %}?year={{ year }}&amp;month={{ month }}{% if selected_date %}&amp;date={{ selected_date|date:'Y-m-d' }}{% endif %}{% endif %}"{% if current_url == 'manager_shift_list' or current_url == 'manager_shift_edit' or current_url == 'manager_shift_delete' %} aria-current="page"{% endif %}>
             <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
             <span>シフト作成</span>
           </a>
@@ -45,7 +45,7 @@
             <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
             <span>全体シフト</span>
           </a>
-          <a class="nav-link{% if current_url == 'manager_availability_list' %} active{% endif %}" href="{% url 'manager_availability_list' %}"{% if current_url == 'manager_availability_list' %} aria-current="page"{% endif %}>
+          <a class="nav-link{% if current_url == 'manager_availability_list' or current_url == 'manager_availability_edit' %} active{% endif %}" href="{% url 'manager_availability_list' %}{% if year and month %}?year={{ year }}&amp;month={{ month }}{% endif %}"{% if current_url == 'manager_availability_list' or current_url == 'manager_availability_edit' %} aria-current="page"{% endif %}>
             <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
             <span>希望提出状況</span>
           </a>
@@ -53,7 +53,7 @@
             <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
             <span>提出締切</span>
           </a>
-          <a class="nav-link{% if current_url == 'manager_requirement_list' or current_url == 'manager_requirement_bulk' %} active{% endif %}" href="{% url 'manager_requirement_list' %}"{% if current_url == 'manager_requirement_list' or current_url == 'manager_requirement_bulk' %} aria-current="page"{% endif %}>
+          <a class="nav-link{% if current_url == 'manager_requirement_list' or current_url == 'manager_requirement_bulk' %} active{% endif %}" href="{% url 'manager_requirement_list' %}{% if year and month %}?year={{ year }}&amp;month={{ month }}{% endif %}"{% if current_url == 'manager_requirement_list' or current_url == 'manager_requirement_bulk' %} aria-current="page"{% endif %}>
             <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
             <span>必要人数の設定</span>
           </a>

@@ -137,7 +137,7 @@ class ShiftGenerationViewTests(TestCase):
         )
 
         self.assertRedirects(response, self.calendar_url)
-        self.assertContains(response, "手動でシフトを追加しました。")
+        self.assertContains(response, "希望通りのシフトを追加しました。")
         shift = Shift.objects.get()
         self.assertEqual(shift.store, self.store)
         self.assertEqual(shift.user, self.staff)
@@ -146,7 +146,7 @@ class ShiftGenerationViewTests(TestCase):
         self.assertFalse(shift.is_generated)
 
     def test_names_are_shown_in_manager_availabilities_and_staff_shifts(self):
-        response = self.client.get(reverse("manager_availability_list"))
+        response = self.client.get(reverse("manager_availability_list"), {"year": 2026, "month": 7})
         self.assertContains(response, "柴田 一翔")
         self.assertNotContains(response, "staff_login")
 

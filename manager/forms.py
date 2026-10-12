@@ -18,6 +18,19 @@ class StaffRankForm(forms.Form):
     )
 
 
+class StaffDesiredShiftsForm(forms.Form):
+    desired_shifts_per_week = forms.IntegerField(
+        label="希望出勤数／週", min_value=0, max_value=7,
+        widget=forms.NumberInput(attrs={"min": 0, "max": 7, "step": 1, "inputmode": "numeric"}),
+        error_messages={
+            "required": "希望出勤数を入力してください。",
+            "invalid": "希望出勤数は整数で入力してください。",
+            "min_value": "希望出勤数は0回以上で入力してください。",
+            "max_value": "希望出勤数は週7回以下で入力してください。",
+        },
+    )
+
+
 class StoreMembershipForm(forms.ModelForm):
     user = forms.ModelChoiceField(
         queryset=User.objects.all(),

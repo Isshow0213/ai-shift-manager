@@ -1,0 +1,67 @@
+{% extends "manager/base.html" %}
+
+{% block title %}シフト希望を編集 | シフト管理{% endblock %}
+{% block page_title %}シフト希望を編集{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · 管理者による希望日時の変更{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+  <style>
+    .availability-editor { max-width: 720px; margin: 0 auto; }
+    .availability-original { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 22px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: #fafbfd; }
+    .availability-original div { min-width: 0; }
+    .availability-original dt { margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+    .availability-original dd { margin: 0; color: var(--ink); font-size: 14px; overflow-wrap: anywhere; }
+    .availability-editor-note { margin: 0 0 22px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+    .availability-editor .field-error { margin-bottom: 12px; }
+    .availability-editor .availability-date-field { grid-column: 1 / -1; }
+    @media (max-width: 600px) {
+      .availability-original, .availability-editor .form-grid { grid-template-columns: 1fr; }
+      .availability-editor .form-actions { flex-wrap: wrap; }
+      .availability-editor .form-actions .button { flex: 1; min-height: 44px; }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<section class="panel availability-editor">
+  <div class="panel-heading"><h2>希望日時を変更</h2></div>
+  <div class="panel-body">
+    <dl class="availability-original" aria-label="変更前のシフト希望">
+      <div><dt>従業員</dt><dd>{{ availability.membership.user.full_name_japanese }}</dd></div>
+      <div><dt>所属店舗</dt><dd>{{ store.name }}</dd></div>
+      <div><dt>変更前の日付</dt><dd>{{ original_work_date|date:"Y年n月j日" }}</dd></div>
+      <div><dt>変更前の希望時間</dt><dd>{{ original_start_time|time:"H:i" }}〜{{ original_end_time|time:"H:i" }}</dd></div>
+    </dl>
+    <p class="availability-editor-note">提出締切後も管理者は希望日時を変更できます。登録済みの確定シフトは、この変更では更新されません。</p>
+    <form method="post" action="{% url 'manager_availability_edit' availability.pk %}?year={{ year }}&amp;month={{ month }}">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="form-grid">
+        <div class="field availability-date-field">
+          {{ form.work_date.label_tag }}
+          {{ form.work_date }}
+          {% if form.work_date.help_text %}<p class="field-help">{{ form.work_date.help_text }}</p>{% endif %}
+          {% if form.work_date.errors %}<div class="field-error" role="alert">{{ form.work_date.errors }}</div>{% endif %}
+        </div>
+        <div class="field">
+          {{ form.start_time.label_tag }}
+          {{ form.start_time }}
+          {% if form.start_time.help_text %}<p class="field-help">{{ form.start_time.help_text }}</p>{% endif %}
+          {% if form.start_time.errors %}<div class="field-error" role="alert">{{ form.start_time.errors }}</div>{% endif %}
+        </div>
+        <div class="field">
+          {{ form.end_time.label_tag }}
+          {{ form.end_time }}
+          {% if form.end_time.help_text %}<p class="field-help">{{ form.end_time.help_text }}</p>{% endif %}
+          {% if form.end_time.errors %}<div class="field-error" role="alert">{{ form.end_time.errors }}</div>{% endif %}
+        </div>
+      </div>
+      <div class="form-actions">
+        <a class="button button-secondary" href="{% url 'manager_availability_list' %}?year={{ year }}&amp;month={{ month }}">キャンセル</a>
+        <button class="button button-primary" type="submit">希望日時を保存</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

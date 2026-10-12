@@ -1,13 +1,19 @@
 {% extends "manager/base.html" %}
+{% load static %}
 
 {% block title %}希望提出状況{% endblock %}
 {% block page_title %}希望提出状況{% endblock %}
-{% block page_subtitle %}店舗：{{ store.name }} · 提出済みのシフト希望を確認{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · {{ year }}年{{ month }}月のシフト希望を確認{% endblock %}
 
 {% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'manager/month_picker.css' %}">
 <style>
-  .availability-panels { display: grid; gap: 24px; }
-  .availability-person { display: flex; align-items: center; gap: 10px; }
+  .availability-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; min-width: 0; }
+  .availability-panels > .panel { min-width: 0; }
+  .availability-panels .table-wrap { max-width: 100%; }
+  .availability-person { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .availability-table { min-width: 680px; }
   .unsubmitted-list { display: flex; flex-wrap: wrap; gap: 12px; padding: 24px; margin: 0; list-style: none; }
   .unsubmitted-list li { display: flex; align-items: center; gap: 9px; padding: 8px 14px 8px 8px; border: 1px solid #e9edf3; border-radius: 9px; color: #59677f; font-size: 13px; }
   .unsubmitted-note { color: #8b96a7; font-size: 11px; font-weight: 400; }
@@ -15,14 +21,50 @@
 {% endblock %}
 
 {% block content %}
+<section class="panel manager-month-toolbar" aria-label="希望提出状況の表示月">
+  <div class="manager-month-navigation">
+    <a class="button button-secondary button-small" href="{% url 'manager_availability_list' %}?year={{ prev_year }}&amp;month={{ prev_month }}" aria-label="前月の希望提出状況を表示">
+      <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>前月
+    </a>
+    <h2>{{ year }}年{{ month }}月</h2>
+    <a class="button button-secondary button-small" href="{% url 'manager_availability_list' %}?year={{ next_year }}&amp;month={{ next_month }}" aria-label="翌月の希望提出状況を表示">
+      翌月<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+    </a>
+  </div>
+  <form class="manager-month-form" method="get" action="{% url 'manager_availability_list' %}">
+    <fieldset class="manager-month-picker">
+      <legend>表示する月</legend>
+      <div class="manager-month-fields">
+        <label for="availability-year">年</label>
+        <input id="availability-year" name="year" type="number" min="2" max="9998" value="{{ year }}" required>
+        <label for="availability-month">月</label>
+        <select id="availability-month" name="month">
+          <option value="1"{% if month == 1 %} selected{% endif %}>1月</option>
+          <option value="2"{% if month == 2 %} selected{% endif %}>2月</option>
+          <option value="3"{% if month == 3 %} selected{% endif %}>3月</option>
+          <option value="4"{% if month == 4 %} selected{% endif %}>4月</option>
+          <option value="5"{% if month == 5 %} selected{% endif %}>5月</option>
+          <option value="6"{% if month == 6 %} selected{% endif %}>6月</option>
+          <option value="7"{% if month == 7 %} selected{% endif %}>7月</option>
+          <option value="8"{% if month == 8 %} selected{% endif %}>8月</option>
+          <option value="9"{% if month == 9 %} selected{% endif %}>9月</option>
+          <option value="10"{% if month == 10 %} selected{% endif %}>10月</option>
+          <option value="11"{% if month == 11 %} selected{% endif %}>11月</option>
+          <option value="12"{% if month == 12 %} selected{% endif %}>12月</option>
+        </select>
+        <button class="button button-secondary button-small" type="submit">表示</button>
+      </div>
+    </fieldset>
+  </form>
+</section>
 <div class="availability-panels">
   <section class="panel">
     <div class="panel-heading">
-      <h2>提出済み一覧</h2>
+      <h2>{{ year }}年{{ month }}月の提出済み一覧</h2>
       <span class="status-badge badge-blue">{{ availabilities|length }}件</span>
     </div>
     <div class="table-wrap">
-      <table class="data-table">
+      <table class="data-table availability-table">
         <thead>
           <tr>
             <th scope="col">従業員</th>
@@ -30,6 +72,7 @@
             <th scope="col">開始時刻</th>
             <th scope="col">終了時刻</th>
             <th scope="col">所属店舗</th>
+            <th scope="col">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -40,9 +83,10 @@
               <td>{{ availability.start_time|time:"H:i" }}</td>
               <td>{{ availability.end_time|time:"H:i" }}</td>
               <td>{{ store.name }}</td>
+              <td><a class="button button-secondary button-small" href="{% url 'manager_availability_edit' availability.pk %}?year={{ year }}&amp;month={{ month }}" aria-label="{{ availability.membership.user.full_name_japanese }}の{{ availability.work_date|date:'n月j日' }}の希望を編集">編集</a></td>
             </tr>
           {% empty %}
-            <tr><td class="empty-state" colspan="5">まだ提出がありません。</td></tr>
+            <tr><td class="empty-state" colspan="6">選択月の提出はまだありません。</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -51,7 +95,7 @@
 
   <section class="panel">
     <div class="panel-heading">
-      <h2>未提出者 <span class="unsubmitted-note">これまでの提出履歴がない従業員</span></h2>
+      <h2>未提出者 <span class="unsubmitted-note">選択月の希望がない従業員</span></h2>
       <span class="status-badge badge-orange">{{ unsubmitted_memberships|length }}人</span>
     </div>
     {% if unsubmitted_memberships %}

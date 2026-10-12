@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -5,10 +7,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from shifts.forms import AvailabilityForm
 from shifts.models import Availability, Requirement, Shift
 from accounts.models import StaffInvitation, Store, StoreMembership
 from .forms import (
-    AvailabilityShiftForm, OutsideAvailabilityShiftForm, ShiftForm, StaffRankForm,
+    AvailabilityShiftForm, OutsideAvailabilityShiftForm, ShiftForm,
+    StaffDesiredShiftsForm, StaffRankForm,
 )
 from shifts.calendar_utils import get_calendar_context
 from shifts.overview import build_shift_overview_context, save_overview_order
@@ -27,7 +31,10 @@ def staff_list(request):
     return _render_staff_list(request, store)
 
 
-def _render_staff_list(request, store, rank_membership_id=None, rank_form=None):
+def _render_staff_list(
+    request, store, rank_membership_id=None, rank_form=None, *,
+    desired_shifts_membership_id=None, desired_shifts_form=None,
+):
 
     memberships = StoreMembership.objects.filter(
         store=store,
@@ -38,6 +45,13 @@ def _render_staff_list(request, store, rank_membership_id=None, rank_form=None):
         membership.rank_form = (
             rank_form if membership.pk == rank_membership_id else StaffRankForm(
                 initial={"rank": membership.rank}, auto_id=f"membership-{membership.pk}-%s",
+            )
+        )
+        membership.desired_shifts_form = (
+            desired_shifts_form
+            if membership.pk == desired_shifts_membership_id else StaffDesiredShiftsForm(
+                initial={"desired_shifts_per_week": membership.desired_shifts_per_week},
+                auto_id=f"membership-{membership.pk}-desired-%s",
             )
         )
     invitations = list(
@@ -101,6 +115,37 @@ def staff_rank_update(request, membership_id):
         return redirect("manager_staff_list")
 
     return _render_staff_list(request, store, rank_membership_id=membership.pk, rank_form=form)
+
+
+@login_required
+@require_POST
+def staff_desired_shifts_update(request, membership_id):
+    manager_membership = _manager_membership(request.user)
+    if manager_membership is None:
+        messages.error(request, "管理できる店舗がありません。")
+        return redirect("manager_dashboard")
+
+    store = manager_membership.store
+    membership = get_object_or_404(
+        StoreMembership.objects.select_related("user"), pk=membership_id, store=store,
+    )
+    form = StaffDesiredShiftsForm(
+        request.POST, auto_id=f"membership-{membership.pk}-desired-%s",
+    )
+    if form.is_valid():
+        desired_shifts = form.cleaned_data["desired_shifts_per_week"]
+        StoreMembership.objects.filter(pk=membership.pk, store=store).update(
+            desired_shifts_per_week=desired_shifts,
+        )
+        messages.success(
+            request,
+            f"{membership.user.full_name_japanese}さんの希望出勤数を週{desired_shifts}回に変更しました。",
+        )
+        return redirect("manager_staff_list")
+
+    return _render_staff_list(
+        request, store, desired_shifts_membership_id=membership.pk, desired_shifts_form=form,
+    )
 
 
 @login_required
@@ -303,6 +348,49 @@ def _manager_membership(user):
     return StoreMembership.objects.filter(
         user=user, role="manager", is_active=True
     ).select_related("store").first()
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def availability_edit(request, availability_id):
+    manager_membership = _manager_membership(request.user)
+    if manager_membership is None:
+        messages.error(request, "管理できる店舗がありません。")
+        return redirect("manager_dashboard")
+
+    store = manager_membership.store
+    availability = get_object_or_404(
+        Availability.objects.select_related("user", "membership", "membership__user"),
+        pk=availability_id, membership__store=store,
+    )
+    original_work_date = availability.work_date
+    original_start_time = availability.start_time
+    original_end_time = availability.end_time
+    query = request.GET.copy()
+    query.setdefault("year", str(availability.work_date.year))
+    query.setdefault("month", str(availability.work_date.month))
+    query.setdefault("date", availability.work_date.isoformat())
+    calendar_context = get_calendar_context(SimpleNamespace(GET=query))
+    form = AvailabilityForm(
+        request.POST if request.method == "POST" else None,
+        instance=availability, user=availability.user, submission_deadline=None,
+    )
+    if request.method == "POST" and form.is_valid():
+        edited_availability = form.save(commit=False)
+        edited_availability.save(update_fields=["work_date", "start_time", "end_time"])
+        messages.success(request, "従業員のシフト希望を変更しました。")
+        work_date = edited_availability.work_date
+        return redirect(
+            f"{reverse('manager_availability_list')}?year={work_date.year}"
+            f"&month={work_date.month}&date={work_date.isoformat()}"
+        )
+
+    return render(request, "manager/availability_edit.html", {
+        **calendar_context, "store": store, "availability": availability, "form": form,
+        "original_work_date": original_work_date,
+        "original_start_time": original_start_time,
+        "original_end_time": original_end_time,
+    })
 
 
 @login_required

@@ -1,10 +1,13 @@
 {% extends "manager/base.html" %}
+{% load static %}
 
 {% block title %}管理者ダッシュボード{% endblock %}
 {% block page_title %}ダッシュボード{% endblock %}
-{% block page_subtitle %}店舗：{{ store.name }} · 今月のシフト管理状況{% endblock %}
+{% block page_subtitle %}店舗：{{ store.name }} · {{ year }}年{{ month }}月のシフト管理状況{% endblock %}
 
 {% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'manager/month_picker.css' %}">
 <style>
   .dashboard-month { margin: 0 0 18px; color: #748096; font-size: 13px; }
   .dashboard-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 24px; }
@@ -29,6 +32,42 @@
 {% endblock %}
 
 {% block content %}
+<section class="panel manager-month-toolbar" aria-label="ダッシュボードの表示月">
+  <div class="manager-month-navigation">
+    <a class="button button-secondary button-small" href="{% url 'manager_dashboard' %}?year={{ prev_year }}&amp;month={{ prev_month }}" aria-label="前月の管理状況を表示">
+      <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>前月
+    </a>
+    <h2>{{ year }}年{{ month }}月</h2>
+    <a class="button button-secondary button-small" href="{% url 'manager_dashboard' %}?year={{ next_year }}&amp;month={{ next_month }}" aria-label="翌月の管理状況を表示">
+      翌月<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+    </a>
+  </div>
+  <form class="manager-month-form" method="get" action="{% url 'manager_dashboard' %}">
+    <fieldset class="manager-month-picker">
+      <legend>表示する月</legend>
+      <div class="manager-month-fields">
+        <label for="dashboard-year">年</label>
+        <input id="dashboard-year" name="year" type="number" min="2" max="9998" value="{{ year }}" required>
+        <label for="dashboard-month">月</label>
+        <select id="dashboard-month" name="month">
+          <option value="1"{% if month == 1 %} selected{% endif %}>1月</option>
+          <option value="2"{% if month == 2 %} selected{% endif %}>2月</option>
+          <option value="3"{% if month == 3 %} selected{% endif %}>3月</option>
+          <option value="4"{% if month == 4 %} selected{% endif %}>4月</option>
+          <option value="5"{% if month == 5 %} selected{% endif %}>5月</option>
+          <option value="6"{% if month == 6 %} selected{% endif %}>6月</option>
+          <option value="7"{% if month == 7 %} selected{% endif %}>7月</option>
+          <option value="8"{% if month == 8 %} selected{% endif %}>8月</option>
+          <option value="9"{% if month == 9 %} selected{% endif %}>9月</option>
+          <option value="10"{% if month == 10 %} selected{% endif %}>10月</option>
+          <option value="11"{% if month == 11 %} selected{% endif %}>11月</option>
+          <option value="12"{% if month == 12 %} selected{% endif %}>12月</option>
+        </select>
+        <button class="button button-secondary button-small" type="submit">表示</button>
+      </div>
+    </fieldset>
+  </form>
+</section>
 <p class="dashboard-month">{{ month_start|date:"Y年n月" }} の状況 · 会社：{{ company.name }}</p>
 <div class="dashboard-stats">
   <section class="panel dashboard-stat">
@@ -39,17 +78,17 @@
   <section class="panel dashboard-stat">
     <div class="stat-top">未提出<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg></span></div>
     <p class="stat-value">{{ unsubmitted_count }}<span>人</span></p>
-    <p class="stat-note">今月の希望が未提出の従業員</p>
+    <p class="stat-note">選択月の希望が未提出の従業員</p>
   </section>
   <section class="panel dashboard-stat">
     <div class="stat-top">必要人数設定<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span></div>
     <p class="stat-value">{{ requirements_count }}<span>件</span></p>
-    <p class="stat-note">今月の設定済み時間帯</p>
+    <p class="stat-note">選択月の設定済み時間帯</p>
   </section>
   <section class="panel dashboard-stat">
-    <div class="stat-top">生成済みシフト<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span></div>
+    <div class="stat-top">登録済みシフト<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span></div>
     <p class="stat-value">{{ shifts_count }}<span>件</span></p>
-    <p class="stat-note">今月の登録済みシフト</p>
+    <p class="stat-note">選択月の登録済みシフト</p>
   </section>
 </div>
 
@@ -58,24 +97,24 @@
     <h2>シフトを作成する</h2>
     <p>カレンダーから日付を選んで、希望者と必要人数を確認。<br>手動追加や自動生成で、その日のシフトを組めます。</p>
   </div>
-  <a class="button button-primary" href="{% url 'manager_shift_list' %}">
+  <a class="button button-primary" href="{% url 'manager_shift_list' %}?year={{ year }}&amp;month={{ month }}">
     <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
     シフト作成カレンダーを開く
   </a>
 </section>
 
 <div class="dashboard-actions">
-  <a class="panel dashboard-action" href="{% url 'manager_shift_overview' %}?year={{ month_start|date:'Y' }}&amp;month={{ month_start|date:'n' }}">
+  <a class="panel dashboard-action" href="{% url 'manager_shift_overview' %}?year={{ year }}&amp;month={{ month }}">
     <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg></span>
     <h2>全体シフトを見る</h2>
     <p>この店舗のスタッフ全員の勤務時間を、月ごとに確認します。</p>
   </a>
-  <a class="panel dashboard-action" href="{% url 'manager_availability_list' %}">
+  <a class="panel dashboard-action" href="{% url 'manager_availability_list' %}?year={{ year }}&amp;month={{ month }}">
     <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg></span>
     <h2>希望提出状況を見る</h2>
     <p>提出された希望時間と、まだ提出していない従業員を確認します。</p>
   </a>
-  <a class="panel dashboard-action" href="{% url 'manager_requirement_list' %}">
+  <a class="panel dashboard-action" href="{% url 'manager_requirement_list' %}?year={{ year }}&amp;month={{ month }}">
     <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span>
     <h2>必要人数を設定する</h2>
     <p>日付と時間帯ごとに、お店に必要な人数を登録します。</p>
