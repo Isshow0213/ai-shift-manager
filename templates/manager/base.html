@@ -61,10 +61,6 @@
             <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>
             <span>従業員管理</span>
           </a>
-          <a class="nav-link{% if current_url == 'manager_shift_viewers' or current_url == 'manager_shift_viewer_grant' or current_url == 'manager_shift_viewer_revoke' %} active{% endif %}" href="{% url 'manager_shift_viewers' %}"{% if current_url == 'manager_shift_viewers' or current_url == 'manager_shift_viewer_grant' or current_url == 'manager_shift_viewer_revoke' %} aria-current="page"{% endif %}>
-            <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>
-            <span>会社メンバーの権限</span>
-          </a>
         </nav>
       {% endwith %}
       {% endblock %}

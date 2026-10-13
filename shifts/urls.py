@@ -1,6 +1,5 @@
 from django.urls import path
 from . import views
-from . import viewer_views
 
 urlpatterns = [
     path("dashboard/", views.dashboard, name="dashboard"),
@@ -8,7 +7,6 @@ urlpatterns = [
     path("availability/new/", views.availability_create, name="availability_create"),
     path("shifts/", views.shift_list, name="shift_list"),
     path("shifts/store/", views.store_shift_overview, name="store_shift_overview"),
-    path("viewer/shifts/", viewer_views.viewer_shift_overview, name="viewer_shift_overview"),
     path("generate/", views.generate_shift_view),
     path(
         "availability/<int:availability_id>/delete/",

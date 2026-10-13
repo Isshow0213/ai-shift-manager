@@ -1,105 +1,75 @@
-from functools import wraps
-
-from django.db.models import F, Q
+from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.http import Http404
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404
 
-from .models import Store, StoreMembership, StoreShiftViewingPermission
-
-
-def _active_user(user):
-    return bool(getattr(user, "is_authenticated", False) and user.is_active)
-
-
-def _permitted_stores(user, capability):
-    if not _active_user(user):
-        return Store.objects.none()
-    return Store.objects.filter(
-        shift_viewing_permissions__company_membership__user=user,
-        shift_viewing_permissions__is_active=True,
-        shift_viewing_permissions__company_membership__company_id=F("company_id"),
-        **{f"shift_viewing_permissions__{capability}": True},
-    ).select_related("company").distinct().order_by("company__name", "name", "pk")
-
-
-def permitted_shift_stores(user):
-    return _permitted_stores(user, "can_view_shifts")
-
-
-def permitted_submission_stores(user):
-    return _permitted_stores(user, "can_submit_availability")
+from .models import Store, StoreMembership
 
 
 def active_store_memberships(user):
-    if not _active_user(user):
+    if not getattr(user, "is_authenticated", False) or not user.is_active:
         return StoreMembership.objects.none()
     return StoreMembership.objects.filter(
         user=user, is_active=True, role__in=["manager", "staff"],
     ).select_related("store", "store__company")
 
 
-def has_store_membership(user):
-    return active_store_memberships(user).exists()
+def membership_has_permission(membership, capability):
+    return bool(membership and membership.is_active and membership.user.is_active and (
+        membership.role == "manager"
+        or membership.role == "staff" and getattr(membership, capability)
+    ))
+
+
+def _permitted_memberships(user, capability):
+    return active_store_memberships(user).filter(
+        Q(role="manager") | Q(role="staff", **{capability: True}),
+    )
+
+
+def _stores(memberships):
+    return Store.objects.filter(pk__in=memberships.values("store_id")).select_related(
+        "company",
+    ).order_by("company__name", "name", "pk")
+
+
+def permitted_shift_stores(user):
+    return _stores(_permitted_memberships(user, "can_view_shifts"))
+
+
+def permitted_submission_stores(user):
+    return _stores(_permitted_memberships(user, "can_submit_availability"))
 
 
 def available_submission_stores(user):
-    if not _active_user(user):
-        return Store.objects.none()
-    return Store.objects.filter(
-        Q(pk__in=active_store_memberships(user).values("store_id"))
-        | Q(pk__in=permitted_submission_stores(user).values("pk"))
-    ).select_related("company").order_by("company__name", "name", "pk")
+    # 希望の参照は、提出を停止した所属店舗でも利用できる。
+    return _stores(active_store_memberships(user))
 
 
 def select_submission_store(user, store_id=None):
     memberships = active_store_memberships(user)
     if store_id is None:
-        membership = memberships.first()
-        return (membership.store, membership) if membership else (permitted_submission_stores(user).first(), None)
+        membership = _permitted_memberships(user, "can_submit_availability").first() or memberships.first()
+        return (membership.store, membership) if membership else (None, None)
     try:
         store_id = int(store_id)
     except (TypeError, ValueError):
-        raise Http404("希望を提出できる店舗がありません。")
+        raise Http404("所属する店舗がありません。")
     if not 0 < store_id <= 9223372036854775807:
-        raise Http404("希望を提出できる店舗がありません。")
-    store = get_object_or_404(available_submission_stores(user), pk=store_id)
-    return store, memberships.filter(store=store).first()
+        raise Http404("所属する店舗がありません。")
+    membership = get_object_or_404(memberships, store_id=store_id)
+    return membership.store, membership
 
 
 def can_submit_availability(user, store):
-    return bool(store and (
-        active_store_memberships(user).filter(store=store).exists()
-        or permitted_submission_stores(user).filter(pk=store.pk).exists()
-    ))
+    return bool(store and _permitted_memberships(user, "can_submit_availability").filter(store=store).exists())
 
 
-def is_shift_viewer_only(user):
-    if not _active_user(user):
-        return False
-    # 最後の許可を取り消した後も個人画面の操作権限を付けない。
-    return not has_store_membership(user) and StoreShiftViewingPermission.objects.filter(
-        company_membership__user=user,
-    ).exists()
-
-
-def redirect_shift_viewer(view):
-    """会社メンバーの希望操作には、店舗ごとの希望提出権限が必要。"""
-    @wraps(view)
-    def wrapped(request, *args, **kwargs):
-        if is_shift_viewer_only(request.user) and not permitted_submission_stores(request.user).exists():
-            return redirect("viewer_shift_overview")
-        return view(request, *args, **kwargs)
-    return wrapped
-
-
-def redirect_company_personal_shifts(view):
-    @wraps(view)
-    def wrapped(request, *args, **kwargs):
-        if is_shift_viewer_only(request.user):
-            if permitted_shift_stores(request.user).exists():
-                return redirect("viewer_shift_overview")
-            if permitted_submission_stores(request.user).exists():
-                return redirect("availability_list")
-            return redirect("viewer_shift_overview")
-        return view(request, *args, **kwargs)
-    return wrapped
+def select_view_membership(user, store_id=None):
+    if store_id is not None:
+        _, membership = select_submission_store(user, store_id)
+    else:
+        membership = _permitted_memberships(user, "can_view_shifts").first() or active_store_memberships(user).first()
+    if membership and not membership_has_permission(membership, "can_view_shifts"):
+        raise PermissionDenied("この店舗の全体シフトを閲覧する権限がありません。")
+    return membership

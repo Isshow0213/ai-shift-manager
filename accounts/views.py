@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from .models import StoreMembership
 from .auth_forms import EmailOrUsernameAuthenticationForm
-from .shift_access import is_shift_viewer_only, permitted_submission_stores
+from .shift_access import active_store_memberships, permitted_shift_stores, permitted_submission_stores
 
 
 def get_login_destination(user):
@@ -15,8 +15,8 @@ def get_login_destination(user):
         user=user, role="manager", is_active=True
     ).exists():
         return "manager_dashboard"
-    if is_shift_viewer_only(user) and not permitted_submission_stores(user).exists():
-        return "viewer_shift_overview"
+    if active_store_memberships(user).exists() and not permitted_submission_stores(user).exists():
+        return "store_shift_overview" if permitted_shift_stores(user).exists() else "shift_list"
     return "availability_list"
 
 
@@ -44,12 +44,10 @@ class MembershipLoginView(LoginView):
         if path == normpath(reverse("login")):
             return ""
 
-        if is_shift_viewer_only(self.request.user):
-            allowed_paths = {normpath(reverse("viewer_shift_overview"))}
-            if permitted_submission_stores(self.request.user).exists():
-                allowed_paths.update({normpath(reverse("availability_list")), normpath(reverse("availability_create"))})
-            if path not in allowed_paths:
-                return ""
+        if path == normpath(reverse("store_shift_overview")) and not permitted_shift_stores(self.request.user).exists():
+            return ""
+        if path == normpath(reverse("availability_create")) and not permitted_submission_stores(self.request.user).exists():
+            return ""
 
         manager_prefix = reverse("manager_dashboard").rsplit("/", 2)[0]
         legacy_generate = reverse("availability_list").rsplit("/", 2)[0] + "/generate"

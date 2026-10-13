@@ -134,9 +134,7 @@
                   <span class="avatar overview-avatar" aria-hidden="true">{{ row.user.full_name_japanese|slice:':1' }}</span>
                   <div class="overview-person-details">
                     <span class="overview-user-name">{{ row.user.full_name_japanese }}</span>
-                    {% if row.is_company_member %}
-                      <span class="overview-user-detail">会社メンバー</span>
-                    {% elif row.membership %}
+                    {% if row.membership %}
                       <span class="overview-user-detail">ランク {{ row.membership.rank }}{% if not row.is_active %} · 無効{% endif %}</span>
                     {% else %}
                       <span class="overview-user-detail">所属なし</span>

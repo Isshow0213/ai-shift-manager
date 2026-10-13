@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -12,7 +13,7 @@ from shifts.models import Availability, Requirement, Shift
 from accounts.models import StaffInvitation, Store, StoreMembership
 from .forms import (
     AvailabilityShiftForm, OutsideAvailabilityShiftForm, ShiftForm,
-    StaffDesiredShiftsForm, StaffRankForm,
+    StaffDesiredShiftsForm, StaffPermissionsForm, StaffRankForm,
 )
 from shifts.calendar_utils import get_calendar_context
 from shifts.overview import build_shift_overview_context, save_overview_order
@@ -34,6 +35,7 @@ def staff_list(request):
 def _render_staff_list(
     request, store, rank_membership_id=None, rank_form=None, *,
     desired_shifts_membership_id=None, desired_shifts_form=None,
+    permissions_membership_id=None, permissions_form=None,
 ):
 
     memberships = StoreMembership.objects.filter(
@@ -54,6 +56,19 @@ def _render_staff_list(
                 auto_id=f"membership-{membership.pk}-desired-%s",
             )
         )
+        membership.permissions_form = None
+        if membership.role == "staff":
+            membership.permissions_form = (
+                permissions_form
+                if membership.pk == permissions_membership_id else StaffPermissionsForm(
+                    initial={
+                        "can_view_shifts": membership.can_view_shifts,
+                        "can_submit_availability": membership.can_submit_availability,
+                        "show_in_shift_overview": membership.show_in_shift_overview,
+                    },
+                    auto_id=f"membership-{membership.pk}-permissions-%s",
+                )
+            )
     invitations = list(
         StaffInvitation.objects.filter(store=store)
         .select_related("used_by")
@@ -145,6 +160,38 @@ def staff_desired_shifts_update(request, membership_id):
 
     return _render_staff_list(
         request, store, desired_shifts_membership_id=membership.pk, desired_shifts_form=form,
+    )
+
+
+@login_required
+@require_POST
+def staff_permissions_update(request, membership_id):
+    manager_membership = _manager_membership(request.user)
+    if manager_membership is None:
+        messages.error(request, "管理できる店舗がありません。")
+        return redirect("manager_dashboard")
+
+    store = manager_membership.store
+    membership = get_object_or_404(
+        StoreMembership.objects.select_related("user"),
+        pk=membership_id, store=store,
+    )
+    if membership.role != "staff":
+        raise PermissionDenied("管理者の権限は変更できません。")
+    form = StaffPermissionsForm(
+        request.POST, auto_id=f"membership-{membership.pk}-permissions-%s",
+    )
+    if form.is_valid():
+        StoreMembership.objects.filter(
+            pk=membership.pk, store=store, role="staff",
+        ).update(**form.cleaned_data)
+        messages.success(
+            request, f"{membership.user.full_name_japanese}さんの店舗スタッフの権限を保存しました。",
+        )
+        return redirect("manager_staff_list")
+
+    return _render_staff_list(
+        request, store, permissions_membership_id=membership.pk, permissions_form=form,
     )
 
 

@@ -31,6 +31,18 @@ class StaffDesiredShiftsForm(forms.Form):
     )
 
 
+class StaffPermissionsForm(forms.Form):
+    can_view_shifts = forms.BooleanField(
+        label="全体シフトを閲覧", required=False,
+    )
+    can_submit_availability = forms.BooleanField(
+        label="希望を提出", required=False,
+    )
+    show_in_shift_overview = forms.BooleanField(
+        label="全体シフト表に表示", required=False,
+    )
+
+
 class StoreMembershipForm(forms.ModelForm):
     user = forms.ModelChoiceField(
         queryset=User.objects.all(),
@@ -45,12 +57,18 @@ class StoreMembershipForm(forms.ModelForm):
             "rank",
             "desired_shifts_per_week",
             "is_active",
+            "can_view_shifts",
+            "can_submit_availability",
+            "show_in_shift_overview",
         ]
         labels = {
             "role": "権限",
             "rank": "ランク",
             "desired_shifts_per_week": "希望勤務回数",
             "is_active": "有効",
+            "can_view_shifts": "全体シフトを閲覧",
+            "can_submit_availability": "希望を提出",
+            "show_in_shift_overview": "全体シフト表に表示",
         }
 
     def __init__(self, *args, store=None, **kwargs):
@@ -81,6 +99,13 @@ class StoreMembershipForm(forms.ModelForm):
             if existing_memberships.exists():
                 raise forms.ValidationError("この従業員はすでに店舗に所属しています。")
         return user
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("role") == "manager":
+            for field_name in StaffPermissionsForm.base_fields:
+                cleaned_data[field_name] = True
+        return cleaned_data
 
 
 class ShiftForm(forms.ModelForm):

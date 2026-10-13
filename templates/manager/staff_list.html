@@ -99,23 +99,24 @@
       <h2>所属している従業員</h2>
       <span class="status-badge badge-muted">{{ memberships|length }}人</span>
     </div>
-    <p class="staff-desired-help">希望出勤数は、1週間あたり0〜7回で設定できます。</p>
+    <p class="staff-desired-help">希望出勤数は、1週間あたり0〜7回で設定できます。店舗スタッフの閲覧・希望提出・全体シフト表への表示は、それぞれ選んで保存できます。店長・管理者はすべて利用できます。</p>
     <div class="table-wrap">
       <table class="data-table staff-membership-table">
         <thead>
           <tr>
             <th scope="col">氏名</th>
-            <th scope="col">権限</th>
+            <th scope="col">役割</th>
             <th scope="col">ランク</th>
             <th scope="col">希望出勤数／週</th>
             <th scope="col">所属状態</th>
+            <th scope="col">店舗スタッフの権限</th>
           </tr>
         </thead>
         <tbody>
           {% for membership in memberships %}
             <tr>
               <td data-label="氏名"><div class="staff-person"><span class="avatar" aria-hidden="true">{{ membership.user.full_name_japanese|slice:":1" }}</span>{{ membership.user.full_name_japanese }}</div></td>
-              <td data-label="権限">{% if membership.role == "manager" %}店長・管理者{% else %}従業員{% endif %}</td>
+              <td data-label="役割">{% if membership.role == "manager" %}店長・管理者{% else %}従業員{% endif %}</td>
               <td class="staff-rank-cell" data-label="ランク">
                 <form class="staff-rank-form" method="post" action="{% url 'manager_staff_rank_update' membership.pk %}">
                   {% csrf_token %}
@@ -142,9 +143,29 @@
                 </form>
               </td>
               <td data-label="所属状態"><span class="status-badge {% if membership.is_active %}badge-green{% else %}badge-muted{% endif %}">{% if membership.is_active %}有効{% else %}無効{% endif %}</span></td>
+              <td class="staff-permissions-cell" data-label="店舗スタッフの権限">
+                {% if membership.role == "staff" %}
+                  <form class="staff-permissions-form" method="post" action="{% url 'manager_staff_permissions_update' membership.pk %}">
+                    {% csrf_token %}
+                    <div class="staff-permissions-options">
+                      {% for field in membership.permissions_form %}
+                        <label for="{{ field.id_for_label }}">
+                          {{ field }}
+                          <span><span class="sr-only">{{ membership.user.full_name_japanese }}の</span>{{ field.label }}</span>
+                        </label>
+                        {% if field.errors %}<div class="field-error" role="alert">{{ field.errors }}</div>{% endif %}
+                      {% endfor %}
+                    </div>
+                    {% if membership.permissions_form.non_field_errors %}<div class="field-error" role="alert">{{ membership.permissions_form.non_field_errors }}</div>{% endif %}
+                    <button class="button button-secondary button-small" type="submit" aria-label="{{ membership.user.full_name_japanese }}の店舗スタッフの権限を保存">権限を保存</button>
+                  </form>
+                {% else %}
+                  <span class="staff-permissions-manager">すべて利用できます</span>
+                {% endif %}
+              </td>
             </tr>
           {% empty %}
-            <tr><td class="empty-state" colspan="5">所属している従業員はいません。</td></tr>
+            <tr><td class="empty-state" colspan="6">所属している従業員はいません。</td></tr>
           {% endfor %}
         </tbody>
       </table>

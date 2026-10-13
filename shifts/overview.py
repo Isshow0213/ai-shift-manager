@@ -3,7 +3,7 @@ from datetime import datetime
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from accounts.models import StoreMembership, StoreShiftViewingPermission
+from accounts.models import StoreMembership
 from .calendar_utils import get_calendar_context
 from .models import Shift, ShiftDisplayOrder
 
@@ -80,30 +80,19 @@ def build_shift_overview_context(request, store, *, calendar_url_name=None):
     memberships = list(
         StoreMembership.objects.filter(store=store).select_related("user")
     )
-    active_staff_ids = {
+    hidden_user_ids = {
         membership.user_id for membership in memberships
-        if membership.is_active and membership.role in ("manager", "staff")
+        if membership.role == "staff" and not membership.show_in_shift_overview
     }
-    company_permissions = StoreShiftViewingPermission.objects.filter(
-        store=store, company_membership__company_id=store.company_id,
-    ).select_related("company_membership__user")
-    company_member_ids = {permission.company_membership.user_id for permission in company_permissions}
-    visible_company_users = {
-        permission.company_membership.user_id: permission.company_membership.user
-        for permission in company_permissions
-        if permission.is_active and permission.show_in_shift_overview and permission.company_membership.user.is_active
-    }
-    external_company_member_ids = company_member_ids - active_staff_ids - visible_company_users.keys()
     membership_by_user = {membership.user_id: membership for membership in memberships}
     users = {
         membership.user_id: membership.user
         for membership in memberships
-        if membership.is_active and membership.user_id not in external_company_member_ids
+        if membership.is_active and membership.user_id not in hidden_user_ids
     }
-    users.update(visible_company_users)
     monthly_shifts = list(Shift.objects.filter(
         store=store, work_date__year=year, work_date__month=month,
-    ).exclude(user_id__in=external_company_member_ids).select_related("user").order_by(
+    ).exclude(user_id__in=hidden_user_ids).select_related("user").order_by(
         "work_date", "start_time", "end_time", "pk",
     ))
 
@@ -140,10 +129,7 @@ def build_shift_overview_context(request, store, *, calendar_url_name=None):
         rows.append({
             "user": user,
             "membership": membership,
-            "is_active": bool(user.is_active and (
-                membership and membership.is_active or user.pk in visible_company_users
-            )),
-            "is_company_member": user.pk in visible_company_users and user.pk not in active_staff_ids,
+            "is_active": bool(membership and membership.is_active and user.is_active),
             "cells": cells,
             "working_days": sum(bool(cell["shifts"]) for cell in cells),
             "shift_count": sum(len(cell["shifts"]) for cell in cells),

@@ -69,14 +69,14 @@
 {% block content %}
 <div class="submission-page">
   {% if show_submission_store_picker %}
-    <section class="panel viewer-store-picker submission-store-picker" aria-label="希望を提出する店舗の選択">
+    <section class="panel store-access-picker submission-store-picker" aria-label="希望を提出する店舗の選択">
       <h2>希望を提出する店舗</h2>
-      <form class="viewer-store-form" method="get" action="{% url 'availability_create' %}">
+      <form class="store-access-form" method="get" action="{% url 'availability_create' %}">
         <input type="hidden" name="year" value="{{ selected_date|date:'Y' }}">
         <input type="hidden" name="month" value="{{ selected_date|date:'n' }}">
         <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
-        <div class="field viewer-store-field">
-          <label for="submission-form-store">提出できる店舗</label>
+        <div class="field store-access-field">
+          <label for="submission-form-store">所属店舗</label>
           <select id="submission-form-store" name="store">
             {% for submission_store in available_submission_stores %}<option value="{{ submission_store.pk }}"{% if submission_store.pk == access_store.pk %} selected{% endif %}>{{ submission_store.name }}</option>{% endfor %}
           </select>

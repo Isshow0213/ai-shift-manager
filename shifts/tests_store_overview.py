@@ -142,13 +142,13 @@ class StoreShiftOverviewTests(TestCase):
             work_date=date(2028, 2, 4), start_time=time(11), end_time=time(12),
         )
         expected = [own_first, own_second, manager_shift, coworker_shift, inactive_shift, legacy_shift, mismatched_shift]
-        self.make_shift(membership=self.second_membership, note="他店舗のシフト")
+        other_store_shift = self.make_shift(membership=self.second_membership, note="他店舗のシフト")
         self.make_shift(store=None, note="店舗未設定のシフト")
         self.make_shift(work_date=date(2028, 3, 1), note="翌月のシフト")
         before_shifts = list(Shift.objects.order_by("pk").values())
         before_memberships = list(StoreMembership.objects.order_by("pk").values())
 
-        response = self.get_overview(store=self.other_store.pk)
+        response = self.get_overview(store=self.store.pk)
 
         self.assertEqual(response.context["store"], self.store)
         rows = {row["user"].pk: row for row in response.context["rows"]}
@@ -175,6 +175,13 @@ class StoreShiftOverviewTests(TestCase):
                 self.assertIsNone(cell["url"])
         self.assertEqual(list(Shift.objects.order_by("pk").values()), before_shifts)
         self.assertEqual(list(StoreMembership.objects.order_by("pk").values()), before_memberships)
+        # 複数の所属店舗を選択しても、その店舗のシフトだけを閲覧する。
+        other_response = self.get_overview(store=self.other_store.pk)
+        self.assertEqual(other_response.context["store"], self.other_store)
+        other_visible = [shift for row in other_response.context["rows"] for cell in row["cells"] for shift in cell["shifts"]]
+        self.assertEqual(other_visible, [other_store_shift])
+        self.assertEqual(list(Shift.objects.order_by("pk").values()), before_shifts)
+        self.assertEqual(list(StoreMembership.objects.order_by("pk").values()), before_memberships)
 
     def test_month_selection_changes_shifts_day_count_and_totals(self):
         february = self.make_shift(work_date=date(2028, 2, 29), end_time=time(11))
@@ -189,8 +196,8 @@ class StoreShiftOverviewTests(TestCase):
                 self.assertEqual(response.context["total_hours_display"], hours)
                 shifts = [shift for row in response.context["rows"] for cell in row["cells"] for shift in cell["shifts"]]
                 self.assertEqual(shifts, [expected_shift])
-                self.assertIn(f"{self.url}?year=2028&month={month - 1}", self.links(response))
-                self.assertIn(f"{self.url}?year=2028&month={month + 1}", self.links(response))
+                self.assertIn(f"{self.url}?store={self.store.pk}&year=2028&month={month - 1}", self.links(response))
+                self.assertIn(f"{self.url}?store={self.store.pk}&year=2028&month={month + 1}", self.links(response))
         response = self.get_overview(year="invalid", month="13")
         self.assertEqual(response.status_code, 200)
         self.assertEqual((response.context["year"], response.context["month"]), (2026, 10))

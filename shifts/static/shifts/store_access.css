@@ -1,0 +1,15 @@
+.store-access-picker { padding: 20px 24px; }
+.submission-store-picker { margin-bottom: 20px; }
+.store-access-picker h2 { margin: 0 0 16px; color: var(--ink); font-size: 17px; }
+.store-access-form { display: flex; align-items: flex-end; gap: 14px; max-width: 720px; margin: 0; }
+.store-access-field { flex: 1; min-width: 0; }
+.store-access-field select { max-width: 100%; }
+.store-access-form .button { flex-shrink: 0; min-height: 44px; }
+@media (max-width: 600px) {
+  .store-access-picker { padding: 16px; }
+  .store-access-form { flex-wrap: wrap; gap: 12px; }
+  .store-access-field { flex-basis: 100%; }
+  .store-access-field select, .store-access-overview .overview-month-fields input, .store-access-overview .overview-month-fields select, .store-access-overview .overview-month-fields .button { min-height: 44px; }
+  .store-access-form .button { width: 100%; }
+  .store-access-overview .overview-month-fields { flex-wrap: wrap; }
+}

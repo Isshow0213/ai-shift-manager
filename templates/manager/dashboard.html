@@ -73,12 +73,12 @@
   <section class="panel dashboard-stat">
     <div class="stat-top">提出済み<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg></span></div>
     <p class="stat-value">{{ submitted_count }}<span>人</span></p>
-    <p class="stat-note">従業員数：{{ total_staff_count }}人</p>
+    <p class="stat-note">従業員数：{{ total_staff_count }}人 · 希望提出対象：{{ submission_staff_count }}人</p>
   </section>
   <section class="panel dashboard-stat">
     <div class="stat-top">未提出<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg></span></div>
     <p class="stat-value">{{ unsubmitted_count }}<span>人</span></p>
-    <p class="stat-note">選択月の希望が未提出の従業員</p>
+    <p class="stat-note">希望提出対象のうち、選択月の希望が未提出の従業員</p>
   </section>
   <section class="panel dashboard-stat">
     <div class="stat-top">必要人数設定<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span></div>
@@ -91,10 +91,6 @@
     <p class="stat-note">選択月の登録済みシフト</p>
   </section>
 </div>
-
-{% if company_submitters_count %}
-<p class="dashboard-month">希望提出を許可した会社メンバー：{{ company_submitters_count }}人 · 提出済み {{ company_submitted_count }}人 · 未提出 {{ company_unsubmitted_count }}人</p>
-{% endif %}
 
 <section class="panel dashboard-start">
   <div>

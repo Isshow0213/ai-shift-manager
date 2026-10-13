@@ -108,13 +108,5 @@
       <p class="empty-state">未提出者はいません。</p>
     {% endif %}
   </section>
-  {% if unsubmitted_company_memberships %}
-  <section class="panel">
-    <div class="panel-heading"><h2>未提出の会社メンバー</h2><span class="status-badge badge-orange">{{ unsubmitted_company_memberships|length }}人</span></div>
-    <ul class="unsubmitted-list">
-      {% for company_membership in unsubmitted_company_memberships %}<li><span class="avatar" aria-hidden="true">{{ company_membership.user.full_name_japanese|slice:':1' }}</span>{{ company_membership.user.full_name_japanese }}</li>{% endfor %}
-    </ul>
-  </section>
-  {% endif %}
 </div>
 {% endblock %}
