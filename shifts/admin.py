@@ -15,12 +15,13 @@ class AvailabilityAdmin(admin.ModelAdmin):
     list_display = (
         "user",
         "membership",
+        "store",
         "work_date",
         "start_time",
         "end_time",
         "created_at",
     )
-    list_filter = ("work_date", "membership__store")
+    list_filter = ("work_date", "membership__store", "store")
     search_fields = ("user__username", "user__email")
 
 

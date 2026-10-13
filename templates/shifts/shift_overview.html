@@ -1,4 +1,4 @@
-{% extends "shifts/base.html" %}
+{% extends viewer_mode|yesno:"shifts/viewer_base.html,shifts/base.html" %}
 {% load static %}
 
 {% block title %}全体シフト | シフト管理{% endblock %}
@@ -10,21 +10,38 @@
 {% endblock %}
 
 {% block content %}
-<div class="shift-overview employee-store-overview">
+<div class="shift-overview employee-store-overview{% if viewer_mode %} viewer-store-overview{% endif %}">
+  {% if viewer_mode %}
+    <section class="panel viewer-store-picker" aria-label="表示店舗の選択">
+      <h2>表示する店舗</h2>
+      <form class="viewer-store-form" method="get" action="{% url 'viewer_shift_overview' %}">
+        <input type="hidden" name="year" value="{{ year }}">
+        <input type="hidden" name="month" value="{{ month }}">
+        <div class="field viewer-store-field">
+          <label for="viewer-store">閲覧できる店舗</label>
+          <select id="viewer-store" name="store">
+            {% for accessible_store in accessible_stores %}<option value="{{ accessible_store.pk }}"{% if accessible_store.pk == store.pk %} selected{% endif %}>{{ accessible_store.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button class="button button-secondary" type="submit">店舗を表示</button>
+      </form>
+    </section>
+  {% endif %}
   <section class="panel overview-toolbar" aria-label="表示月の選択">
     <div class="overview-month">
-      <a class="button button-secondary button-small" href="?year={{ prev_year }}&amp;month={{ prev_month }}" aria-label="前月の全体シフトを表示">
+      <a class="button button-secondary button-small" href="?{% if viewer_mode %}store={{ store.pk }}&amp;{% endif %}year={{ prev_year }}&amp;month={{ prev_month }}" aria-label="前月の全体シフトを表示">
         <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>
         前月
       </a>
       <h2>{{ year }}年{{ month }}月</h2>
-      <a class="button button-secondary button-small" href="?year={{ next_year }}&amp;month={{ next_month }}" aria-label="翌月の全体シフトを表示">
+      <a class="button button-secondary button-small" href="?{% if viewer_mode %}store={{ store.pk }}&amp;{% endif %}year={{ next_year }}&amp;month={{ next_month }}" aria-label="翌月の全体シフトを表示">
         翌月
         <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
       </a>
     </div>
     <div class="overview-toolbar-actions">
-      <form class="overview-month-form" method="get" action="{% url 'store_shift_overview' %}">
+      <form class="overview-month-form" method="get" action="{% if viewer_mode %}{% url 'viewer_shift_overview' %}{% else %}{% url 'store_shift_overview' %}{% endif %}">
+        {% if viewer_mode %}<input type="hidden" name="store" value="{{ store.pk }}">{% endif %}
         <fieldset class="overview-month-picker">
           <legend>表示する月</legend>
           <div class="overview-month-fields">
@@ -51,10 +68,21 @@
         </fieldset>
         <p class="overview-month-help" id="overview-month-help">年月を選ぶと、その月のシフトに切り替わります。</p>
       </form>
-      <a class="button button-secondary button-small" href="{% url 'shift_list' %}?year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}">
+      {% if not viewer_mode %}<a class="button button-secondary button-small" href="{% url 'shift_list' %}?year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}">
         <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
         自分の確定シフト
-      </a>
+      </a>{% endif %}
+      {% if viewer_mode %}
+        {% if can_submit_selected_store %}
+          <a class="button button-secondary button-small" href="{% url 'availability_list' %}?store={{ store.pk }}&amp;year={{ year }}&amp;month={{ month }}">
+            <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>この店舗に希望を提出
+          </a>
+        {% elif can_submit_company_availability and company_submission_default_store %}
+          <a class="button button-secondary button-small" href="{% url 'availability_list' %}?store={{ company_submission_default_store.pk }}&amp;year={{ year }}&amp;month={{ month }}">
+            <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>希望を提出できる店舗
+          </a>
+        {% endif %}
+      {% endif %}
     </div>
   </section>
 
@@ -85,7 +113,7 @@
         <span><i class="overview-legend-dash" aria-hidden="true">—</i>勤務登録なし</span>
       </div>
     </div>
-    <p class="overview-board-help" id="overview-board-help">左右にスクロールして、店舗全員の確定シフトを確認できます。自分の行には「自分」と表示しています。</p>
+    <p class="overview-board-help" id="overview-board-help">左右にスクロールして、店舗全員の確定シフトを確認できます。{% if not viewer_mode %}自分の行には「自分」と表示しています。{% endif %}</p>
     {% if not total_shifts %}
       <p class="overview-empty-month">この月の確定シフトはまだ登録されていません。登録されると、この表に表示されます。</p>
     {% endif %}
@@ -110,13 +138,13 @@
         </thead>
         <tbody>
           {% for row in rows %}
-            <tr{% if row.user.pk == request.user.pk %} class="employee-overview-own-row"{% endif %}>
+            <tr{% if not viewer_mode and row.user.pk == request.user.pk %} class="employee-overview-own-row"{% endif %}>
               <th scope="row" class="overview-staff-column">
                 <div class="overview-person">
                   <span class="avatar overview-avatar" aria-hidden="true">{{ row.user.full_name_japanese|slice:':1' }}</span>
                   <div class="overview-person-details">
                     <span class="overview-user-name">{{ row.user.full_name_japanese }}</span>
-                    {% if row.user.pk == request.user.pk %}<span class="employee-overview-own-badge">自分</span>{% endif %}
+                    {% if not viewer_mode and row.user.pk == request.user.pk %}<span class="employee-overview-own-badge">自分</span>{% endif %}
                   </div>
                 </div>
               </th>

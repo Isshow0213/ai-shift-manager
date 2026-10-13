@@ -28,7 +28,7 @@
   <div class="panel-heading"><h2>希望日時を変更</h2></div>
   <div class="panel-body">
     <dl class="availability-original" aria-label="変更前のシフト希望">
-      <div><dt>従業員</dt><dd>{{ availability.membership.user.full_name_japanese }}</dd></div>
+      <div><dt>従業員</dt><dd>{{ availability.display_user.full_name_japanese }}</dd></div>
       <div><dt>所属店舗</dt><dd>{{ store.name }}</dd></div>
       <div><dt>変更前の日付</dt><dd>{{ original_work_date|date:"Y年n月j日" }}</dd></div>
       <div><dt>変更前の希望時間</dt><dd>{{ original_start_time|time:"H:i" }}〜{{ original_end_time|time:"H:i" }}</dd></div>

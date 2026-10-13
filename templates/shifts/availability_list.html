@@ -10,15 +10,32 @@
 {% endblock %}
 
 {% block content %}
+  {% if show_submission_store_picker %}
+    <section class="panel viewer-store-picker submission-store-picker" aria-label="希望を提出する店舗の選択">
+      <h2>希望を提出する店舗</h2>
+      <form class="viewer-store-form" method="get" action="{% url 'availability_list' %}">
+        <input type="hidden" name="year" value="{{ year }}">
+        <input type="hidden" name="month" value="{{ month }}">
+        <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+        <div class="field viewer-store-field">
+          <label for="submission-calendar-store">提出できる店舗</label>
+          <select id="submission-calendar-store" name="store">
+            {% for submission_store in available_submission_stores %}<option value="{{ submission_store.pk }}"{% if submission_store.pk == access_store.pk %} selected{% endif %}>{{ submission_store.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button class="button button-secondary" type="submit">店舗を表示</button>
+      </form>
+    </section>
+  {% endif %}
   <div class="shift-workspace employee-workspace">
     <section class="panel calendar-panel employee-calendar" aria-label="シフト希望カレンダー">
       <div class="calendar-toolbar">
-        <a class="button button-secondary month-button" href="?year={{ prev_year }}&amp;month={{ prev_month }}">
+        <a class="button button-secondary month-button" href="?year={{ prev_year }}&amp;month={{ prev_month }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}">
           <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>
           <span>前月</span>
         </a>
         <h2>{{ year }}年{{ month }}月</h2>
-        <a class="button button-secondary month-button" href="?year={{ next_year }}&amp;month={{ next_month }}">
+        <a class="button button-secondary month-button" href="?year={{ next_year }}&amp;month={{ next_month }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}">
           <span>翌月</span>
           <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
         </a>
@@ -69,7 +86,13 @@
         <span><i class="legend-dot selected-dot" aria-hidden="true"></i>選択中</span>
         <span><i class="legend-dot today-dot" aria-hidden="true"></i>今日</span>
       </div>
-      {% if membership %}
+      {% if company_submission_mode and selected_company_can_view %}
+        <div class="employee-store-overview-link">
+          <a class="button button-secondary button-small" href="{% url 'viewer_shift_overview' %}?store={{ access_store.pk }}&amp;year={{ year }}&amp;month={{ month }}">
+            <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>全体シフトを見る
+          </a>
+        </div>
+      {% elif membership %}
         <div class="employee-store-overview-link">
           <a class="button button-secondary button-small" href="{% url 'store_shift_overview' %}?year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}">
             <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>
@@ -113,7 +136,7 @@
               {% if availability.submission_closed %}
                 <span class="status-badge badge-muted">削除不可</span>
               {% else %}
-                <form method="post" action="{% url 'availability_delete' availability.id %}">
+                <form method="post" action="{% url 'availability_delete' availability.id %}{% if submission_store_id %}?store={{ submission_store_id }}&amp;year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}{% endif %}">
                   {% csrf_token %}
                   <button type="submit" class="button button-danger button-small" aria-label="{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}の希望を削除">削除</button>
                 </form>
@@ -146,17 +169,20 @@
       </section>
 
       <div class="employee-guidance">
-        {% if membership %}
+        {% if membership or can_submit_for_selected_store %}
           {% if submission_closed %}
             <h3>この日の希望は締切済みです</h3>
             <p>提出済みの希望と確定シフトを確認できます。提出するには、受付中の日付をカレンダーから選んでください。</p>
           {% else %}
             <h3>勤務できる時間を提出しましょう</h3>
             <p>選択日の開始時刻と終了時刻を入力して、希望を提出できます。</p>
-            <a class="button button-primary" href="{% url 'availability_create' %}?date={{ selected_date|date:'Y-m-d' }}">
+            <a class="button button-primary" href="{% url 'availability_create' %}?date={{ selected_date|date:'Y-m-d' }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}">
               <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>この日の希望を提出する
             </a>
           {% endif %}
+        {% elif company_submission_mode %}
+          <h3>希望提出の許可を確認してください</h3>
+          <p>この店舗ではシフト希望の提出が許可されていません。</p>
         {% else %}
           <h3>所属店舗を確認してください</h3>
           <p>現在、所属店舗は未設定です。シフト希望を提出するには、店長に店舗への所属登録を依頼してください。</p>

@@ -2,6 +2,7 @@ from datetime import timedelta
 import uuid
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
@@ -161,6 +162,44 @@ class StoreMembership(models.Model):
 
     def __str__(self):
         return f"{self.user.username} / {self.store.name} / {self.role}"
+
+
+class StoreShiftViewingPermission(models.Model):
+    """店舗所属を作らずに、会社所属者の店舗ごとの権限を設定する。"""
+
+    company_membership = models.ForeignKey(
+        CompanyMembership, on_delete=models.CASCADE, related_name="shift_viewing_permissions",
+    )
+    store = models.ForeignKey(
+        Store, on_delete=models.CASCADE, related_name="shift_viewing_permissions",
+    )
+    is_active = models.BooleanField("有効", default=True)
+    can_view_shifts = models.BooleanField("全体シフトの閲覧", default=True)
+    can_submit_availability = models.BooleanField("希望提出", default=False)
+    show_in_shift_overview = models.BooleanField("全体シフト表に表示", default=False)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="granted_shift_viewing_permissions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=["company_membership", "store"], name="unique_company_member_store_shift_view",
+        )]
+        verbose_name = "会社メンバーの店舗権限"
+        verbose_name_plural = "会社メンバーの店舗権限"
+
+    def clean(self):
+        super().clean()
+        if (
+            self.company_membership_id and self.store_id
+            and self.company_membership.company_id != self.store.company_id
+        ):
+            raise ValidationError({"store": "会社所属と同じ会社の店舗を選択してください。"})
+
+    def __str__(self):
+        return f"{self.company_membership.user.full_name_japanese} / {self.store.name}"
 
 
 class StaffInvitation(models.Model):

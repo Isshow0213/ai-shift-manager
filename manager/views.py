@@ -204,11 +204,10 @@ def shift_list(request):
     month = calendar_context["month"]
     selected_date = calendar_context["selected_date"]
 
-    monthly_availabilities = Availability.objects.filter(
-        membership__store=store,
+    monthly_availabilities = Availability.objects.for_store(store).filter(
         work_date__year=year,
         work_date__month=month,
-    )
+    ).select_related("user")
 
     monthly_requirements = Requirement.objects.filter(
         store=store,
@@ -240,10 +239,10 @@ def shift_list(request):
             day["has_requirement"] = day["date"] in requirement_dates
             day["has_shift"] = day["date"] in shift_dates
 
-    availabilities = Availability.objects.filter(
-        membership__store=store,
+    availabilities = Availability.objects.for_store(store).filter(
         work_date=selected_date,
     ).select_related(
+        "user",
         "membership",
         "membership__user",
     ).order_by(
@@ -360,8 +359,8 @@ def availability_edit(request, availability_id):
 
     store = manager_membership.store
     availability = get_object_or_404(
-        Availability.objects.select_related("user", "membership", "membership__user"),
-        pk=availability_id, membership__store=store,
+        Availability.objects.for_store(store).select_related("user", "membership", "membership__user"),
+        pk=availability_id,
     )
     original_work_date = availability.work_date
     original_start_time = availability.start_time

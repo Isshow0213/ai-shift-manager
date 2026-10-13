@@ -92,6 +92,10 @@
   </section>
 </div>
 
+{% if company_submitters_count %}
+<p class="dashboard-month">希望提出を許可した会社メンバー：{{ company_submitters_count }}人 · 提出済み {{ company_submitted_count }}人 · 未提出 {{ company_unsubmitted_count }}人</p>
+{% endif %}
+
 <section class="panel dashboard-start">
   <div>
     <h2>シフトを作成する</h2>

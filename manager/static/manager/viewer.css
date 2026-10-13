@@ -1,0 +1,48 @@
+.shift-viewers-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; min-width: 0; }
+.shift-viewers-layout > .panel { min-width: 0; }
+.shift-viewer-help { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.shift-viewer-grant-form { max-width: 720px; margin: 0; }
+.shift-viewer-grant-form .field-error { margin-bottom: 12px; }
+.shift-viewers-table { min-width: 480px; }
+.shift-viewer-person { display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }
+.shift-viewer-person .avatar { flex-shrink: 0; }
+.shift-viewers-table form { margin: 0; }
+.viewer-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.company-permission-options { display: grid; gap: 8px; min-width: 0; margin: 16px 0; padding: 0; border: 0; }
+.company-permission-options label { display: flex; align-items: center; gap: 8px; min-height: 32px; color: #344056; font-size: 13px; line-height: 1.5; cursor: pointer; }
+.company-permission-options input[type="checkbox"] { flex-shrink: 0; width: 17px; height: 17px; margin: 0; accent-color: var(--blue); }
+.company-permission-state { margin-top: 8px; }
+.company-permission-update-form { min-width: 0; }
+.company-permission-update-form .company-permission-options { margin-top: 0; }
+.company-permission-update-form .field-error { max-width: 300px; white-space: normal; }
+.viewer-store-picker { padding: 20px 24px; }
+.submission-store-picker { margin-bottom: 20px; }
+.viewer-store-picker h2 { margin: 0 0 16px; color: var(--ink); font-size: 17px; }
+.viewer-store-form { display: flex; align-items: flex-end; gap: 14px; max-width: 720px; margin: 0; }
+.viewer-store-field { flex: 1; min-width: 0; }
+.viewer-store-field select { max-width: 100%; }
+.viewer-store-form .button { flex-shrink: 0; min-height: 44px; }
+@media (max-width: 600px) {
+  .shift-viewer-grant-form .form-actions .button { width: 100%; min-height: 44px; }
+  .shift-viewer-grant-form select { min-height: 44px; }
+  .shift-viewers-table { display: block; min-width: 0; }
+  .shift-viewers-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .shift-viewers-table tbody { display: block; }
+  .shift-viewers-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px 16px; border-top: 1px solid var(--border); }
+  .shift-viewers-table tr:first-child { border-top: 0; }
+  .shift-viewers-table td { display: block; min-width: 0; padding: 0; border: 0; font-size: 13px; overflow-wrap: anywhere; }
+  .shift-viewers-table td::before { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; content: attr(data-label); }
+  .shift-viewers-table td:first-child { grid-column: 1 / -1; }
+  .shift-viewers-table td:first-child::before { display: none; }
+  .shift-viewers-table td:nth-child(2), .shift-viewers-table td:nth-child(3) { grid-column: 1 / -1; }
+  .company-permission-options label { min-height: 44px; }
+  .shift-viewers-table td .button { min-height: 44px; max-width: 100%; padding: 8px; white-space: normal; }
+  .shift-viewers-table td.empty-state { grid-column: 1 / -1; padding: 12px 0; }
+  .shift-viewers-table td.empty-state::before { display: none; }
+  .viewer-store-picker { padding: 16px; }
+  .viewer-store-form { flex-wrap: wrap; gap: 12px; }
+  .viewer-store-field { flex-basis: 100%; }
+  .viewer-store-field select, .viewer-store-overview .overview-month-fields input, .viewer-store-overview .overview-month-fields select, .viewer-store-overview .overview-month-fields .button { min-height: 44px; }
+  .viewer-store-form .button { width: 100%; }
+  .viewer-store-overview .overview-month-fields { flex-wrap: wrap; }
+}

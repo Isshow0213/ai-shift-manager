@@ -1,0 +1,43 @@
+{% extends "manager/base.html" %}
+{% load static %}
+
+{% block page_subtitle %}会社：{{ store.company.name }} · 店舗：{{ store.name }} · 全体シフトの閲覧{% endblock %}
+{% block sidebar_label %}会社メンバーメニュー{% endblock %}
+{% block brand_url %}{% url 'viewer_shift_overview' %}?store={{ store.pk }}{% if year and month %}&amp;year={{ year }}&amp;month={{ month }}{% endif %}{% endblock %}
+{% block brand_store %}{{ store.name }}{% endblock %}
+{% block sidebar_user_label %}会社メンバーアカウント{% endblock %}
+{% block screen_switch %}
+  {% if can_manage_store %}
+    <a class="button button-secondary screen-switch" href="{% url 'manager_dashboard' %}{% if year and month %}?year={{ year }}&amp;month={{ month }}{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg><span>管理画面へ</span>
+    </a>
+  {% elif has_store_membership %}
+    <a class="button button-secondary screen-switch" href="{% url 'availability_list' %}{% if year and month %}?year={{ year }}&amp;month={{ month }}{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg><span>従業員画面へ</span>
+    </a>
+  {% endif %}
+{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'shifts/shift_overview.css' %}">
+  <link rel="stylesheet" href="{% static 'manager/viewer.css' %}">
+{% endblock %}
+
+{% block sidebar_navigation %}
+  <nav class="sidebar-nav" aria-label="会社メンバーナビゲーション">
+    <a class="nav-link active" href="{% url 'viewer_shift_overview' %}?store={{ store.pk }}{% if year and month %}&amp;year={{ year }}&amp;month={{ month }}{% endif %}" aria-current="page">
+      <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+      <span>全体シフト</span>
+    </a>
+    {% if can_submit_selected_store %}
+      <a class="nav-link" href="{% url 'availability_list' %}?store={{ store.pk }}&amp;year={{ year }}&amp;month={{ month }}">
+        <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span>希望を提出できる店舗</span>
+      </a>
+    {% elif can_submit_company_availability and company_submission_default_store %}
+      <a class="nav-link" href="{% url 'availability_list' %}?store={{ company_submission_default_store.pk }}&amp;year={{ year }}&amp;month={{ month }}">
+        <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span>希望を提出できる店舗</span>
+      </a>
+    {% endif %}
+  </nav>
+{% endblock %}

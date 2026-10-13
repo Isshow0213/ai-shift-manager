@@ -1,9 +1,17 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db.models import Q
+
+
+class AvailabilityQuerySet(models.QuerySet):
+    def for_store(self, store):
+        # 既存の店舗所属がある希望は、その所属店舗を正として扱う。
+        return self.filter(Q(membership__store=store) | Q(membership__isnull=True, store=store))
 
 
 class Availability(models.Model):
+    objects = AvailabilityQuerySet.as_manager()
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE
@@ -18,10 +26,17 @@ class Availability(models.Model):
     )
 
     work_date = models.DateField()
+    store = models.ForeignKey(
+        "accounts.Store", on_delete=models.CASCADE, related_name="availabilities",
+        null=True, blank=True,
+    )
     start_time = models.TimeField()
     end_time = models.TimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def display_user(self):
+        return self.membership.user if self.membership_id else self.user
 
     def __str__(self):
         return f"{self.user.username} {self.work_date}"

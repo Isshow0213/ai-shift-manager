@@ -78,12 +78,12 @@
         <tbody>
           {% for availability in availabilities %}
             <tr>
-              <td><div class="availability-person"><span class="avatar" aria-hidden="true">{{ availability.membership.user.full_name_japanese|slice:":1" }}</span>{{ availability.membership.user.full_name_japanese }}</div></td>
+              <td><div class="availability-person"><span class="avatar" aria-hidden="true">{{ availability.display_user.full_name_japanese|slice:":1" }}</span>{{ availability.display_user.full_name_japanese }}</div></td>
               <td>{{ availability.work_date|date:"Y/m/d" }}</td>
               <td>{{ availability.start_time|time:"H:i" }}</td>
               <td>{{ availability.end_time|time:"H:i" }}</td>
               <td>{{ store.name }}</td>
-              <td><a class="button button-secondary button-small" href="{% url 'manager_availability_edit' availability.pk %}?year={{ year }}&amp;month={{ month }}" aria-label="{{ availability.membership.user.full_name_japanese }}の{{ availability.work_date|date:'n月j日' }}の希望を編集">編集</a></td>
+              <td><a class="button button-secondary button-small" href="{% url 'manager_availability_edit' availability.pk %}?year={{ year }}&amp;month={{ month }}" aria-label="{{ availability.display_user.full_name_japanese }}の{{ availability.work_date|date:'n月j日' }}の希望を編集">編集</a></td>
             </tr>
           {% empty %}
             <tr><td class="empty-state" colspan="6">選択月の提出はまだありません。</td></tr>
@@ -108,5 +108,13 @@
       <p class="empty-state">未提出者はいません。</p>
     {% endif %}
   </section>
+  {% if unsubmitted_company_memberships %}
+  <section class="panel">
+    <div class="panel-heading"><h2>未提出の会社メンバー</h2><span class="status-badge badge-orange">{{ unsubmitted_company_memberships|length }}人</span></div>
+    <ul class="unsubmitted-list">
+      {% for company_membership in unsubmitted_company_memberships %}<li><span class="avatar" aria-hidden="true">{{ company_membership.user.full_name_japanese|slice:':1' }}</span>{{ company_membership.user.full_name_japanese }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 </div>
 {% endblock %}

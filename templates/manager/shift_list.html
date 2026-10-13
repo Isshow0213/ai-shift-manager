@@ -124,7 +124,7 @@
           <tbody>
             {% for availability in availabilities %}
               <tr>
-                <td><span class="person-cell"><span class="avatar avatar-small" aria-hidden="true"><svg class="icon"><use href="#icon-user"></use></svg></span>{{ availability.membership.user.full_name_japanese }}</span></td>
+                <td><span class="person-cell"><span class="avatar avatar-small" aria-hidden="true"><svg class="icon"><use href="#icon-user"></use></svg></span>{{ availability.display_user.full_name_japanese }}</span></td>
                 <td>{{ availability.start_time|time:"H:i" }}</td><td>{{ availability.end_time|time:"H:i" }}</td>
               </tr>
             {% empty %}

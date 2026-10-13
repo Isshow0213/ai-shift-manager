@@ -1,0 +1,101 @@
+{% extends "manager/base.html" %}
+{% load static %}
+
+{% block title %}会社メンバーの権限 | シフト管理{% endblock %}
+{% block page_title %}会社メンバーの権限{% endblock %}
+{% block page_subtitle %}会社：{{ company.name }} · 店舗：{{ store.name }}{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'manager/viewer.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="shift-viewers-layout">
+  <section class="panel">
+    <div class="panel-heading"><h2>この店舗の権限を設定</h2></div>
+    <div class="panel-body">
+      <p class="shift-viewer-help">{{ store.name }}の全体シフトの閲覧、シフト希望の提出、全体シフト表への表示を個別に設定できます。1つ以上選んで保存してください。</p>
+      <form class="shift-viewer-grant-form" method="post" action="{% url 'manager_shift_viewer_grant' %}">
+        {% csrf_token %}
+        <input type="hidden" name="permissions_form" value="1">
+        {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="field">
+          {{ form.company_membership.label_tag }}
+          {{ form.company_membership }}
+          {% if form.company_membership.help_text %}<p class="field-help">{{ form.company_membership.help_text }}</p>{% endif %}
+          {% if form.company_membership.errors %}<div class="field-error" role="alert">{{ form.company_membership.errors }}</div>{% endif %}
+          {% if not has_company_memberships %}<p class="field-help">会社メンバーを登録すると選択できます。</p>{% endif %}
+        </div>
+        <fieldset class="company-permission-options">
+          <legend class="viewer-sr-only">許可する権限</legend>
+          <div>
+            <label for="{{ form.can_view_shifts.id_for_label }}">{{ form.can_view_shifts }}<span>{{ form.can_view_shifts.label }}</span></label>
+            {% if form.can_view_shifts.errors %}<div class="field-error" role="alert">{{ form.can_view_shifts.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.can_submit_availability.id_for_label }}">{{ form.can_submit_availability }}<span>{{ form.can_submit_availability.label }}</span></label>
+            {% if form.can_submit_availability.errors %}<div class="field-error" role="alert">{{ form.can_submit_availability.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.show_in_shift_overview.id_for_label }}">{{ form.show_in_shift_overview }}<span>{{ form.show_in_shift_overview.label }}</span></label>
+            {% if form.show_in_shift_overview.errors %}<div class="field-error" role="alert">{{ form.show_in_shift_overview.errors }}</div>{% endif %}
+          </div>
+        </fieldset>
+        <div class="form-actions"><button class="button button-primary" type="submit"{% if not has_company_memberships %} disabled{% endif %}>権限を保存する</button></div>
+      </form>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading"><h2>会社メンバーごとの権限</h2></div>
+    <div class="table-wrap">
+      <table class="data-table shift-viewers-table">
+        <thead><tr><th scope="col">会社メンバー</th><th scope="col">権限設定</th><th scope="col">操作</th></tr></thead>
+        <tbody>
+          {% for permission in permissions %}
+            <tr>
+              <td data-label="会社メンバー"><div class="shift-viewer-person"><span class="avatar" aria-hidden="true">{{ permission.company_membership.user.full_name_japanese|slice:':1' }}</span>{{ permission.company_membership.user.full_name_japanese }}</div><span class="status-badge company-permission-state {% if permission.is_active %}badge-green{% else %}badge-muted{% endif %}">{% if permission.is_active %}設定中{% else %}全解除済み{% endif %}</span></td>
+              <td data-label="権限設定">
+                <form class="company-permission-update-form" method="post" action="{% url 'manager_shift_viewer_grant' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="permissions_form" value="1">
+                  {{ permission.permissions_form.company_membership.as_hidden }}
+                  {% if permission.permissions_form.company_membership.errors %}<div class="field-error" role="alert">{{ permission.permissions_form.company_membership.errors }}</div>{% endif %}
+                  {% if permission.permissions_form.non_field_errors %}<div class="field-error" role="alert">{{ permission.permissions_form.non_field_errors }}</div>{% endif %}
+                  <fieldset class="company-permission-options">
+                    <legend class="viewer-sr-only">{{ permission.company_membership.user.full_name_japanese }}の権限</legend>
+                    <div>
+                      <label for="{{ permission.permissions_form.can_view_shifts.id_for_label }}">{{ permission.permissions_form.can_view_shifts }}<span>{{ permission.permissions_form.can_view_shifts.label }}</span></label>
+                      {% if permission.permissions_form.can_view_shifts.errors %}<div class="field-error" role="alert">{{ permission.permissions_form.can_view_shifts.errors }}</div>{% endif %}
+                    </div>
+                    <div>
+                      <label for="{{ permission.permissions_form.can_submit_availability.id_for_label }}">{{ permission.permissions_form.can_submit_availability }}<span>{{ permission.permissions_form.can_submit_availability.label }}</span></label>
+                      {% if permission.permissions_form.can_submit_availability.errors %}<div class="field-error" role="alert">{{ permission.permissions_form.can_submit_availability.errors }}</div>{% endif %}
+                    </div>
+                    <div>
+                      <label for="{{ permission.permissions_form.show_in_shift_overview.id_for_label }}">{{ permission.permissions_form.show_in_shift_overview }}<span>{{ permission.permissions_form.show_in_shift_overview.label }}</span></label>
+                      {% if permission.permissions_form.show_in_shift_overview.errors %}<div class="field-error" role="alert">{{ permission.permissions_form.show_in_shift_overview.errors }}</div>{% endif %}
+                    </div>
+                  </fieldset>
+                  <button class="button button-secondary button-small" type="submit" aria-label="{{ permission.company_membership.user.full_name_japanese }}の権限を保存">権限を保存</button>
+                </form>
+              </td>
+              <td data-label="操作">
+                {% if permission.is_active %}
+                  <form method="post" action="{% url 'manager_shift_viewer_revoke' permission.pk %}">
+                    {% csrf_token %}
+                    <button class="button button-secondary button-small" type="submit" aria-label="{{ permission.company_membership.user.full_name_japanese }}の権限をすべて解除">すべて解除する</button>
+                  </form>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-state" colspan="3">この店舗の会社メンバーの権限はまだ設定されていません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

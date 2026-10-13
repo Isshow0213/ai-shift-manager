@@ -9,7 +9,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.contrib import messages
 from django.views.decorators.http import require_GET
-from accounts.models import StoreMembership
+from accounts.models import CompanyMembership, StoreMembership, StoreShiftViewingPermission
+from accounts.shift_access import (
+    redirect_shift_viewer, redirect_company_personal_shifts, select_submission_store,
+    available_submission_stores, permitted_shift_stores, can_submit_availability, has_store_membership,
+)
 from scheduler.services import generate_shifts_for_store
 
 from .forms import AvailabilityForm, ManagerRequirementForm, ShiftGenerationForm, StoreOperatingHoursForm, SubmissionDeadlineForm
@@ -24,19 +28,33 @@ from .submission_deadlines import (
 )
 
 
+def _submission_access_context(request, store, membership):
+    stores = available_submission_stores(request.user)
+    company_mode = store is not None and membership is None
+    return {
+        "membership": membership, "access_store": store,
+        "company_submission_mode": company_mode,
+        "submission_store_id": store.pk if store and (company_mode or "store" in request.GET) else None,
+        "available_submission_stores": stores,
+        "show_submission_store_picker": company_mode or stores.count() > 1,
+        "can_submit_for_selected_store": store is not None,
+        "selected_company_can_view": bool(store and permitted_shift_stores(request.user).filter(pk=store.pk).exists()),
+        "has_store_membership": has_store_membership(request.user),
+    }
+
+
 @login_required
+@redirect_shift_viewer
 def availability_list(request):
     calendar_context = get_calendar_context(request)
     year = calendar_context["year"]
     month = calendar_context["month"]
     selected_date = calendar_context["selected_date"]
 
-    membership = StoreMembership.objects.filter(
-        user=request.user,
-        is_active=True,
-    ).select_related("store").first()
+    access_store, membership = select_submission_store(request.user, request.GET.get("store"))
+    access_context = _submission_access_context(request, access_store, membership)
 
-    submission_deadline = get_store_submission_deadline(membership.store if membership else None)
+    submission_deadline = get_store_submission_deadline(access_store)
     submission_now = timezone.now()
 
     monthly_availabilities = Availability.objects.filter(
@@ -44,6 +62,8 @@ def availability_list(request):
         work_date__year=year,
         work_date__month=month,
     ).order_by("work_date", "start_time", "end_time", "pk")
+    if access_context["submission_store_id"]:
+        monthly_availabilities = monthly_availabilities.for_store(access_store)
 
     availabilities_by_date = {}
     for availability in monthly_availabilities:
@@ -53,6 +73,8 @@ def availability_list(request):
     monthly_shifts = Shift.objects.filter(
         user=request.user, work_date__year=year, work_date__month=month
     )
+    if access_context["company_submission_mode"]:
+        monthly_shifts = monthly_shifts.none()
     shift_dates = set(monthly_shifts.values_list("work_date", flat=True))
     for week in calendar_context["calendar_weeks"]:
         for day in week:
@@ -60,16 +82,20 @@ def availability_list(request):
             day["is_submitted"] = day["date"] in submitted_dates
             day["has_shift"] = day["date"] in shift_dates
             day["submission_closed"] = is_submission_closed(submission_deadline, day["date"], now=submission_now)
+            if access_context["submission_store_id"]:
+                day["url"] += f"&store={access_store.pk}"
 
     selected_availabilities = Availability.objects.filter(
         user=request.user,
         work_date=selected_date,
-    ).select_related("membership__store").order_by("start_time")
-    deadline_by_store = {membership.store_id: submission_deadline} if membership else {}
+    ).select_related("membership__store", "store").order_by("start_time")
+    if access_context["submission_store_id"]:
+        selected_availabilities = selected_availabilities.for_store(access_store)
+    deadline_by_store = {access_store.pk: submission_deadline} if access_store else {}
     for availability in selected_availabilities:
         availability_store = (
             availability.membership.store if availability.membership
-            else membership.store if membership else None
+            else availability.store or access_store
         )
         if availability_store and availability_store.pk not in deadline_by_store:
             deadline_by_store[availability_store.pk] = get_store_submission_deadline(availability_store)
@@ -80,13 +106,15 @@ def availability_list(request):
     selected_shifts = Shift.objects.filter(
         user=request.user, work_date=selected_date
     ).select_related("store").order_by("start_time", "id")
+    if access_context["company_submission_mode"]:
+        selected_shifts = selected_shifts.none()
 
     return render(
         request,
         "shifts/availability_list.html",
         {
             **calendar_context,
-            "membership": membership,
+            **access_context,
             "selected_availabilities": selected_availabilities,
             "selected_shifts": selected_shifts,
             "submitted_days_count": len(submitted_dates),
@@ -96,13 +124,12 @@ def availability_list(request):
     )
 
 @login_required
+@redirect_shift_viewer
 def availability_create(request):
-    membership = StoreMembership.objects.filter(
-        user=request.user,
-        is_active=True,
-    ).select_related("store").first()
+    access_store, membership = select_submission_store(request.user, request.GET.get("store"))
+    access_context = _submission_access_context(request, access_store, membership)
 
-    if membership is None:
+    if access_store is None:
         messages.error(request, "所属している店舗がありません。")
         return redirect("availability_list")
 
@@ -122,13 +149,16 @@ def availability_create(request):
             posted_date = None
         if posted_date is not None and 2 <= posted_date.year <= 9998:
             selected_date = posted_date
-    submission_deadline = get_store_submission_deadline(membership.store)
+    submission_deadline = get_store_submission_deadline(access_store)
 
     # 前回提出した希望時間を取得（最大5件）
     all_previous_availabilities = Availability.objects.filter(
         user=request.user,
         work_date__lt=selected_date,
-    ).order_by("-work_date", "-start_time")[:5]
+    )
+    if access_context["submission_store_id"]:
+        all_previous_availabilities = all_previous_availabilities.for_store(access_store)
+    all_previous_availabilities = all_previous_availabilities.order_by("-work_date", "-start_time")[:5]
 
     # 重複時間を除外したユニークな前回の希望を取得
     previous_availabilities_unique = []
@@ -141,11 +171,11 @@ def availability_create(request):
 
     # 店長が設定した必要時間を取得
     requirements_for_date = Requirement.objects.filter(
-        store=membership.store,
+        store=access_store,
         work_date=selected_date,
     ).order_by("start_time")
 
-    operating_hours = StoreOperatingHours.objects.filter(store=membership.store).first()
+    operating_hours = StoreOperatingHours.objects.filter(store=access_store).first()
     has_full_day_hours = bool(
         operating_hours and operating_hours.start_time is not None
         and operating_hours.end_time is not None
@@ -158,11 +188,13 @@ def availability_create(request):
             availability = form.save(commit=False)
             availability.user = request.user
             availability.membership = membership
+            availability.store = access_store
             availability.save()
             messages.success(request, "シフト希望を提出しました。")
             return redirect(
                 f"{reverse('availability_list')}?year={availability.work_date.year}"
                 f"&month={availability.work_date.month}&date={availability.work_date.isoformat()}"
+                + (f"&store={access_store.pk}" if access_context["submission_store_id"] else "")
             )
     else:
         form = AvailabilityForm(
@@ -179,7 +211,7 @@ def availability_create(request):
         {
             **calendar_context,
             "form": form,
-            "membership": membership,
+            **access_context,
             "selected_date": selected_date,
             "previous_availabilities_unique": previous_availabilities_unique,
             "requirements_for_date": requirements_for_date,
@@ -191,6 +223,7 @@ def availability_create(request):
 
 @login_required
 @require_GET
+@redirect_company_personal_shifts
 def store_shift_overview(request):
     membership = StoreMembership.objects.filter(
         user=request.user, is_active=True,
@@ -282,12 +315,12 @@ def dashboard(request):
 
     total_staff_count = staff_memberships.count()
 
-    submitted_membership_ids = (
-        Availability.objects.filter(
-            membership__store=store,
+    monthly_availabilities = Availability.objects.for_store(store).filter(
             work_date__year=year,
             work_date__month=month,
-        )
+    )
+    submitted_membership_ids = (
+        monthly_availabilities
         .values_list("membership_id", flat=True)
         .distinct()
     )
@@ -297,6 +330,16 @@ def dashboard(request):
     ).count()
 
     unsubmitted_count = total_staff_count - submitted_count
+    company_submitters = StoreShiftViewingPermission.objects.filter(
+        store=store, company_membership__company=store.company, is_active=True,
+        can_submit_availability=True, company_membership__user__is_active=True,
+    ).exclude(company_membership__user_id__in=StoreMembership.objects.filter(
+        store=store, is_active=True, role__in=["manager", "staff"],
+    ).values("user_id"))
+    company_submitters_count = company_submitters.count()
+    company_submitted_count = company_submitters.filter(
+        company_membership__user_id__in=monthly_availabilities.filter(membership__isnull=True).values("user_id"),
+    ).count()
 
     requirements_count = Requirement.objects.filter(
         store=store,
@@ -321,12 +364,16 @@ def dashboard(request):
             "total_staff_count": total_staff_count,
             "submitted_count": submitted_count,
             "unsubmitted_count": unsubmitted_count,
+            "company_submitters_count": company_submitters_count,
+            "company_submitted_count": company_submitted_count,
+            "company_unsubmitted_count": company_submitters_count - company_submitted_count,
             "requirements_count": requirements_count,
             "shifts_count": shifts_count,
         },
     )
 
 @login_required
+@redirect_company_personal_shifts
 def shift_list(request):
     calendar_context = get_calendar_context(request)
     membership = StoreMembership.objects.filter(
@@ -376,11 +423,11 @@ def manager_availability_list(request):
         is_active=True,
     ).select_related("user")
 
-    availabilities = Availability.objects.filter(
-        membership__store=store,
+    availabilities = Availability.objects.for_store(store).filter(
         work_date__year=calendar_context["year"],
         work_date__month=calendar_context["month"],
     ).select_related(
+        "user",
         "membership",
         "membership__user",
     ).order_by(
@@ -397,6 +444,16 @@ def manager_availability_list(request):
     unsubmitted_memberships = staff_memberships.exclude(
         id__in=submitted_membership_ids
     )
+    unsubmitted_company_memberships = CompanyMembership.objects.filter(
+        company=store.company, user__is_active=True,
+        shift_viewing_permissions__store=store,
+        shift_viewing_permissions__is_active=True,
+        shift_viewing_permissions__can_submit_availability=True,
+    ).exclude(user_id__in=StoreMembership.objects.filter(
+        store=store, is_active=True, role__in=["manager", "staff"],
+    ).values("user_id")).exclude(
+        user_id__in=availabilities.filter(membership__isnull=True).values("user_id"),
+    ).select_related("user")
 
     return render(
         request,
@@ -406,6 +463,7 @@ def manager_availability_list(request):
             "store": store,
             "availabilities": availabilities,
             "unsubmitted_memberships": unsubmitted_memberships,
+            "unsubmitted_company_memberships": unsubmitted_company_memberships,
         },
     )
 
@@ -653,9 +711,10 @@ def manager_requirement_bulk(request):
 
 
 @login_required
+@redirect_shift_viewer
 def availability_delete(request, availability_id):
     availability = get_object_or_404(
-        Availability.objects.select_related("membership__store"),
+        Availability.objects.select_related("membership__store", "store"),
         id=availability_id,
         user=request.user,
     )
@@ -664,13 +723,20 @@ def availability_delete(request, availability_id):
         f"{reverse('availability_list')}?year={availability.work_date.year}"
         f"&month={availability.work_date.month}&date={availability.work_date.isoformat()}"
     )
+    if availability.membership:
+        store = availability.membership.store
+    elif availability.store:
+        store = availability.store
+        return_url += f"&store={store.pk}"
+    else:
+        store, _ = select_submission_store(request.user)
+        # 店舗不明の旧データは、実際の店舗所属がある本人のみ操作できる。
+        if not has_store_membership(request.user):
+            store = None
     if request.method == "POST":
-        if availability.membership:
-            store = availability.membership.store
-        else:
-            membership = StoreMembership.objects.filter(user=request.user, is_active=True).select_related("store").first()
-            store = membership.store if membership else None
-        if is_submission_closed(get_store_submission_deadline(store), availability.work_date):
+        if not can_submit_availability(request.user, store):
+            messages.error(request, "この店舗への希望提出権限がないため、この希望は削除できません。")
+        elif is_submission_closed(get_store_submission_deadline(store), availability.work_date):
             messages.error(request, "提出締切を過ぎているため、この希望は削除できません。")
         else:
             availability.delete()

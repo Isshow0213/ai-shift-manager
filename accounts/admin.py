@@ -6,6 +6,7 @@ from .models import (
     CompanyMembership,
     Store,
     StoreMembership,
+    StoreShiftViewingPermission,
     User,
 )
 
@@ -74,6 +75,17 @@ class StoreAdmin(admin.ModelAdmin):
 @admin.register(CompanyMembership)
 class CompanyMembershipAdmin(admin.ModelAdmin):
     list_display = ("user", "company", "role", "created_at")
+
+
+@admin.register(StoreShiftViewingPermission)
+class StoreShiftViewingPermissionAdmin(admin.ModelAdmin):
+    list_display = ("company_membership", "store", "can_view_shifts", "can_submit_availability", "show_in_shift_overview", "is_active", "created_by", "created_at")
+    list_filter = ("store__company", "store", "can_view_shifts", "can_submit_availability", "show_in_shift_overview", "is_active")
+    search_fields = (
+        "company_membership__user__last_name", "company_membership__user__first_name",
+        "company_membership__user__username",
+    )
+    readonly_fields = ("created_at",)
 
 
 @admin.register(StoreMembership)
