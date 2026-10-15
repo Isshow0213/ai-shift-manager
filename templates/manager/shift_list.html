@@ -202,7 +202,7 @@
           <div class="field staff-field">
             <label for="{{ outside_form.membership.id_for_label }}">スタッフ</label>
             {{ outside_form.membership }}
-            <p class="field-help">店舗の全スタッフから選べます。希望の提出状況にかかわらず、開始・終了時刻を設定できます。</p>
+            <p class="field-help">店長を含む、店舗の有効なメンバーから選べます。希望の提出状況にかかわらず、開始・終了時刻を設定できます。</p>
             {% if outside_form.membership.errors %}<div class="field-error" role="alert">{{ outside_form.membership.errors }}</div>{% endif %}
           </div>
           <div class="field">

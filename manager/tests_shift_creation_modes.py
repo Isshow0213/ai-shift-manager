@@ -15,9 +15,31 @@ class ShiftCreationModeTests(TestCase):
         company = Company.objects.create(name="追加モードのテスト会社")
         cls.store = Store.objects.create(company=company, name="本店")
         cls.other_store = Store.objects.create(company=company, name="別店舗")
-        cls.manager = user_model.objects.create_user(username="creation_manager")
+        cls.manager = user_model.objects.create_user(
+            username="creation_manager", last_name="山田", first_name="店長"
+        )
         cls.manager_membership = StoreMembership.objects.create(
             user=cls.manager, store=cls.store, role="manager"
+        )
+        second_manager = user_model.objects.create_user(
+            username="creation_second_manager", last_name="佐藤", first_name="店長"
+        )
+        cls.second_manager_membership = StoreMembership.objects.create(
+            user=second_manager, store=cls.store, role="manager"
+        )
+        inactive_manager = user_model.objects.create_user(username="creation_inactive_manager")
+        cls.inactive_manager_membership = StoreMembership.objects.create(
+            user=inactive_manager, store=cls.store, role="manager", is_active=False
+        )
+        disabled_manager = user_model.objects.create_user(
+            username="creation_disabled_manager", is_active=False
+        )
+        cls.disabled_manager_membership = StoreMembership.objects.create(
+            user=disabled_manager, store=cls.store, role="manager"
+        )
+        foreign_manager = user_model.objects.create_user(username="creation_foreign_manager")
+        cls.foreign_manager_membership = StoreMembership.objects.create(
+            user=foreign_manager, store=cls.other_store, role="manager"
         )
         cls.available_staff = user_model.objects.create_user(
             username="creation_available", last_name="田中", first_name="花子"
@@ -123,7 +145,14 @@ class ShiftCreationModeTests(TestCase):
         )
         self.assertEqual(
             set(outside_form.fields["membership"].queryset),
-            {self.available_membership, self.no_availability_membership},
+            {
+                self.available_membership, self.no_availability_membership,
+                self.manager_membership, self.second_manager_membership,
+            },
+        )
+        self.assertEqual(
+            outside_form.fields["membership"].label_from_instance(self.manager_membership),
+            "山田 店長",
         )
         self.assertEqual(wish_form["work_date"].value(), self.work_date)
         self.assertEqual(outside_form["work_date"].value(), self.work_date)
@@ -136,7 +165,10 @@ class ShiftCreationModeTests(TestCase):
         self.assertEqual(list(response.context["form"].fields["membership"].queryset), [])
         self.assertEqual(
             set(response.context["outside_form"].fields["membership"].queryset),
-            {self.available_membership, self.no_availability_membership},
+            {
+                self.available_membership, self.no_availability_membership,
+                self.manager_membership, self.second_manager_membership,
+            },
         )
 
     def test_exact_and_shorter_wish_shifts_are_saved_with_consistent_staff_details(self):
@@ -235,6 +267,102 @@ class ShiftCreationModeTests(TestCase):
         self.assertEqual(shift.start_time, time(8))
         self.assertEqual(shift.end_time, time(18))
 
+    def test_confirmed_outside_shift_accepts_manager_without_wish_and_remains_editable(self):
+        response = self.client.post(self.calendar_url, self.outside_data(
+            membership=self.manager_membership.pk,
+            user=self.foreign_membership.user_id, store=self.other_store.pk,
+            is_generated="on",
+        ))
+
+        self.assertRedirects(response, self.calendar_url, fetch_redirect_response=False)
+        shift = Shift.objects.get()
+        self.assertEqual(shift.membership, self.manager_membership)
+        self.assertEqual(shift.user, self.manager)
+        self.assertEqual(shift.store, self.store)
+        self.assertEqual(shift.start_time, time(8))
+        self.assertEqual(shift.end_time, time(18))
+        self.assertEqual(shift.note, "ヘルプを依頼済み")
+        self.assertEqual(shift.display_color, "orange")
+        self.assertFalse(shift.is_generated)
+        self.assertFalse(Availability.objects.filter(user=self.manager).exists())
+
+        edit_url = reverse("manager_shift_edit", args=[shift.pk])
+        response = self.client.get(edit_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            self.manager_membership, response.context["form"].fields["membership"].queryset
+        )
+        self.assertEqual(response.context["form"]["membership"].value(), self.manager_membership.pk)
+
+        response = self.client.post(edit_url, {
+            "membership": self.manager_membership.pk,
+            "work_date": self.work_date.isoformat(),
+            "start_time": "10:00", "end_time": "19:00",
+            "note": "店長の時間変更", "display_color": "green",
+        })
+        self.assertRedirects(response, self.calendar_url, fetch_redirect_response=False)
+        shift.refresh_from_db()
+        self.assertEqual(shift.membership, self.manager_membership)
+        self.assertEqual(shift.user, self.manager)
+        self.assertEqual(shift.start_time, time(10))
+        self.assertEqual(shift.end_time, time(19))
+        self.assertEqual(shift.note, "店長の時間変更")
+        self.assertFalse(shift.is_generated)
+
+    def test_outside_shift_can_assign_another_active_manager_of_the_same_store(self):
+        response = self.client.post(self.calendar_url, self.outside_data(
+            membership=self.second_manager_membership.pk,
+        ))
+
+        self.assertRedirects(response, self.calendar_url, fetch_redirect_response=False)
+        shift = Shift.objects.get()
+        self.assertEqual(shift.membership, self.second_manager_membership)
+        self.assertEqual(shift.user, self.second_manager_membership.user)
+        self.assertEqual(shift.store, self.store)
+        self.assertFalse(shift.is_generated)
+
+    def test_manager_outside_shift_still_requires_confirmation(self):
+        data = self.outside_data(membership=self.manager_membership.pk)
+        data.pop("outside-confirm_outside_availability")
+
+        response = self.client.post(self.calendar_url, data)
+
+        self.assert_creation_rejected(
+            response, "outside_form", "confirm_outside_availability"
+        )
+
+    def test_manager_with_a_wish_is_still_excluded_from_the_wish_based_form(self):
+        Availability.objects.create(
+            user=self.manager, membership=self.manager_membership,
+            work_date=self.work_date, start_time=time(9), end_time=time(17),
+        )
+
+        response = self.client.get(self.calendar_url)
+        self.assertNotIn(
+            self.manager_membership, response.context["form"].fields["membership"].queryset
+        )
+        response = self.client.post(self.calendar_url, self.wish_data(
+            membership=self.manager_membership.pk,
+        ))
+        self.assert_creation_rejected(response, "form", "membership")
+
+    def test_outside_manager_shift_rejects_overlap_in_another_store(self):
+        other_membership = StoreMembership.objects.create(
+            user=self.manager, store=self.other_store, role="manager"
+        )
+        existing = Shift.objects.create(
+            user=self.manager, membership=other_membership, store=self.other_store,
+            work_date=self.work_date, start_time=time(10), end_time=time(12),
+        )
+
+        response = self.client.post(self.calendar_url, self.outside_data(
+            membership=self.manager_membership.pk,
+        ))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["outside_form"].non_field_errors())
+        self.assertEqual(list(Shift.objects.values_list("pk", flat=True)), [existing.pk])
+
     def test_outside_shift_requires_affirmative_confirmation(self):
         for confirmation in [None, "", "False"]:
             with self.subTest(confirmation=confirmation):
@@ -251,13 +379,14 @@ class ShiftCreationModeTests(TestCase):
                     response.context["outside_form"]["note"].value(), "ヘルプを依頼済み"
                 )
 
-    def test_both_modes_reject_other_store_and_inactive_staff_memberships(self):
+    def test_both_modes_reject_other_store_and_inactive_staff_or_manager_memberships(self):
         for data_builder, form_name in [
             (self.wish_data, "form"), (self.outside_data, "outside_form"),
         ]:
             for membership in [
                 self.foreign_membership, self.inactive_membership,
-                self.disabled_membership, self.manager_membership,
+                self.disabled_membership, self.foreign_manager_membership,
+                self.inactive_manager_membership, self.disabled_manager_membership,
             ]:
                 with self.subTest(form_name=form_name, membership=membership.pk):
                     response = self.client.post(

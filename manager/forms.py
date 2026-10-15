@@ -144,7 +144,7 @@ class ShiftForm(forms.ModelForm):
 
     def __init__(
         self, *args, store=None, selected_date=None,
-        only_available_staff=True, **kwargs,
+        only_available_staff=True, include_managers=False, **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.store = store
@@ -153,7 +153,7 @@ class ShiftForm(forms.ModelForm):
             self.instance.store = store
             memberships = StoreMembership.objects.filter(
                 store=store,
-                role="staff",
+                role__in=["staff", "manager"] if include_managers else ["staff"],
                 is_active=True,
                 user__is_active=True,
             ).select_related("user")
@@ -257,4 +257,5 @@ class OutsideAvailabilityShiftForm(ShiftCreationForm):
 
     def __init__(self, *args, **kwargs):
         kwargs["only_available_staff"] = False
+        kwargs["include_managers"] = True
         super().__init__(*args, **kwargs)

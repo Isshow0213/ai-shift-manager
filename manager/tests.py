@@ -185,7 +185,7 @@ class ShiftManagementTests(TestCase):
         self.assertContains(response, "鈴木 太郎")
         self.assertEqual(
             set(response.context["form"].fields["membership"].queryset),
-            {self.membership, self.alternate_membership},
+            {self.membership, self.alternate_membership, self.manager_membership},
         )
         self.assertFalse(Availability.objects.exists())
         self.shift.refresh_from_db()
@@ -252,9 +252,9 @@ class ShiftManagementTests(TestCase):
         self.shift.refresh_from_db()
         self.assertEqual(self.shift.work_date, self.work_date)
 
-    def test_only_active_staff_from_managers_store_can_be_assigned(self):
+    def test_only_active_members_from_managers_store_can_be_assigned(self):
         for membership in [
-            self.manager_membership, self.inactive_membership,
+            self.inactive_membership,
             self.disabled_membership, self.foreign_membership,
         ]:
             with self.subTest(membership=membership.pk):
@@ -268,6 +268,19 @@ class ShiftManagementTests(TestCase):
                 self.assertEqual(self.shift.membership, self.membership)
                 self.assertEqual(self.shift.user, self.staff)
                 self.assertTrue(self.shift.is_generated)
+
+    def test_edit_can_assign_an_active_manager_without_a_submitted_wish(self):
+        response = self.client.post(
+            self.edit_url, self.edit_data(membership=self.manager_membership.pk)
+        )
+
+        self.assertRedirects(response, self.calendar_url)
+        self.shift.refresh_from_db()
+        self.assertEqual(self.shift.membership, self.manager_membership)
+        self.assertEqual(self.shift.user, self.manager)
+        self.assertEqual(self.shift.store, self.store)
+        self.assertFalse(self.shift.is_generated)
+        self.assertFalse(Availability.objects.filter(user=self.manager).exists())
 
     def test_overlapping_shift_for_same_user_in_another_store_is_rejected(self):
         other_membership = StoreMembership.objects.create(
@@ -326,6 +339,22 @@ class ShiftManagementTests(TestCase):
         self.assertRedirects(response, self.calendar_url)
         self.shift.refresh_from_db()
         self.assertEqual(self.shift.membership, self.membership)
+
+    def test_legacy_manager_shift_without_membership_is_preselected_and_editable(self):
+        self.shift.user = self.manager
+        self.shift.membership = None
+        self.shift.save(update_fields=["user", "membership"])
+
+        response = self.client.get(self.edit_url)
+        self.assertEqual(response.context["form"].initial["membership"], self.manager_membership)
+
+        response = self.client.post(
+            self.edit_url, self.edit_data(membership=self.manager_membership.pk)
+        )
+        self.assertRedirects(response, self.calendar_url)
+        self.shift.refresh_from_db()
+        self.assertEqual(self.shift.membership, self.manager_membership)
+        self.assertEqual(self.shift.user, self.manager)
 
     def test_delete_get_only_confirms_and_post_deletes(self):
         response = self.client.get(self.delete_url)

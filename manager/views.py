@@ -524,12 +524,14 @@ def shift_edit(request, shift_id):
     initial = {}
     if shift.membership_id is None:
         initial["membership"] = StoreMembership.objects.filter(
-            user=shift.user, store=store, role="staff", is_active=True, user__is_active=True
+            user=shift.user, store=store, role__in=["staff", "manager"],
+            is_active=True, user__is_active=True,
         ).first()
     form = ShiftForm(
         request.POST if request.method == "POST" else None,
         instance=shift,
         store=store,
+        include_managers=True,
         initial=initial,
     )
     if request.method == "POST" and form.is_valid():
