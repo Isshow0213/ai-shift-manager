@@ -9,6 +9,7 @@ from django.urls import reverse
 
 from accounts.models import Company, Store, StoreMembership
 from shifts.models import Availability, Shift
+from shifts.testing import submitted_availability
 
 
 SOURCE_ID = "manual-shift-availabilities"
@@ -28,7 +29,7 @@ class AutofillMarkupParser(HTMLParser):
         if tag == "script" and attrs.get("id") == SOURCE_ID:
             self.source_attrs = attrs
             self.in_source = True
-        if tag == "form" and attrs.get("data-availability-source") == SOURCE_ID:
+        if tag == "form" and attrs.get("data-availability-source") == SOURCE_ID and self.form_attrs is None:
             self.form_attrs = attrs
         if tag == "input" and attrs.get("name") in {"start_time", "end_time"}:
             self.input_values[attrs["name"]] = attrs.get("value")
@@ -79,7 +80,7 @@ class ShiftAvailabilityAutofillTests(TestCase):
         start_time=time(9), end_time=time(18),
     ):
         membership = membership or self.membership
-        return Availability.objects.create(
+        return submitted_availability(
             user=user or membership.user, membership=membership,
             work_date=work_date or self.work_date, start_time=start_time, end_time=end_time,
         )
@@ -120,15 +121,21 @@ class ShiftAvailabilityAutofillTests(TestCase):
             self.manager_membership, self.foreign_membership,
             inactive_membership, disabled_membership,
         ]:
-            self.make_availability(membership)
+            slot = self.make_availability(membership)
+            if membership == self.manager_membership:
+                manager_slot = slot
         self.make_availability(work_date=self.work_date + timedelta(days=1))
-        Availability.objects.create(
+        submitted_availability(
             user=self.staff, work_date=self.work_date,
             start_time=time(7), end_time=time(8), membership=None,
         )
         expected = {
+            "all_day_membership_ids": [], "all_day_start_time": "00:00", "all_day_end_time": "23:59",
             "date": self.work_date.isoformat(),
             "memberships": {
+                str(self.manager_membership.pk): [
+                    {"id": manager_slot.pk, "start_time": "09:00", "end_time": "18:00"},
+                ],
                 str(self.membership.pk): [
                     {"id": first_short.pk, "start_time": "09:00", "end_time": "10:00"},
                     {"id": second_short.pk, "start_time": "09:00", "end_time": "10:00"},
@@ -151,7 +158,7 @@ class ShiftAvailabilityAutofillTests(TestCase):
         self.assertEqual(response.context["availability_autofill"], expected)
         self.assertEqual(
             set(response.context["form"].fields["membership"].queryset),
-            {self.membership, self.second_membership},
+            {self.membership, self.second_membership, self.manager_membership},
         )
         self.assert_autofill_markup(response, expected)
         self.assertEqual(list(Availability.objects.order_by("pk").values()), before_availabilities)
@@ -160,7 +167,7 @@ class ShiftAvailabilityAutofillTests(TestCase):
 
     def test_no_selected_day_availability_keeps_empty_json_and_form_source(self):
         self.make_availability(work_date=self.work_date - timedelta(days=1))
-        expected = {"date": self.work_date.isoformat(), "memberships": {}}
+        expected = {"all_day_membership_ids": [], "all_day_start_time": "00:00", "all_day_end_time": "23:59", "date": self.work_date.isoformat(), "memberships": {}}
 
         response = self.client.get(self.url)
 
@@ -173,6 +180,7 @@ class ShiftAvailabilityAutofillTests(TestCase):
     def test_invalid_post_keeps_submitted_times_in_form_and_markup(self):
         availability = self.make_availability()
         expected = {
+            "all_day_membership_ids": [], "all_day_start_time": "00:00", "all_day_end_time": "23:59",
             "date": self.work_date.isoformat(),
             "memberships": {str(self.membership.pk): [
                 {"id": availability.pk, "start_time": "09:00", "end_time": "18:00"},

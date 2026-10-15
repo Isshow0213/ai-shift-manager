@@ -207,7 +207,7 @@ class FullDayHoursAndAvailabilityTests(TestCase):
 
         calendar_url = (
             f"{reverse('availability_list')}?year={self.work_date.year}"
-            f"&month={self.work_date.month}&date={self.work_date.isoformat()}"
+            f"&month={self.work_date.month}&date={self.work_date.isoformat()}&store={self.store.pk}"
         )
         self.assertRedirects(response, calendar_url, fetch_redirect_response=False)
         availability = Availability.objects.get(user=self.staff)
@@ -215,6 +215,7 @@ class FullDayHoursAndAvailabilityTests(TestCase):
         self.assertEqual(availability.work_date, self.work_date)
         self.assertEqual(availability.start_time, time(9, 30))
         self.assertEqual(availability.end_time, time(18, 15))
+        self.assertFalse(availability.submission.is_submitted)
         before = list(Availability.objects.order_by("pk").values())
 
         response = self.client.post(self.submission_url, data)

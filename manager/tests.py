@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from accounts.models import Company, Store, StoreMembership
 from shifts.models import Availability, Shift
+from shifts.testing import submitted_availability
 
 
 User = get_user_model()
@@ -312,7 +313,7 @@ class ShiftManagementTests(TestCase):
         self.assertRedirects(response, self.calendar_url)
 
     def test_manual_addition_uses_same_overlap_and_time_validation(self):
-        Availability.objects.create(
+        submitted_availability(
             user=self.staff, membership=self.membership, work_date=self.work_date,
             start_time=time(8), end_time=time(20),
         )

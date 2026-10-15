@@ -6,6 +6,7 @@ from django.test import TestCase
 
 from accounts.models import Company, Store, StoreMembership
 from shifts.models import Availability, HelpShift, Requirement, Shift
+from shifts.testing import submitted_availability
 
 from .services import generate_shifts_for_store
 
@@ -35,7 +36,7 @@ class GenerateShiftsForStoreTests(TestCase):
     def make_availability(
         self, membership, *, work_date=None, start_time=time(8), end_time=time(18)
     ):
-        return Availability.objects.create(
+        return submitted_availability(
             user=membership.user,
             membership=membership,
             work_date=work_date or self.work_date,

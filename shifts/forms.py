@@ -14,6 +14,13 @@ class ShiftGenerationForm(forms.Form):
 
 
 class AvailabilityForm(forms.ModelForm):
+    day_status = forms.ChoiceField(
+        label="この日の希望", choices=[
+            ("all_day", "全時間帯で出勤可能"),
+            ("day_off", "休み希望"),
+            ("available", "出勤可能な時間を指定"),
+        ], widget=forms.RadioSelect, required=False,
+    )
     class Meta:
         model = Availability
         fields = ["work_date", "start_time", "end_time"]
@@ -28,10 +35,23 @@ class AvailabilityForm(forms.ModelForm):
             "end_time": "終了時刻",
         }
 
-    def __init__(self, *args, user=None, submission_deadline=None, **kwargs):
+    def __init__(self, *args, user=None, submission_deadline=None, membership=None,
+                 store=None, submission_mode="availability", **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
         self.submission_deadline = submission_deadline
+        self.membership = membership
+        self.store = store or (membership.store if membership else None)
+        self.submission_mode = submission_mode
+        if submission_mode == "day_off":
+            self.fields["day_status"].required = True
+            status = self.data.get("day_status") if self.is_bound else self.initial.get("day_status", "all_day")
+            if status in ("day_off", "all_day"):
+                for field_name in ("start_time", "end_time"):
+                    self.fields[field_name].required = False
+                    self.fields[field_name].disabled = True
+        else:
+            self.fields.pop("day_status")
 
     def clean_work_date(self):
         work_date = self.cleaned_data["work_date"]
@@ -44,6 +64,8 @@ class AvailabilityForm(forms.ModelForm):
         start_time = cleaned_data.get("start_time")
         end_time = cleaned_data.get("end_time")
         work_date = cleaned_data.get("work_date")
+        if self.submission_mode != "day_off":
+            cleaned_data["day_status"] = "available"
         
         if start_time is not None and end_time is not None and start_time >= end_time:
             raise forms.ValidationError("終了時刻は開始時刻より後にしてください。")
@@ -60,6 +82,8 @@ class AvailabilityForm(forms.ModelForm):
                 user=self.user,
                 work_date=work_date,
             )
+            if self.store:
+                overlapping = overlapping.for_store(self.store)
             
             # Exclude the current instance if we're editing
             if self.instance.pk:

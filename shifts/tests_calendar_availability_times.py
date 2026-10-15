@@ -9,9 +9,10 @@ from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Company, Store, StoreMembership
-from .models import Availability
+from .models import Availability, ShiftSubmission
 
 
 class CalendarAvailabilityParser(HTMLParser):
@@ -104,9 +105,17 @@ class CalendarAvailabilityTimesTests(TestCase):
     def make_availability(cls, *, membership="default", work_date=None, start_time=time(9), end_time=time(17)):
         if membership == "default":
             membership = cls.membership
+        work_date = work_date or cls.work_date
+        submission = None
+        if membership:
+            submission, _ = ShiftSubmission.objects.get_or_create(
+                membership=membership, target_month=work_date.replace(day=1),
+                defaults={"submission_mode": "availability", "is_submitted": True, "submitted_at": timezone.now()},
+            )
         return Availability.objects.create(
             user=membership.user if membership else cls.staff, membership=membership,
-            work_date=work_date or cls.work_date, start_time=start_time, end_time=end_time,
+            store=membership.store if membership else None, submission=submission,
+            work_date=work_date, start_time=start_time, end_time=end_time,
         )
 
     def setUp(self):
@@ -121,7 +130,7 @@ class CalendarAvailabilityTimesTests(TestCase):
     def calendar_for(self, work_date):
         return (
             f"{reverse('availability_list')}?year={work_date.year}"
-            f"&month={work_date.month}&date={work_date.isoformat()}"
+            f"&month={work_date.month}&date={work_date.isoformat()}&store={self.store.pk}"
         )
 
     def days_by_date(self, response):
@@ -157,7 +166,7 @@ class CalendarAvailabilityTimesTests(TestCase):
 
         self.assertEqual(parser.ranges(self.work_date), expected)
         self.assertEqual(parser.ranges(self.work_date, accessible=True), expected)
-        self.assertIn("提出済み", parser.days[self.work_date]["aria-label"])
+        self.assertIn("出勤希望あり", parser.days[self.work_date]["aria-label"])
         self.assertEqual(parser.days[self.work_date].get("aria-current"), "date")
 
     def test_nonselected_days_show_their_wish_times_without_opening_details(self):
@@ -183,28 +192,29 @@ class CalendarAvailabilityTimesTests(TestCase):
             with self.subTest(private_time=private_time):
                 self.assertNotIn(private_time, calendar_text)
         self.assertEqual(parser.ranges(date(2026, 11, 13)), [])
-        self.assertIn("未提出", parser.days[date(2026, 11, 13)]["aria-label"])
+        self.assertIn("出勤不可", parser.days[date(2026, 11, 13)]["aria-label"])
 
-    def test_own_legacy_and_other_store_wishes_are_included_by_user(self):
+    def test_unassigned_legacy_and_other_store_wishes_are_excluded_from_selected_store(self):
         response = self.client.get(self.calendar_url)
         days = self.days_by_date(response)
         parser = self.parse_calendar(response)
 
         for availability in [self.legacy_availability, self.other_store_availability]:
             with self.subTest(availability=availability.pk):
-                self.assertEqual(days[availability.work_date]["availabilities"], [availability])
-                expected = self.expected_ranges([availability])
-                self.assertEqual(parser.ranges(availability.work_date), expected)
-                self.assertEqual(parser.ranges(availability.work_date, accessible=True), expected)
+                self.assertEqual(days[availability.work_date]["availabilities"], [])
+                self.assertEqual(parser.ranges(availability.work_date), [])
+                self.assertEqual(parser.ranges(availability.work_date, accessible=True), [])
 
-    def test_wishes_remain_visible_when_the_employee_has_no_active_membership(self):
+    def test_store_wishes_are_unavailable_when_the_employee_has_no_active_membership(self):
         StoreMembership.objects.filter(user=self.staff).update(is_active=False)
 
         response = self.client.get(self.calendar_url)
+        self.assertEqual(response.status_code, 404)
+        response = self.client.get(reverse("availability_list"), {"year": 2026, "month": 11})
 
         self.assertIsNone(response.context["membership"])
-        self.assertEqual(self.days_by_date(response)[self.work_date]["availabilities"], self.selected_availabilities)
-        self.assertEqual(self.parse_calendar(response).ranges(self.work_date), self.expected_ranges(self.selected_availabilities))
+        self.assertEqual(self.days_by_date(response)[self.work_date]["availabilities"], [])
+        self.assertEqual(self.parse_calendar(response).ranges(self.work_date), [])
 
     def test_outside_month_muted_days_have_no_wishes_or_calendar_links(self):
         response = self.client.get(self.calendar_url)
@@ -222,10 +232,11 @@ class CalendarAvailabilityTimesTests(TestCase):
     def test_submitted_summary_counts_dates_instead_of_wish_records(self):
         response = self.client.get(self.calendar_url)
 
-        self.assertEqual(response.context["submitted_days_count"], 4)
+        self.assertEqual(response.context["submitted_days_count"], 2)
         submitted_days = [day for day in self.days_by_date(response).values() if day["is_submitted"]]
-        self.assertEqual(len(submitted_days), 4)
-        self.assertEqual(sum(len(day["availabilities"]) for day in submitted_days), 7)
+        self.assertEqual(len(submitted_days), 30)
+        self.assertEqual(sum(len(day["availabilities"]) for day in submitted_days), 5)
+        self.assertTrue(response.context["month_submitted"])
 
     def test_empty_month_keeps_every_day_with_empty_availability_lists(self):
         response = self.client.get(self.calendar_for(date(2027, 1, 1)))
@@ -255,7 +266,8 @@ class CalendarAvailabilityTimesTests(TestCase):
         calendar = self.client.get(self.calendar_url)
         self.assertEqual(self.days_by_date(calendar)[self.other_day_availability.work_date]["availabilities"], [])
         self.assertEqual(self.parse_calendar(calendar).ranges(self.other_day_availability.work_date), [])
-        self.assertEqual(calendar.context["submitted_days_count"], 3)
+        self.assertEqual(calendar.context["submitted_days_count"], 1)
+        self.assertFalse(calendar.context["month_submitted"])
 
     def test_manager_edit_immediately_updates_calendar_date_and_times(self):
         availability = self.selected_availabilities[0]
@@ -273,7 +285,7 @@ class CalendarAvailabilityTimesTests(TestCase):
         self.assertEqual(parser.ranges(self.work_date), self.expected_ranges(self.selected_availabilities[1:]))
         self.assertEqual(parser.ranges(new_date), [("16:10", "19:50")])
         self.assertEqual(parser.ranges(new_date, accessible=True), [("16:10", "19:50")])
-        self.assertEqual(calendar.context["submitted_days_count"], 5)
+        self.assertEqual(calendar.context["submitted_days_count"], 3)
 
     def test_calendar_get_does_not_write_to_the_database(self):
         before = list(Availability.objects.order_by("pk").values())

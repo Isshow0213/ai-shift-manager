@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 
@@ -24,6 +25,10 @@ class Availability(models.Model):
         null=True,
         blank=True,
     )
+    submission = models.ForeignKey(
+        "ShiftSubmission", on_delete=models.CASCADE, related_name="availabilities",
+        null=True, blank=True,
+    )
 
     work_date = models.DateField()
     store = models.ForeignKey(
@@ -38,8 +43,69 @@ class Availability(models.Model):
     def display_user(self):
         return self.membership.user if self.membership_id else self.user
 
+    def clean(self):
+        super().clean()
+        if self.submission_id and self.work_date and DayOffRequest.objects.filter(
+            submission=self.submission, work_date=self.work_date,
+        ).exists():
+            raise ValidationError("同じ日に休み希望と出勤時間は設定できません。")
+
     def __str__(self):
         return f"{self.user.username} {self.work_date}"
+
+
+class ShiftSubmission(models.Model):
+    SUBMISSION_MODE_CHOICES = [("availability", "出勤希望方式"), ("day_off", "休み希望方式")]
+
+    membership = models.ForeignKey(
+        "accounts.StoreMembership", on_delete=models.CASCADE, related_name="shift_submissions",
+    )
+    target_month = models.DateField("対象月")
+    submission_mode = models.CharField("提出方式", max_length=12, choices=SUBMISSION_MODE_CHOICES)
+    is_submitted = models.BooleanField("提出済み", default=False)
+    submitted_at = models.DateTimeField("提出日時", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["target_month", "membership_id"]
+        constraints = [models.UniqueConstraint(
+            fields=["membership", "target_month"], name="unique_membership_submission_month",
+        ), models.CheckConstraint(
+            condition=models.Q(target_month__day=1), name="submission_month_first_day",
+        )]
+        verbose_name = "月ごとのシフト希望提出"
+        verbose_name_plural = "月ごとのシフト希望提出"
+
+    def clean(self):
+        super().clean()
+        if self.target_month and (self.target_month.day != 1 or not 2 <= self.target_month.year <= 9998):
+            raise ValidationError({"target_month": "対象月は2年〜9998年の月初日で指定してください。"})
+
+
+class DayOffRequest(models.Model):
+    submission = models.ForeignKey(ShiftSubmission, on_delete=models.CASCADE, related_name="day_off_requests")
+    work_date = models.DateField("休み希望日")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["work_date", "pk"]
+        constraints = [models.UniqueConstraint(
+            fields=["submission", "work_date"], name="unique_submission_day_off",
+        )]
+        verbose_name = "休み希望"
+        verbose_name_plural = "休み希望"
+
+    def clean(self):
+        super().clean()
+        if self.submission_id and self.work_date:
+            submission = self.submission
+            if self.work_date.replace(day=1) != submission.target_month:
+                raise ValidationError({"work_date": "提出対象月の日付を選択してください。"})
+            if submission.submission_mode != "day_off":
+                raise ValidationError("休み希望方式の月にだけ休みを設定できます。")
+            if Availability.objects.filter(membership=submission.membership, work_date=self.work_date).exists():
+                raise ValidationError("同じ日に休み希望と出勤時間は設定できません。")
 
 
 class Requirement(models.Model):

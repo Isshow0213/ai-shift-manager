@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from accounts.models import Company, Store, StoreMembership
 from .models import Availability, Requirement, Shift
+from .testing import submitted_availability
 
 
 class ShiftGenerationViewTests(TestCase):
@@ -23,7 +24,7 @@ class ShiftGenerationViewTests(TestCase):
         self.membership = StoreMembership.objects.create(
             store=self.store, user=self.staff, role="staff"
         )
-        Availability.objects.create(
+        submitted_availability(
             user=self.staff,
             membership=self.membership,
             work_date=self.work_date,

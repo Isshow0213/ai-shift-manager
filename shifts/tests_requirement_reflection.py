@@ -9,6 +9,7 @@ from django.urls import reverse
 from accounts.models import Company, Store, StoreMembership
 from scheduler.services import generate_shifts_for_store
 from .models import Availability, Requirement, RequirementTimePreset, Shift
+from .testing import submitted_availability
 
 
 class LinkParser(HTMLParser):
@@ -154,7 +155,7 @@ class RequirementReflectionTests(TestCase):
         self.assert_day_reflected(date(2026, 10, 31), [])
         self.assert_day_reflected(date(2026, 12, 1), [])
 
-        Availability.objects.create(
+        submitted_availability(
             user=self.staff, membership=self.staff_membership, work_date=date(2026, 11, 4),
             start_time=time(8), end_time=time(18),
         )

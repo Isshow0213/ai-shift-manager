@@ -1,12 +1,13 @@
 {% extends "shifts/base.html" %}
 {% load static i18n %}
 
-{% block title %}シフト希望提出{% endblock %}
-{% block page_title %}シフト希望提出{% endblock %}
+{% block title %}シフト希望の入力{% endblock %}
+{% block page_title %}シフト希望の入力{% endblock %}
 
 {% block extra_css %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'shifts/submission_deadline.css' %}">
+  <link rel="stylesheet" href="{% static 'shifts/submission.css' %}">
   <style>
     .submission-page { max-width: 720px; margin: 0 auto; }
     .submission-page .employee-guidance { margin-top: 18px; }
@@ -95,20 +96,24 @@
     <form class="panel-body" method="post" id="availability-form">
       {% csrf_token %}
       {% if submission_store_id %}<input type="hidden" name="store" value="{{ submission_store_id }}">{% endif %}
-      {% if submission_deadline_configured and submission_period %}
+      {% if month_submission_deadline %}
         <section class="submission-deadline{% if submission_closed %} submission-deadline-closed{% endif %}" aria-label="選択日の提出締切">
           <div class="submission-deadline-heading">
-            <h3>シフト希望の受付</h3>
+            <h3>{{ selected_date|date:'n' }}月分のシフト希望の受付</h3>
             <span class="status-badge {% if submission_closed %}badge-orange{% else %}badge-green{% endif %}">{% if submission_closed %}締切済み{% else %}受付中{% endif %}</span>
           </div>
           <div class="submission-deadline-dates">
-            <p>提出締切：<strong>{% language 'ja' %}{{ submission_period.deadline_date|date:'Y年n月j日（D）' }}{% endlanguage %} 23:59まで</strong></p>
-            <p>対象期間：<span>{% language 'ja' %}{{ submission_period.start_date|date:'Y年n月j日' }}〜{{ submission_period.end_date|date:'Y年n月j日' }}{% endlanguage %}</span></p>
+            <p>提出締切：<strong>{% language 'ja' %}{{ month_submission_deadline|date:'Y年n月j日（D）' }}{% endlanguage %} 23:59まで</strong></p>
+            {% if month_deadline_is_weekly %}<p>月に含まれる最初の週の締切までに、この月の希望を提出してください。</p>{% endif %}
           </div>
-          {% if submission_closed %}<p class="submission-deadline-message" id="submission-closed-message">この期間のシフト希望は締切済みです。希望の提出・削除はできません。</p>{% endif %}
+          {% if submission_closed %}<p class="submission-deadline-message" id="submission-closed-message">この月のシフト希望は締切済みです。希望の変更・削除はできません。</p>{% endif %}
         </section>
       {% endif %}
       {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="daily-submission-mode">
+        <span class="status-badge badge-green">{{ submission_mode_label }}</span>
+        <p>この日の設定を保存した後、カレンダーで月の希望を提出してください。保存だけでは月の提出は完了しません。</p>
+      </div>
       <fieldset class="submission-inputs"{% if submission_closed %} disabled aria-describedby="submission-closed-message"{% endif %}>
       <legend class="sr-only">希望する日付と勤務時間</legend>
       <div class="employee-form-fields">
@@ -117,6 +122,16 @@
           {{ form.work_date }}
           {% if form.work_date.errors %}<div class="field-error">{{ form.work_date.errors }}</div>{% endif %}
         </div>
+        {% if is_day_off_mode %}
+          <div class="field field-full day-status-field">
+            <span class="day-status-label" id="day-status-label">この日の出勤希望</span>
+            <div class="day-status-options" aria-labelledby="day-status-label">{{ form.day_status }}</div>
+            {% if form.day_status.errors %}<div class="field-error">{{ form.day_status.errors }}</div>{% endif %}
+            <p class="field-help">「全時間帯で出勤可能」は、店舗のシフト対象時間帯すべてに対応できます。</p>
+          </div>
+        {% endif %}
+      </div>
+      <div class="employee-form-fields submission-time-fields" data-submission-times{% if is_day_off_mode and form.day_status.value != 'available' %} hidden{% endif %}>
         <div class="field">
           <label for="{{ form.start_time.id_for_label }}">開始時刻</label>
           {{ form.start_time }}
@@ -136,7 +151,7 @@
       </div>
       
       {% if previous_availabilities_unique or requirements_for_date %}
-      <div class="quick-select-section">
+      <div class="quick-select-section" data-submission-times{% if is_day_off_mode and form.day_status.value != 'available' %} hidden{% endif %}>
         {% if previous_availabilities_unique %}
         <div>
           <p class="quick-select-title">前回提出した希望時間（重複除外）</p>
@@ -175,13 +190,13 @@
         {% if not submission_closed %}
           <button class="button button-primary" type="submit" id="availability-submit">
             <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
-            提出する
+            この日の設定を保存
           </button>
         {% endif %}
       </div>
     </form>
   </section>
-  <p class="employee-guidance">{% if submission_closed %}この日の提出受付は終了しています。カレンダーに戻ると、提出済みの希望や確定シフトを確認できます。{% else %}勤務できる時間帯を入力してください。提出後は、選択日のカレンダーで内容を確認できます。{% endif %}</p>
+  <p class="employee-guidance">{% if submission_closed %}この月の提出受付は終了しています。カレンダーに戻ると、提出済みの希望や確定シフトを確認できます。{% else %}{% if is_day_off_mode %}休みたい日や、出勤可能な時間を制限したい日だけ設定してください。{% else %}勤務できる時間帯を入力してください。{% endif %}保存後はカレンダーで内容を確認し、月の希望を提出してください。{% endif %}</p>
 </div>
 
 {% endblock %}
@@ -189,4 +204,5 @@
 {% block extra_js %}
   {{ block.super }}
   <script src="{% static 'shifts/availability_quickfill.js' %}" defer></script>
+  <script src="{% static 'shifts/submission.js' %}" defer></script>
 {% endblock %}

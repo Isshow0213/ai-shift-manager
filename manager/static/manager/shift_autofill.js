@@ -1,7 +1,9 @@
 (() => {
   function initialise() {
-    const form = document.querySelector('form.manual-shift-form');
-    if (!form) return;
+    document.querySelectorAll('form[data-availability-source]').forEach(initialiseForm);
+  }
+
+  function initialiseForm(form) {
 
     const source = document.getElementById(form.dataset.availabilitySource || '');
     if (!source) return;
@@ -17,12 +19,13 @@
     const parsedDate = new Date(`${data.date}T00:00:00Z`);
     if (!Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== data.date) return;
 
-    const membership = form.querySelector('[name="membership"]');
-    const workDate = form.querySelector('[name="work_date"]');
-    const startTime = form.querySelector('[name="start_time"]');
-    const endTime = form.querySelector('[name="end_time"]');
-    const slot = document.getElementById('manual-availability-slot');
-    const slotField = document.getElementById('manual-availability-field');
+    const membership = form.querySelector('[name="membership"], [name$="-membership"]');
+    const workDate = form.querySelector('[name="work_date"], [name$="-work_date"]');
+    const startTime = form.querySelector('[name="start_time"], [name$="-start_time"]');
+    const endTime = form.querySelector('[name="end_time"], [name$="-end_time"]');
+    const slot = form.querySelector('[data-availability-slot]');
+    const slotField = form.querySelector('[data-availability-slot-field]');
+    const summary = form.querySelector('[data-availability-summary]');
     if (!membership || !workDate || !startTime || !endTime || !slot || !slotField) return;
 
     const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
@@ -44,10 +47,16 @@
     function updateSlots(shouldFill) {
       const availabilities = data.memberships[membership.value];
       currentSlots = Array.isArray(availabilities) ? availabilities.filter((availability) => (
-        availability && /^\d+$/.test(String(availability.id))
+        availability
         && timePattern.test(availability.start_time)
         && timePattern.test(availability.end_time)
-      )) : [];
+        && availability.start_time < availability.end_time
+      )).map((availability, index) => ({ ...availability, slotKey: String(index) })) : [];
+      const allDay = Array.isArray(data.all_day_membership_ids)
+        && data.all_day_membership_ids.map(String).includes(membership.value);
+      if (summary) {
+        summary.textContent = allDay ? 'この日は全時間帯で出勤可能です。' : '';
+      }
 
       slot.replaceChildren();
       slotField.hidden = currentSlots.length <= 1;
@@ -58,16 +67,23 @@
         ));
         if (!shouldFill && !matched) appendOption('', '希望時間帯を選択');
         currentSlots.forEach((availability) => {
-          appendOption(String(availability.id), `${availability.start_time}〜${availability.end_time}`);
+          appendOption(availability.slotKey, `${availability.start_time}〜${availability.end_time}`);
         });
-        slot.value = shouldFill ? String(currentSlots[0].id) : (matched ? String(matched.id) : '');
+        slot.value = shouldFill ? currentSlots[0].slotKey : (matched ? matched.slotKey : '');
       }
-      if (shouldFill) fillAvailability(currentSlots[0]);
+      if (shouldFill) {
+        const fullDay = allDay && timePattern.test(data.all_day_start_time)
+          && timePattern.test(data.all_day_end_time) ? {
+            start_time: data.all_day_start_time,
+            end_time: data.all_day_end_time,
+          } : null;
+        fillAvailability(allDay ? fullDay : currentSlots[0]);
+      }
     }
 
     membership.addEventListener('change', () => updateSlots(true));
     slot.addEventListener('change', () => {
-      const availability = currentSlots.find((item) => String(item.id) === slot.value);
+      const availability = currentSlots.find((item) => item.slotKey === slot.value);
       if (availability) fillAvailability(availability);
     });
 

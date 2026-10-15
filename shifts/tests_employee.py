@@ -4,11 +4,12 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Company, Store, StoreMembership
 
 from .calendar_utils import get_calendar_context
-from .models import Availability, Shift
+from .models import Availability, Shift, ShiftSubmission
 
 
 class EmployeeCalendarContextTests(SimpleTestCase):
@@ -90,16 +91,23 @@ class EmployeeShiftViewsTests(TestCase):
         localdate_patch.start()
         self.addCleanup(localdate_patch.stop)
         self.availability_url = (
-            f"{reverse('availability_list')}?year=2026&month=10&date=2026-10-12"
+            f"{reverse('availability_list')}?year=2026&month=10&date=2026-10-12&store={self.store.pk}"
         )
         self.shift_url = f"{reverse('shift_list')}?year=2026&month=10"
 
     def make_availability(self, *, membership=None, work_date=None, start_time=time(9)):
         membership = membership or self.membership
+        work_date = work_date or self.work_date
+        submission, _ = ShiftSubmission.objects.get_or_create(
+            membership=membership, target_month=work_date.replace(day=1),
+            defaults={"submission_mode": "availability", "is_submitted": True, "submitted_at": timezone.now()},
+        )
         return Availability.objects.create(
             user=membership.user,
             membership=membership,
-            work_date=work_date or self.work_date,
+            store=membership.store,
+            submission=submission,
+            work_date=work_date,
             start_time=start_time,
             end_time=time(18),
         )
@@ -129,7 +137,7 @@ class EmployeeShiftViewsTests(TestCase):
         self.assertEqual(response.context["selected_date"], date(2026, 10, 7))
         self.assertEqual(response.context["submitted_days_count"], 0)
         self.assertEqual(response.context["monthly_shifts_count"], 0)
-        self.assertEqual(current_days[11]["url"], "?year=2026&month=10&date=2026-10-12")
+        self.assertEqual(current_days[11]["url"], f"?year=2026&month=10&date=2026-10-12&store={self.store.pk}")
         self.assertTrue(all(not day["is_submitted"] for day in current_days))
         self.assertTrue(all(not day["has_shift"] for day in current_days))
         self.assertEqual(list(response.context["selected_shifts"]), [])
@@ -196,7 +204,8 @@ class EmployeeShiftViewsTests(TestCase):
         self.assertEqual(saved.user, self.employee)
         self.assertEqual(saved.membership, self.membership)
         self.assertEqual(saved.work_date, self.work_date)
-        self.assertContains(response, "シフト希望を提出しました。")
+        self.assertContains(response, "希望を下書き保存しました。")
+        self.assertFalse(saved.submission.is_submitted)
 
     def test_same_or_reversed_times_are_rejected_without_saving(self):
         for start_time, end_time in [("09:00", "09:00"), ("18:00", "09:00")]:
@@ -245,6 +254,7 @@ class EmployeeShiftViewsTests(TestCase):
         self.assertRedirects(response, self.availability_url)
         self.assertFalse(Availability.objects.filter(pk=availability.pk).exists())
         self.assertContains(response, "シフト希望を削除しました。")
+        self.assertFalse(ShiftSubmission.objects.get(membership=self.membership).is_submitted)
 
     def test_delete_get_keeps_availability_and_returns_to_its_day(self):
         availability = self.make_availability()

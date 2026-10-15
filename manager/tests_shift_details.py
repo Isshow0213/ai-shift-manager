@@ -8,6 +8,7 @@ from django.utils.html import escape
 from accounts.models import Company, Store, StoreMembership
 from scheduler.services import generate_shifts_for_store
 from shifts.models import Availability, Requirement, Shift
+from shifts.testing import submitted_availability
 
 
 class ShiftDetailsTests(TestCase):
@@ -45,7 +46,7 @@ class ShiftDetailsTests(TestCase):
             user=cls.foreign_staff, store=cls.other_store, role="staff"
         )
         cls.work_date = date(2026, 11, 12)
-        Availability.objects.create(
+        submitted_availability(
             user=cls.staff, membership=cls.membership, work_date=cls.work_date,
             start_time=time(8), end_time=time(18),
         )
@@ -288,7 +289,10 @@ class ShiftDetailsTests(TestCase):
                     self.assertNotContains(response, "本人の別店舗メモ")
                     self.assertContains(response, "別の従業員のメモ")
                 else:
-                    self.assertContains(response, "本人の別店舗メモ")
+                    if url == employee_calendar_url:
+                        self.assertNotContains(response, "本人の別店舗メモ")
+                    else:
+                        self.assertContains(response, "本人の別店舗メモ")
                     self.assertNotContains(response, "別の従業員のメモ")
         own_shift.refresh_from_db()
         self.assertEqual(own_shift.note, note)

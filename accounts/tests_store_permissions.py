@@ -4,10 +4,11 @@ from urllib.parse import parse_qs, urlsplit
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Company, CompanyMembership, Store, StoreMembership
 from accounts.views import get_login_destination
-from shifts.models import Availability, Shift
+from shifts.models import Availability, Shift, ShiftSubmission
 
 
 class StoreStaffPermissionTests(TestCase):
@@ -248,8 +249,13 @@ class StoreStaffPermissionTests(TestCase):
 
     def test_dashboard_submission_counts_include_only_staff_allowed_to_submit(self):
         self.set_permissions(can_submit_availability=False)
+        submission = ShiftSubmission.objects.create(
+            membership=self.coworker_membership, target_month=self.work_date.replace(day=1),
+            submission_mode="availability", is_submitted=True, submitted_at=timezone.now(),
+        )
         Availability.objects.create(
             user=self.coworker, membership=self.coworker_membership, store=self.store,
+            submission=submission,
             work_date=self.work_date, start_time=time(10), end_time=time(18),
         )
         self.client.force_login(self.manager)

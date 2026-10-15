@@ -1,0 +1,50 @@
+{% extends 'shifts/base.html' %}
+{% load static %}
+
+{% block title %}シフト提出設定｜シフト管理{% endblock %}
+{% block page_title %}シフト提出設定{% endblock %}
+{% block extra_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'shifts/submission.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="submission-settings-page">
+  {% if show_submission_store_picker %}
+    <section class="panel store-access-picker submission-store-picker" aria-label="設定する店舗の選択">
+      <h2>設定する店舗</h2>
+      <form class="store-access-form" method="get" action="{% url 'submission_settings' %}">
+        {% if year and month %}<input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="month" value="{{ month }}">{% endif %}
+        <div class="field store-access-field">
+          <label for="submission-settings-store">所属店舗</label>
+          <select id="submission-settings-store" name="store">
+            {% for submission_store in available_submission_stores %}<option value="{{ submission_store.pk }}"{% if submission_store.pk == access_store.pk %} selected{% endif %}>{{ submission_store.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button class="button button-secondary" type="submit">店舗を表示</button>
+      </form>
+    </section>
+  {% endif %}
+  <section class="panel submission-settings-panel">
+    <div class="panel-heading"><h2>普段使用する提出方式</h2></div>
+    <form method="post" class="panel-body">
+      {% csrf_token %}
+      <p class="submission-settings-store">{{ access_store.name }}の提出方式を設定します。</p>
+      {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="field submission-mode-options" role="group" aria-label="提出方式">
+        {{ form.submission_mode }}
+        {% if form.submission_mode.errors %}<div class="field-error" role="alert">{{ form.submission_mode.errors }}</div>{% endif %}
+      </div>
+      <dl class="submission-mode-descriptions">
+        <div><dt>出勤希望方式</dt><dd>出勤できる日と時間を選んで入力します。入力していない日は出勤不可になります。</dd></div>
+        <div><dt>休み希望方式</dt><dd>休みたい日と、出勤できる時間を制限したい日だけ入力します。指定のない日は全時間帯で出勤可能になります。</dd></div>
+      </dl>
+      <p class="submission-setting-notice">設定を変えても、提出済みの月の方式や内容は変わりません。未提出の月から新しい方式を使用します。</p>
+      <div class="submission-actions">
+        <a class="button button-secondary" href="{% url 'availability_list' %}?store={{ access_store.pk }}{% if year and month %}&amp;year={{ year }}&amp;month={{ month }}{% endif %}">カレンダーへ戻る</a>
+        <button class="button button-primary" type="submit">提出方式を保存</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

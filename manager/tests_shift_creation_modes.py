@@ -3,9 +3,11 @@ from datetime import date, time, timedelta
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Company, Store, StoreMembership
-from shifts.models import Availability, Shift
+from shifts.models import Availability, Shift, ShiftSubmission
+from shifts.testing import submitted_availability
 
 
 class ShiftCreationModeTests(TestCase):
@@ -75,12 +77,12 @@ class ShiftCreationModeTests(TestCase):
             cls.available_membership, cls.inactive_membership,
             cls.disabled_membership, cls.foreign_membership,
         ]:
-            Availability.objects.create(
+            submitted_availability(
                 user=membership.user, membership=membership,
                 work_date=cls.work_date, start_time=time(9), end_time=time(17),
             )
         # The same employee's wider wish in another store must not grant permission here.
-        Availability.objects.create(
+        submitted_availability(
             user=cls.available_staff, membership=cls.other_store_membership,
             work_date=cls.work_date, start_time=time(8), end_time=time(20),
         )
@@ -108,9 +110,15 @@ class ShiftCreationModeTests(TestCase):
         data.update(overrides)
         return data
 
+    def submit_all_day(self, membership):
+        return ShiftSubmission.objects.create(
+            membership=membership, target_month=self.work_date.replace(day=1),
+            submission_mode="day_off", is_submitted=True, submitted_at=timezone.now(),
+        )
+
     def outside_data(self, **overrides):
         fields = {
-            "membership": self.no_availability_membership.pk,
+            "membership": self.available_membership.pk,
             "work_date": self.work_date.isoformat(),
             "start_time": "08:00",
             "end_time": "18:00",
@@ -131,7 +139,7 @@ class ShiftCreationModeTests(TestCase):
             self.assertTrue(form.errors.get(field), form.errors)
         self.assertFalse(Shift.objects.exists())
 
-    def test_creation_modes_show_distinct_staff_choices_and_selected_date(self):
+    def test_creation_modes_show_same_eligible_choices_and_selected_date(self):
         response = self.client.get(self.calendar_url)
 
         self.assertEqual(response.status_code, 200)
@@ -145,10 +153,7 @@ class ShiftCreationModeTests(TestCase):
         )
         self.assertEqual(
             set(outside_form.fields["membership"].queryset),
-            {
-                self.available_membership, self.no_availability_membership,
-                self.manager_membership, self.second_manager_membership,
-            },
+            {self.available_membership},
         )
         self.assertEqual(
             outside_form.fields["membership"].label_from_instance(self.manager_membership),
@@ -159,17 +164,11 @@ class ShiftCreationModeTests(TestCase):
         self.assertFalse(wish_form.is_bound)
         self.assertFalse(outside_form.is_bound)
 
-    def test_outside_staff_choices_remain_available_on_a_day_without_any_wishes(self):
+    def test_both_staff_choices_are_empty_without_any_available_people_on_the_day(self):
         response = self.client.get(self.calendar_for(self.work_date + timedelta(days=1)))
 
         self.assertEqual(list(response.context["form"].fields["membership"].queryset), [])
-        self.assertEqual(
-            set(response.context["outside_form"].fields["membership"].queryset),
-            {
-                self.available_membership, self.no_availability_membership,
-                self.manager_membership, self.second_manager_membership,
-            },
-        )
+        self.assertEqual(list(response.context["outside_form"].fields["membership"].queryset), [])
 
     def test_exact_and_shorter_wish_shifts_are_saved_with_consistent_staff_details(self):
         for start_time, end_time in [("09:00", "17:00"), ("10:00", "16:00")]:
@@ -204,7 +203,7 @@ class ShiftCreationModeTests(TestCase):
     def test_wish_shift_rejects_an_unavailable_gap_between_separate_wishes(self):
         Availability.objects.filter(membership=self.available_membership).delete()
         for start_time, end_time in [(time(9), time(12)), (time(13), time(17))]:
-            Availability.objects.create(
+            submitted_availability(
                 user=self.available_staff, membership=self.available_membership,
                 work_date=self.work_date, start_time=start_time, end_time=end_time,
             )
@@ -216,7 +215,7 @@ class ShiftCreationModeTests(TestCase):
     def test_wish_shift_accepts_continuous_coverage_from_adjacent_wishes(self):
         Availability.objects.filter(membership=self.available_membership).delete()
         for start_time, end_time in [(time(9), time(12)), (time(12), time(17))]:
-            Availability.objects.create(
+            submitted_availability(
                 user=self.available_staff, membership=self.available_membership,
                 work_date=self.work_date, start_time=start_time, end_time=end_time,
             )
@@ -227,7 +226,7 @@ class ShiftCreationModeTests(TestCase):
         self.assertEqual(Shift.objects.count(), 1)
 
     def test_wish_shift_rejects_staff_without_a_wish_for_the_selected_day(self):
-        Availability.objects.create(
+        submitted_availability(
             user=self.staff_without_availability, membership=self.no_availability_membership,
             work_date=self.work_date + timedelta(days=1),
             start_time=time(9), end_time=time(17),
@@ -239,22 +238,14 @@ class ShiftCreationModeTests(TestCase):
 
         self.assert_creation_rejected(response, "form", "membership")
 
-    def test_confirmed_outside_shift_accepts_staff_with_no_submitted_wish(self):
+    def test_confirmation_cannot_make_an_unsubmitted_staff_member_available(self):
         response = self.client.post(self.calendar_url, self.outside_data(
+            membership=self.no_availability_membership.pk,
             user=self.foreign_membership.user_id, store=self.other_store.pk,
             is_generated="on",
         ))
 
-        self.assertRedirects(response, self.calendar_url, fetch_redirect_response=False)
-        shift = Shift.objects.get()
-        self.assertEqual(shift.membership, self.no_availability_membership)
-        self.assertEqual(shift.user, self.staff_without_availability)
-        self.assertEqual(shift.store, self.store)
-        self.assertEqual(shift.start_time, time(8))
-        self.assertEqual(shift.end_time, time(18))
-        self.assertEqual(shift.note, "ヘルプを依頼済み")
-        self.assertEqual(shift.display_color, "orange")
-        self.assertFalse(shift.is_generated)
+        self.assert_creation_rejected(response, "outside_form", "membership")
 
     def test_confirmed_outside_shift_can_extend_beyond_an_existing_wish(self):
         response = self.client.post(self.calendar_url, self.outside_data(
@@ -267,7 +258,8 @@ class ShiftCreationModeTests(TestCase):
         self.assertEqual(shift.start_time, time(8))
         self.assertEqual(shift.end_time, time(18))
 
-    def test_confirmed_outside_shift_accepts_manager_without_wish_and_remains_editable(self):
+    def test_confirmed_outside_shift_accepts_submitted_all_day_manager_and_remains_editable(self):
+        self.submit_all_day(self.manager_membership)
         response = self.client.post(self.calendar_url, self.outside_data(
             membership=self.manager_membership.pk,
             user=self.foreign_membership.user_id, store=self.other_store.pk,
@@ -309,7 +301,8 @@ class ShiftCreationModeTests(TestCase):
         self.assertEqual(shift.note, "店長の時間変更")
         self.assertFalse(shift.is_generated)
 
-    def test_outside_shift_can_assign_another_active_manager_of_the_same_store(self):
+    def test_outside_shift_can_assign_another_submitted_manager_of_the_same_store(self):
+        self.submit_all_day(self.second_manager_membership)
         response = self.client.post(self.calendar_url, self.outside_data(
             membership=self.second_manager_membership.pk,
         ))
@@ -322,31 +315,37 @@ class ShiftCreationModeTests(TestCase):
         self.assertFalse(shift.is_generated)
 
     def test_manager_outside_shift_still_requires_confirmation(self):
+        submitted_availability(
+            user=self.manager, membership=self.manager_membership, work_date=self.work_date,
+            start_time=time(9), end_time=time(17),
+        )
         data = self.outside_data(membership=self.manager_membership.pk)
         data.pop("outside-confirm_outside_availability")
 
         response = self.client.post(self.calendar_url, data)
 
         self.assert_creation_rejected(
-            response, "outside_form", "confirm_outside_availability"
+            response, "outside_form"
         )
 
-    def test_manager_with_a_wish_is_still_excluded_from_the_wish_based_form(self):
-        Availability.objects.create(
+    def test_manager_with_a_submitted_wish_is_included_in_the_wish_based_form(self):
+        submitted_availability(
             user=self.manager, membership=self.manager_membership,
             work_date=self.work_date, start_time=time(9), end_time=time(17),
         )
 
         response = self.client.get(self.calendar_url)
-        self.assertNotIn(
+        self.assertIn(
             self.manager_membership, response.context["form"].fields["membership"].queryset
         )
         response = self.client.post(self.calendar_url, self.wish_data(
             membership=self.manager_membership.pk,
         ))
-        self.assert_creation_rejected(response, "form", "membership")
+        self.assertRedirects(response, self.calendar_url, fetch_redirect_response=False)
+        self.assertEqual(Shift.objects.get().membership, self.manager_membership)
 
     def test_outside_manager_shift_rejects_overlap_in_another_store(self):
+        self.submit_all_day(self.manager_membership)
         other_membership = StoreMembership.objects.create(
             user=self.manager, store=self.other_store, role="manager"
         )
@@ -372,7 +371,7 @@ class ShiftCreationModeTests(TestCase):
                 response = self.client.post(self.calendar_url, data)
 
                 self.assert_creation_rejected(
-                    response, "outside_form", "confirm_outside_availability"
+                    response, "outside_form"
                 )
                 self.assertFalse(response.context["form"].is_bound)
                 self.assertEqual(
@@ -397,7 +396,7 @@ class ShiftCreationModeTests(TestCase):
 
     def test_both_modes_reject_a_posted_date_different_from_the_selected_day(self):
         other_date = self.work_date + timedelta(days=1)
-        Availability.objects.create(
+        submitted_availability(
             user=self.available_staff, membership=self.available_membership,
             work_date=other_date, start_time=time(9), end_time=time(17),
         )
@@ -443,7 +442,7 @@ class ShiftCreationModeTests(TestCase):
 
     def test_outside_shift_allows_adjacency_to_an_existing_shift(self):
         Shift.objects.create(
-            user=self.staff_without_availability, membership=self.no_availability_membership,
+            user=self.available_staff, membership=self.available_membership,
             store=self.store, work_date=self.work_date,
             start_time=time(7), end_time=time(8),
         )

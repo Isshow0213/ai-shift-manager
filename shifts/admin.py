@@ -5,6 +5,8 @@ from .models import (
     Requirement,
     Shift,
     HelpShift,
+    ShiftSubmission,
+    DayOffRequest,
     StoreOperatingHours,
     StoreSubmissionDeadline,
     AvailabilityChangeNotification,
@@ -17,6 +19,7 @@ class AvailabilityAdmin(admin.ModelAdmin):
         "user",
         "membership",
         "store",
+        "submission",
         "work_date",
         "start_time",
         "end_time",
@@ -24,6 +27,20 @@ class AvailabilityAdmin(admin.ModelAdmin):
     )
     list_filter = ("work_date", "membership__store", "store")
     search_fields = ("user__username", "user__email")
+
+
+@admin.register(ShiftSubmission)
+class ShiftSubmissionAdmin(admin.ModelAdmin):
+    list_display = ("membership", "target_month", "submission_mode", "is_submitted", "submitted_at")
+    list_filter = ("membership__store", "target_month", "submission_mode", "is_submitted")
+    search_fields = ("membership__user__last_name", "membership__user__first_name")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(DayOffRequest)
+class DayOffRequestAdmin(admin.ModelAdmin):
+    list_display = ("submission", "work_date")
+    list_filter = ("submission__membership__store", "work_date")
 
 
 @admin.register(Requirement)

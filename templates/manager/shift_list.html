@@ -116,19 +116,22 @@
 
     <section class="panel detail-panel">
       <div class="panel-heading">
-        <h3><span class="section-icon staff-icon"><svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg></span>この日に希望を出しているスタッフ</h3>
+        <h3><span class="section-icon staff-icon"><svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg></span>この日に出勤可能なメンバー</h3>
       </div>
       <div class="table-wrap">
         <table class="data-table availability-table">
           <thead><tr><th scope="col">スタッフ名</th><th scope="col">希望開始</th><th scope="col">希望終了</th></tr></thead>
           <tbody>
-            {% for availability in availabilities %}
-              <tr>
-                <td><span class="person-cell"><span class="avatar avatar-small" aria-hidden="true"><svg class="icon"><use href="#icon-user"></use></svg></span>{{ availability.display_user.full_name_japanese }}</span></td>
-                <td>{{ availability.start_time|time:"H:i" }}</td><td>{{ availability.end_time|time:"H:i" }}</td>
-              </tr>
+            {% for candidate in day_candidates %}
+              {% if candidate.all_day %}
+                <tr><td><span class="person-cell"><span class="avatar avatar-small" aria-hidden="true"><svg class="icon"><use href="#icon-user"></use></svg></span>{{ candidate.membership.user.full_name_japanese }}</span></td><td colspan="2"><span class="status-badge badge-green">全時間帯OK</span></td></tr>
+              {% else %}
+                {% for interval in candidate.intervals %}
+                  <tr><td><span class="person-cell"><span class="avatar avatar-small" aria-hidden="true"><svg class="icon"><use href="#icon-user"></use></svg></span>{{ candidate.membership.user.full_name_japanese }}</span></td><td>{{ interval.start_time|time:"H:i" }}</td><td>{{ interval.end_time|time:"H:i" }}</td></tr>
+                {% endfor %}
+              {% endif %}
             {% empty %}
-              <tr><td colspan="3" class="empty-state">この日に希望を出しているスタッフはいません。</td></tr>
+              <tr><td colspan="3" class="empty-state">月の希望を提出済みで、この日に出勤可能なメンバーはいません。</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -139,17 +142,20 @@
       <div class="panel-heading">
         <h3><span class="section-icon manual-icon"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg></span>希望通りのシフトを追加</h3>
       </div>
-      <form method="post" class="manual-shift-form" data-availability-source="manual-shift-availabilities" data-is-bound="{{ form.is_bound|yesno:'true,false' }}">
+      <form method="post" class="manual-shift-form" data-availability-source="manual-shift-availabilities" data-shift-availability-confirm data-is-bound="{{ form.is_bound|yesno:'true,false' }}">
         {% csrf_token %}
         <input type="hidden" name="shift_mode" value="availability">
         {{ form.work_date.as_hidden }}
+        {{ form.confirm_outside_availability.as_hidden }}
         {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
         {% if form.work_date.errors %}<div class="field-error" role="alert">{{ form.work_date.errors }}</div>{% endif %}
+        {% if form.confirm_outside_availability.errors %}<div class="field-error" role="alert">{{ form.confirm_outside_availability.errors }}</div>{% endif %}
         <div class="manual-fields">
           <div class="field staff-field">
             <label for="{{ form.membership.id_for_label }}">スタッフ</label>
             {{ form.membership }}
-            <p class="field-help">スタッフを選ぶと、その日の希望時間が入力されます。開始・終了時刻は希望時間内で設定してください。</p>
+            <p class="field-help">月の希望を提出し、この日に出勤可能なメンバーを選べます。選択すると希望時間が入力されます。希望時間外に変更した場合は確認画面が表示されます。</p>
+            <p class="field-help" data-availability-summary aria-live="polite"></p>
             {% if form.membership.errors %}<div class="field-error" role="alert">{{ form.membership.errors }}</div>{% endif %}
           </div>
           <div class="field">
@@ -163,10 +169,10 @@
             {% if form.end_time.errors %}<div class="field-error" role="alert">{{ form.end_time.errors }}</div>{% endif %}
           </div>
         </div>
-        <div class="field manual-availability-field" id="manual-availability-field" hidden>
+        <div class="field manual-availability-field" id="manual-availability-field" data-availability-slot-field hidden>
           <label for="manual-availability-slot">希望時間帯</label>
-          <select id="manual-availability-slot" aria-describedby="manual-availability-help"></select>
-          <p class="field-help" id="manual-availability-help">複数の希望があるため、追加する時間帯を選べます。時刻は希望時間内で調整できます。</p>
+          <select id="manual-availability-slot" data-availability-slot aria-describedby="manual-availability-help"></select>
+          <p class="field-help" id="manual-availability-help">複数の希望があるため、追加する時間帯を選べます。</p>
         </div>
         <div class="manual-extra-fields">
           <div class="field">
@@ -190,7 +196,7 @@
       <div class="panel-heading">
         <h3><span class="section-icon manual-icon"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg></span>希望外のシフトを追加</h3>
       </div>
-      <form method="post" data-outside-shift-form>
+      <form method="post" data-outside-shift-form data-shift-availability-confirm data-availability-source="manual-shift-availabilities" data-is-bound="{{ outside_form.is_bound|yesno:'true,false' }}">
         {% csrf_token %}
         <input type="hidden" name="shift_mode" value="outside">
         {{ outside_form.work_date.as_hidden }}
@@ -202,7 +208,8 @@
           <div class="field staff-field">
             <label for="{{ outside_form.membership.id_for_label }}">スタッフ</label>
             {{ outside_form.membership }}
-            <p class="field-help">店長を含む、店舗の有効なメンバーから選べます。希望の提出状況にかかわらず、開始・終了時刻を設定できます。</p>
+            <p class="field-help">月の希望を提出し、この日に出勤可能な店長・スタッフが対象です。希望時間外で登録するときは、本人に確認したうえで警告画面から登録してください。</p>
+            <p class="field-help" data-availability-summary aria-live="polite"></p>
             {% if outside_form.membership.errors %}<div class="field-error" role="alert">{{ outside_form.membership.errors }}</div>{% endif %}
           </div>
           <div class="field">
@@ -215,6 +222,11 @@
             {{ outside_form.end_time }}
             {% if outside_form.end_time.errors %}<div class="field-error" role="alert">{{ outside_form.end_time.errors }}</div>{% endif %}
           </div>
+        </div>
+        <div class="field manual-availability-field" data-availability-slot-field hidden>
+          <label for="outside-availability-slot">希望時間帯</label>
+          <select id="outside-availability-slot" data-availability-slot aria-describedby="outside-availability-help"></select>
+          <p class="field-help" id="outside-availability-help">複数の希望があるため、元にする時間帯を選べます。</p>
         </div>
         <div class="manual-extra-fields">
           <div class="field">

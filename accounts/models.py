@@ -121,6 +121,10 @@ class CompanyMembership(models.Model):
 
 
 class StoreMembership(models.Model):
+    class SubmissionMode(models.TextChoices):
+        AVAILABILITY = "availability", "出勤希望方式"
+        DAY_OFF = "day_off", "休み希望方式"
+
     ROLE_CHOICES = [
         ("manager", "Manager"),
         ("staff", "Staff"),
@@ -153,6 +157,10 @@ class StoreMembership(models.Model):
         default="C",
     )
     desired_shifts_per_week = models.PositiveIntegerField(default=0)
+    submission_mode = models.CharField(
+        "シフト希望の提出方式", max_length=12,
+        choices=SubmissionMode.choices, default=SubmissionMode.AVAILABILITY,
+    )
     can_view_shifts = models.BooleanField("全体シフトの閲覧", default=True)
     can_submit_availability = models.BooleanField("シフト希望の提出", default=True)
     show_in_shift_overview = models.BooleanField("全体シフト表に表示", default=True)

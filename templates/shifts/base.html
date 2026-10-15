@@ -40,12 +40,12 @@
       {% if can_submit_for_selected_store and not submission_closed %}
         <a class="nav-link{% if current_url == 'availability_create' %} active{% endif %}" href="{% url 'availability_create' %}{% if selected_date %}?date={{ selected_date|date:'Y-m-d' }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}{% elif submission_store_id %}?store={{ submission_store_id }}{% endif %}"{% if current_url == 'availability_create' %} aria-current="page"{% endif %}>
           <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
-          <span>希望を提出</span>
+          <span>希望を入力</span>
         </a>
       {% else %}
         <span class="nav-link nav-link-disabled" aria-disabled="true">
           <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
-          <span>{% if not can_submit_for_selected_store and membership %}希望提出の権限なし{% elif submission_closed %}希望提出は締切済み{% else %}希望を提出{% endif %}</span>
+          <span>{% if not can_submit_for_selected_store and membership %}希望提出の権限なし{% elif submission_closed %}希望入力は締切済み{% else %}希望を入力{% endif %}</span>
         </span>
       {% endif %}
       <a class="nav-link{% if current_url == 'shift_list' %} active{% endif %}" href="{% url 'shift_list' %}{% if selected_date %}?year={{ selected_date|date:'Y' }}&amp;month={{ selected_date|date:'n' }}&amp;date={{ selected_date|date:'Y-m-d' }}{% endif %}"{% if current_url == 'shift_list' %} aria-current="page"{% endif %}>
@@ -62,6 +62,12 @@
           <svg class="icon" aria-hidden="true"><use href="#icon-users"></use></svg>
           <span>全体シフト</span>
         </span>
+      {% endif %}
+      {% if membership and can_submit_for_selected_store %}
+        <a class="nav-link{% if current_url == 'submission_settings' %} active{% endif %}" href="{% url 'submission_settings' %}?store={{ membership.store_id }}{% if year and month %}&amp;year={{ year }}&amp;month={{ month }}{% endif %}"{% if current_url == 'submission_settings' %} aria-current="page"{% endif %}>
+          <svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg>
+          <span>シフト提出設定</span>
+        </a>
       {% endif %}
     </nav>
   {% endwith %}

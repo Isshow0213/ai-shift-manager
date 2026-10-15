@@ -11,6 +11,7 @@ from django.urls import reverse
 
 from accounts.models import Company, Store, StoreMembership
 from .models import Availability, Requirement, Shift
+from .testing import submitted_availability
 
 
 class DashboardLinks(HTMLParser):
@@ -64,7 +65,7 @@ class ManagerDashboardMonthTests(TestCase):
         ]
         cls.december_availability = cls.make_availability(cls.staff_memberships[2], date(2026, 12, 1))
         cls.make_availability(cls.foreign_membership, date(2026, 11, 12))
-        Availability.objects.create(
+        submitted_availability(
             user=cls.staff_memberships[0].user, membership=None,
             work_date=date(2026, 11, 12), start_time=time(9), end_time=time(12),
         )
@@ -94,7 +95,7 @@ class ManagerDashboardMonthTests(TestCase):
 
     @classmethod
     def make_availability(cls, membership, work_date):
-        return Availability.objects.create(
+        return submitted_availability(
             user=membership.user, membership=membership, work_date=work_date,
             start_time=time(9), end_time=time(12),
         )

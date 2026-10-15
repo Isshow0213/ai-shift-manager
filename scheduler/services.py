@@ -3,7 +3,8 @@ from datetime import date
 from django.db import transaction
 
 from accounts.models import Store
-from shifts.models import Availability, HelpShift, Requirement, Shift
+from shifts.models import HelpShift, Requirement, Shift
+from shifts.eligibility import EligibilityIndex
 
 
 @transaction.atomic
@@ -41,6 +42,7 @@ def generate_shifts_for_store(store_id, work_date):
             "name", "start_time", "end_time"
         )
     )
+    eligibility_index = EligibilityIndex(store, work_date)
 
     for requirement in requirements:
         covered_users = {
@@ -62,21 +64,16 @@ def generate_shifts_for_store(store_id, work_date):
             - len(covered_helpers),
         )
 
-        candidates = Availability.objects.filter(
-            membership__store=store,
-            membership__role="staff",
-            membership__is_active=True,
-            membership__user__is_active=True,
-            work_date=requirement.work_date,
-            start_time__lte=requirement.start_time,
-            end_time__gte=requirement.end_time,
-        ).select_related("membership").order_by("membership_id", "id")
-
-        for availability in candidates:
+        candidates = sorted(
+            (membership for membership in eligibility_index.memberships if membership.role == "staff"),
+            key=lambda membership: membership.pk,
+        )
+        for membership in candidates:
             if remaining_count == 0:
                 break
-
-            user_id = availability.membership.user_id
+            if not eligibility_index.for_membership(membership).covers(requirement.start_time, requirement.end_time):
+                continue
+            user_id = membership.user_id
             if any(
                 scheduled_user_id == user_id
                 and start_time < requirement.end_time
@@ -87,7 +84,7 @@ def generate_shifts_for_store(store_id, work_date):
 
             Shift.objects.create(
                 user_id=user_id,
-                membership=availability.membership,
+                membership=membership,
                 store=store,
                 work_date=requirement.work_date,
                 start_time=requirement.start_time,

@@ -1,5 +1,5 @@
 {% extends "manager/base.html" %}
-{% load static %}
+{% load static i18n %}
 
 {% block title %}希望提出状況{% endblock %}
 {% block page_title %}希望提出状況{% endblock %}
@@ -17,6 +17,24 @@
   .unsubmitted-list { display: flex; flex-wrap: wrap; gap: 12px; padding: 24px; margin: 0; list-style: none; }
   .unsubmitted-list li { display: flex; align-items: center; gap: 9px; padding: 8px 14px 8px 8px; border: 1px solid #e9edf3; border-radius: 9px; color: #59677f; font-size: 13px; }
   .unsubmitted-note { color: #8b96a7; font-size: 11px; font-weight: 400; }
+  .month-submission-table { min-width: 760px; }
+  .submission-status-note { margin: 0; padding: 0 24px 18px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+  .submission-day-off-dates { min-width: 160px; max-width: 260px; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+  .month-submission-table .submitted-at { font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  @media (max-width: 600px) {
+    .submission-status-note { padding: 0 16px 16px; font-size: 12px; }
+    .month-submission-table { display: block; width: 100%; min-width: 0; padding: 0 12px 12px; }
+    .month-submission-table thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .month-submission-table tbody { display: grid; gap: 12px; }
+    .month-submission-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px; border: 1px solid var(--border); border-radius: 9px; }
+    .month-submission-table td { min-width: 0; padding: 8px; border: 0; }
+    .month-submission-table td::before { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 400; content: attr(data-label); }
+    .month-submission-table .submission-person-cell { grid-column: 1 / -1; }
+    .month-submission-table .submission-person-cell::before { content: none; }
+    .month-submission-table .submission-day-off-dates { grid-column: 1 / -1; min-width: 0; max-width: none; }
+    .month-submission-table .availability-person { white-space: normal; overflow-wrap: anywhere; }
+    .month-submission-table .submission-person-cell .avatar { flex-shrink: 0; }
+  }
 </style>
 {% endblock %}
 
@@ -58,9 +76,32 @@
   </form>
 </section>
 <div class="availability-panels">
+  <section class="panel monthly-submission-status-panel" aria-label="月ごとの希望提出状況">
+    <div class="panel-heading"><h2>{{ year }}年{{ month }}月の提出状況</h2></div>
+    <p class="submission-status-note">日ごとの入力とは別に、月の提出が必要です。希望が0件でも、提出ボタンを押していれば「提出済み」になります。</p>
+    <div class="table-wrap">
+      <table class="data-table month-submission-table">
+        <thead><tr><th scope="col">従業員</th><th scope="col">提出方式</th><th scope="col">提出状況</th><th scope="col">提出日時</th><th scope="col">休み希望</th></tr></thead>
+        <tbody>
+          {% for row in submission_rows %}
+            <tr>
+              <td class="submission-person-cell" data-label="従業員"><div class="availability-person"><span class="avatar" aria-hidden="true">{{ row.membership.user.full_name_japanese|slice:':1' }}</span>{{ row.membership.user.full_name_japanese }}</div></td>
+              <td data-label="提出方式">{{ row.mode_label }}</td>
+              <td data-label="提出状況"><span class="status-badge {% if row.is_submitted %}badge-green{% elif row.submission %}badge-orange{% else %}badge-muted{% endif %}">{% if row.is_submitted %}提出済み{% elif row.submission %}下書き{% else %}未提出{% endif %}</span></td>
+              <td class="submitted-at" data-label="提出日時">{% if row.is_submitted and row.submission.submitted_at %}{{ row.submission.submitted_at|date:'n月j日 H:i' }}{% else %}—{% endif %}</td>
+              <td class="submission-day-off-dates" data-label="休み希望">{% if row.day_off_dates %}{% for day in row.day_off_dates %}{% language 'ja' %}{{ day|date:'n/j（D）' }}{% endlanguage %}{% if not forloop.last %}、{% endif %}{% endfor %}{% else %}指定なし{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-state" colspan="5">対象の従業員はいません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="panel">
     <div class="panel-heading">
-      <h2>{{ year }}年{{ month }}月の提出済み一覧</h2>
+      <h2>{{ year }}年{{ month }}月の入力済みの時間指定</h2>
       <span class="status-badge badge-blue">{{ availabilities|length }}件</span>
     </div>
     <div class="table-wrap">
@@ -68,6 +109,7 @@
         <thead>
           <tr>
             <th scope="col">従業員</th>
+            <th scope="col">提出状況</th>
             <th scope="col">日付</th>
             <th scope="col">開始時刻</th>
             <th scope="col">終了時刻</th>
@@ -79,6 +121,7 @@
           {% for availability in availabilities %}
             <tr>
               <td><div class="availability-person"><span class="avatar" aria-hidden="true">{{ availability.display_user.full_name_japanese|slice:":1" }}</span>{{ availability.display_user.full_name_japanese }}</div></td>
+              <td><span class="status-badge {% if availability.submission.is_submitted %}badge-green{% else %}badge-orange{% endif %}">{% if availability.submission.is_submitted %}提出済み{% else %}下書き{% endif %}</span></td>
               <td>{{ availability.work_date|date:"Y/m/d" }}</td>
               <td>{{ availability.start_time|time:"H:i" }}</td>
               <td>{{ availability.end_time|time:"H:i" }}</td>
@@ -86,7 +129,7 @@
               <td><a class="button button-secondary button-small" href="{% url 'manager_availability_edit' availability.pk %}?year={{ year }}&amp;month={{ month }}" aria-label="{{ availability.display_user.full_name_japanese }}の{{ availability.work_date|date:'n月j日' }}の希望を編集">編集</a></td>
             </tr>
           {% empty %}
-            <tr><td class="empty-state" colspan="6">選択月の提出はまだありません。</td></tr>
+            <tr><td class="empty-state" colspan="7">選択月の時間指定はまだ入力されていません。</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -95,7 +138,7 @@
 
   <section class="panel">
     <div class="panel-heading">
-      <h2>未提出者 <span class="unsubmitted-note">選択月の希望がない従業員</span></h2>
+      <h2>未提出者 <span class="unsubmitted-note">月の提出が未完了の従業員</span></h2>
       <span class="status-badge badge-orange">{{ unsubmitted_memberships|length }}人</span>
     </div>
     {% if unsubmitted_memberships %}

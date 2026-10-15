@@ -164,21 +164,26 @@ class ManagerAvailabilityEditTests(TestCase):
                 self.assertEqual(list(Availability.objects.values()), before)
                 self.assertEqual(response.context["original_work_date"], self.work_date)
 
-    def test_overlapping_wish_in_another_store_is_rejected_for_the_actual_owner(self):
+    def test_other_store_wish_does_not_block_editing_this_stores_wish(self):
         new_date = date(2026, 11, 13)
         self.make_availability(
             self.other_store_membership, work_date=new_date, start_time=time(10), end_time=time(12)
         )
-        before = list(Availability.objects.order_by("pk").values())
+        other_before = list(Availability.objects.filter(membership=self.other_store_membership).values())
 
         response = self.client.post(self.edit_url, self.edit_data(
             work_date=new_date.isoformat(), start_time="09:00", end_time="11:00",
             user=self.other_staff.pk,
         ))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context["form"].non_field_errors())
-        self.assertEqual(list(Availability.objects.order_by("pk").values()), before)
+        self.assertRedirects(response, self.list_for(new_date), fetch_redirect_response=False)
+        self.availability.refresh_from_db()
+        self.assertEqual(self.availability.user, self.staff)
+        self.assertEqual(self.availability.membership, self.membership)
+        self.assertEqual(self.availability.work_date, new_date)
+        self.assertEqual(self.availability.start_time, time(9))
+        self.assertEqual(self.availability.end_time, time(11))
+        self.assertEqual(list(Availability.objects.filter(membership=self.other_store_membership).values()), other_before)
 
     def test_adjacent_wishes_are_allowed(self):
         self.make_availability(self.other_store_membership, start_time=time(17), end_time=time(18))

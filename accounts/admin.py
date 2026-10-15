@@ -84,6 +84,7 @@ class StoreMembershipAdmin(admin.ModelAdmin):
         "role",
         "rank",
         "desired_shifts_per_week",
+        "submission_mode",
         "can_view_shifts",
         "can_submit_availability",
         "show_in_shift_overview",

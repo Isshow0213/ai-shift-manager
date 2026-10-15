@@ -124,10 +124,10 @@ class DeadlineFixtures(TestCase):
             store=cls.other_store, mode="monthly", monthly_deadline_day=1,
         )
 
-    def calendar_url(self, work_date):
+    def calendar_url(self, work_date, *, store=None):
         return (
             f"{reverse('availability_list')}?year={work_date.year}"
-            f"&month={work_date.month}&date={work_date.isoformat()}"
+            f"&month={work_date.month}&date={work_date.isoformat()}&store={(store or self.store).pk}"
         )
 
 
@@ -300,15 +300,15 @@ class EmployeeSubmissionDeadlineTests(DeadlineFixtures):
         self.assertEqual(legacy.deadline, datetime(2020, 1, 1, tzinfo=UTC))
         self.assertFalse(StoreSubmissionDeadline.objects.filter(store=self.store).exists())
 
-    def test_weekly_submission_remains_consistent_across_month_boundary(self):
+    def test_weekly_policy_locks_each_month_at_its_first_week_deadline(self):
         StoreSubmissionDeadline.objects.create(store=self.store, mode="weekly", weekly_deadline_weekday=2)
-        with patch("shifts.submission_deadlines.timezone.now", return_value=datetime(2026, 10, 21, 23, 59, tzinfo=TOKYO)):
+        with patch("shifts.submission_deadlines.timezone.now", return_value=datetime(2026, 9, 23, 23, 59, tzinfo=TOKYO)):
             self.client.force_login(self.staff)
             for work_date in [date(2026, 10, 31), date(2026, 11, 1)]:
                 response = self.submit(work_date)
                 self.assertRedirects(response, self.calendar_url(work_date), fetch_redirect_response=False)
         before = list(Availability.objects.order_by("pk").values())
-        with patch("shifts.submission_deadlines.timezone.now", return_value=datetime(2026, 10, 22, tzinfo=TOKYO)):
+        with patch("shifts.submission_deadlines.timezone.now", return_value=datetime(2026, 9, 24, tzinfo=TOKYO)):
             self.client.force_login(self.staff)
             response = self.submit(date(2026, 10, 30))
             self.assertEqual(response.status_code, 200)
@@ -326,14 +326,14 @@ class EmployeeSubmissionDeadlineTests(DeadlineFixtures):
 
         response = self.client.get(url)
 
-        self.assertRedirects(response, self.calendar_url(work_date), fetch_redirect_response=False)
+        self.assertRedirects(response, self.calendar_url(work_date, store=self.other_store), fetch_redirect_response=False)
         self.assertEqual(list(Availability.objects.values()), before)
         response = self.client.post(url)
-        self.assertRedirects(response, self.calendar_url(work_date), fetch_redirect_response=False)
+        self.assertRedirects(response, self.calendar_url(work_date, store=self.other_store), fetch_redirect_response=False)
         self.assertEqual(list(Availability.objects.values()), before)
         self.assertTrue(list(get_messages(response.wsgi_request)))
 
-    def test_calendar_closed_flags_and_delete_links_follow_each_saved_store(self):
+    def test_calendar_closed_flags_and_delete_links_are_scoped_to_selected_store(self):
         work_date = date(2026, 12, 18)
         closed = self.make_availability(work_date, membership=self.second_membership)
         own = Availability.objects.create(
@@ -349,9 +349,9 @@ class EmployeeSubmissionDeadlineTests(DeadlineFixtures):
         response = self.client.get(self.calendar_url(work_date))
 
         rows = {availability.pk: availability for availability in response.context["selected_availabilities"]}
-        self.assertTrue(rows[closed.pk].submission_closed)
+        self.assertNotIn(closed.pk, rows)
         self.assertFalse(rows[own.pk].submission_closed)
-        self.assertFalse(rows[legacy.pk].submission_closed)
+        self.assertNotIn(legacy.pk, rows)
         self.assertFalse(response.context["submission_closed"])
         selected_day = next(
             day for week in response.context["calendar_weeks"] for day in week if day["date"] == work_date
@@ -359,7 +359,13 @@ class EmployeeSubmissionDeadlineTests(DeadlineFixtures):
         self.assertFalse(selected_day["submission_closed"])
         self.assertNotContains(response, reverse("availability_delete", args=[closed.pk]))
         self.assertContains(response, reverse("availability_delete", args=[own.pk]))
-        self.assertContains(response, reverse("availability_delete", args=[legacy.pk]))
+        self.assertNotContains(response, reverse("availability_delete", args=[legacy.pk]))
+        foreign_response = self.client.get(self.calendar_url(work_date, store=self.other_store))
+        foreign_rows = list(foreign_response.context["selected_availabilities"])
+        self.assertEqual([row.pk for row in foreign_rows], [closed.pk])
+        self.assertTrue(foreign_rows[0].submission_closed)
+        self.assertTrue(foreign_response.context["submission_closed"])
+        self.assertNotContains(foreign_response, reverse("availability_delete", args=[closed.pk]))
         self.assertEqual(list(Availability.objects.order_by("pk").values()), before)
 
     def test_delete_can_use_open_saved_store_even_when_current_store_is_closed(self):
@@ -370,7 +376,7 @@ class EmployeeSubmissionDeadlineTests(DeadlineFixtures):
 
         response = self.client.post(reverse("availability_delete", args=[availability.pk]))
 
-        self.assertRedirects(response, self.calendar_url(work_date), fetch_redirect_response=False)
+        self.assertRedirects(response, self.calendar_url(work_date, store=self.other_store), fetch_redirect_response=False)
         self.assertFalse(Availability.objects.filter(pk=availability.pk).exists())
 
     def test_legacy_null_membership_delete_uses_current_store_deadline(self):

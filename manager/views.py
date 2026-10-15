@@ -9,7 +9,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from shifts.forms import AvailabilityForm
-from shifts.models import Availability, Requirement, Shift, HelpShift
+from shifts.models import Availability, Requirement, Shift, HelpShift, DayOffRequest, StoreOperatingHours
+from shifts.eligibility import EligibilityIndex, get_month_submission, submitted_availability_dates
 from .help_forms import HelpShiftForm
 from accounts.models import StaffInvitation, Store, StoreMembership
 from .forms import (
@@ -269,9 +270,7 @@ def shift_list(request):
         work_date__month=month,
     )
 
-    availability_dates = set(
-        monthly_availabilities.values_list("work_date", flat=True)
-    )
+    availability_dates = submitted_availability_dates(store, year, month)
 
     requirement_dates = set(
         monthly_requirements.values_list("work_date", flat=True)
@@ -368,10 +367,34 @@ def shift_list(request):
     eligible_membership_ids = set(
         form.fields["membership"].queryset.values_list("pk", flat=True)
     )
+    eligibility_index = EligibilityIndex(store, selected_date)
+    day_candidates = []
+    all_day_membership_ids = []
+    for membership in eligibility_index.memberships:
+        eligibility = eligibility_index.for_membership(membership)
+        if eligibility.available:
+            day_candidates.append({
+                "membership": membership, "all_day": eligibility.all_day,
+                "intervals": [{"start_time": start, "end_time": end} for start, end in eligibility.intervals],
+                "submission": eligibility.submission,
+            })
+            if eligibility.all_day:
+                all_day_membership_ids.append(str(membership.pk))
+    hours = StoreOperatingHours.objects.filter(store=store).first()
+    requirement_times = list(requirements)
+    all_day_start = min((requirement.start_time for requirement in requirement_times), default=None)
+    all_day_end = max((requirement.end_time for requirement in requirement_times), default=None)
+    if all_day_start is None and hours and hours.start_time and hours.end_time and hours.start_time < hours.end_time:
+        all_day_start, all_day_end = hours.start_time, hours.end_time
     availability_autofill = {
         "date": selected_date.isoformat(),
         "memberships": {},
+        "all_day_membership_ids": all_day_membership_ids,
+        "all_day_start_time": all_day_start.strftime("%H:%M") if all_day_start else "00:00",
+        "all_day_end_time": all_day_end.strftime("%H:%M") if all_day_end else "23:59",
     }
+    for membership_id in all_day_membership_ids:
+        availability_autofill["memberships"][membership_id] = []
     for availability in availabilities:
         if availability.membership_id in eligible_membership_ids:
             availability_autofill["memberships"].setdefault(
@@ -389,6 +412,7 @@ def shift_list(request):
             **calendar_context,
             "store": store,
             "availabilities": availabilities,
+            "day_candidates": day_candidates,
             "requirements": requirements,
             "shifts": shifts,
             "form": form,
@@ -437,16 +461,30 @@ def availability_edit(request, availability_id):
     form = AvailabilityForm(
         request.POST if request.method == "POST" else None,
         instance=availability, user=availability.user, submission_deadline=None,
+        store=store, membership=availability.membership,
     )
     if request.method == "POST" and form.is_valid():
         edited_availability = form.save(commit=False)
-        edited_availability.save(update_fields=["work_date", "start_time", "end_time"])
-        messages.success(request, "従業員のシフト希望を変更しました。")
-        work_date = edited_availability.work_date
-        return redirect(
-            f"{reverse('manager_availability_list')}?year={work_date.year}"
-            f"&month={work_date.month}&date={work_date.isoformat()}"
-        )
+        with transaction.atomic():
+            if edited_availability.membership_id:
+                StoreMembership.objects.select_for_update().get(pk=edited_availability.membership_id)
+            target_submission = get_month_submission(edited_availability.membership, edited_availability.work_date)
+            if target_submission and DayOffRequest.objects.filter(
+                submission=target_submission, work_date=edited_availability.work_date,
+            ).exists():
+                form.add_error(None, "休み希望日に時間指定を保存することはできません。休み希望を変更してください。")
+            else:
+                edited_availability.submission = get_month_submission(
+                    edited_availability.membership, edited_availability.work_date, create=True,
+                )
+                edited_availability.save(update_fields=["work_date", "start_time", "end_time", "submission"])
+        if not form.errors:
+            messages.success(request, "従業員のシフト希望を変更しました。")
+            work_date = edited_availability.work_date
+            return redirect(
+                f"{reverse('manager_availability_list')}?year={work_date.year}"
+                f"&month={work_date.month}&date={work_date.isoformat()}"
+            )
 
     return render(request, "manager/availability_edit.html", {
         **calendar_context, "store": store, "availability": availability, "form": form,
