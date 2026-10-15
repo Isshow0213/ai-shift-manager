@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from accounts.models import Company, Store, StoreMembership
-from shifts.models import Availability, Requirement, Shift
+from shifts.models import Availability, HelpShift, Requirement, Shift
 
 from .services import generate_shifts_for_store
 
@@ -77,6 +77,24 @@ class GenerateShiftsForStoreTests(TestCase):
             start_time=start_time,
             end_time=end_time,
             is_generated=is_generated,
+        )
+
+    def make_help_shift(
+        self,
+        name="ヘルプスタッフ",
+        *,
+        store=None,
+        work_date=None,
+        start_time=time(8),
+        end_time=time(18),
+    ):
+        return HelpShift.objects.create(
+            store=store or self.store,
+            name=name,
+            work_date=work_date or self.work_date,
+            start_time=start_time,
+            end_time=end_time,
+            note="他店舗からのヘルプ",
         )
 
     def test_only_active_staff_with_covering_availability_are_selected(self):
@@ -262,6 +280,104 @@ class GenerateShiftsForStoreTests(TestCase):
         )
         self.assertEqual(Shift.objects.count(), 1)
 
+    def test_covering_help_shift_reduces_the_staff_to_generate(self):
+        staff = self.make_membership("staff")
+        self.make_availability(staff)
+        self.make_help_shift(start_time=time(9), end_time=time(10))
+        self.make_requirement(required_staff_count=2)
+
+        result = generate_shifts_for_store(self.store.id, self.work_date)
+
+        self.assertEqual(
+            result,
+            {"created_count": 1, "shortfall_count": 0, "requirement_count": 1},
+        )
+        self.assertEqual(Shift.objects.get().user_id, staff.user_id)
+
+    def test_helpers_can_cover_all_staffing_without_staff_availability(self):
+        self.make_help_shift("応援 一郎")
+        self.make_help_shift("応援 二郎")
+        self.make_requirement(required_staff_count=2)
+
+        result = generate_shifts_for_store(self.store.id, self.work_date)
+
+        self.assertEqual(
+            result,
+            {"created_count": 0, "shortfall_count": 0, "requirement_count": 1},
+        )
+        self.assertFalse(Shift.objects.exists())
+
+    def test_duplicate_help_names_count_once_independently_from_staff_names(self):
+        staff = self.make_membership("same_name")
+        staff.user.last_name = "応援"
+        staff.user.first_name = "一郎"
+        staff.user.save(update_fields=["last_name", "first_name"])
+        self.make_shift(staff, is_generated=False)
+        self.make_help_shift("応援 一郎")
+        self.make_help_shift("応援 一郎")
+        self.make_help_shift("応援 二郎")
+        self.make_requirement(required_staff_count=4)
+
+        result = generate_shifts_for_store(self.store.id, self.work_date)
+
+        self.assertEqual(
+            result,
+            {"created_count": 0, "shortfall_count": 1, "requirement_count": 1},
+        )
+
+    def test_partial_and_adjacent_help_shifts_do_not_cover_a_full_requirement(self):
+        self.make_help_shift("途中まで", end_time=time(9, 30))
+        self.make_help_shift("途中から", start_time=time(9, 30))
+        self.make_help_shift("交代なし", end_time=time(9, 30))
+        self.make_help_shift("交代なし", start_time=time(9, 30))
+        self.make_requirement()
+
+        result = generate_shifts_for_store(self.store.id, self.work_date)
+
+        self.assertEqual(
+            result,
+            {"created_count": 0, "shortfall_count": 1, "requirement_count": 1},
+        )
+
+    def test_help_shifts_from_other_stores_or_days_do_not_cover_staffing(self):
+        self.make_help_shift("別店舗", store=self.other_store)
+        self.make_help_shift(
+            "翌日", work_date=self.work_date + timedelta(days=1)
+        )
+        self.make_requirement()
+
+        result = generate_shifts_for_store(self.store.id, self.work_date)
+
+        self.assertEqual(
+            result,
+            {"created_count": 0, "shortfall_count": 1, "requirement_count": 1},
+        )
+
+    def test_regeneration_preserves_all_help_shifts_and_uses_them_again(self):
+        staff = self.make_membership("staff")
+        self.make_availability(staff)
+        self.make_requirement(required_staff_count=2)
+        self.make_help_shift("当日ヘルプ")
+        self.make_help_shift("別店舗ヘルプ", store=self.other_store)
+        self.make_help_shift(
+            "翌日ヘルプ", work_date=self.work_date + timedelta(days=1)
+        )
+        helpers_before = list(HelpShift.objects.order_by("pk").values())
+        expected_result = {
+            "created_count": 1,
+            "shortfall_count": 0,
+            "requirement_count": 1,
+        }
+
+        for _ in range(2):
+            result = generate_shifts_for_store(self.store.id, self.work_date)
+
+            self.assertEqual(result, expected_result)
+            self.assertEqual(Shift.objects.filter(is_generated=True).count(), 1)
+            self.assertEqual(
+                list(HelpShift.objects.order_by("pk").values()), helpers_before
+            )
+
     def test_adjacent_requirements_are_not_treated_as_overlapping(self):
         staff = self.make_membership("staff")
         self.make_availability(staff)
@@ -283,7 +399,9 @@ class GenerateShiftsForStoreTests(TestCase):
             staff, start_time=time(16), end_time=time(17), is_generated=False
         )
         self.make_requirement(work_date=self.work_date + timedelta(days=1))
+        self.make_help_shift()
         shifts_before = list(Shift.objects.order_by("pk").values())
+        helpers_before = list(HelpShift.objects.order_by("pk").values())
 
         result = generate_shifts_for_store(self.store.id, self.work_date)
 
@@ -292,6 +410,9 @@ class GenerateShiftsForStoreTests(TestCase):
             {"created_count": 0, "shortfall_count": 0, "requirement_count": 0},
         )
         self.assertEqual(list(Shift.objects.order_by("pk").values()), shifts_before)
+        self.assertEqual(
+            list(HelpShift.objects.order_by("pk").values()), helpers_before
+        )
 
     def test_creation_failure_restores_deleted_and_preserved_shifts(self):
         first_staff = self.make_membership("first_staff")
@@ -303,7 +424,9 @@ class GenerateShiftsForStoreTests(TestCase):
         self.make_shift(
             second_staff, start_time=time(16), end_time=time(17), is_generated=False
         )
+        self.make_help_shift(start_time=time(16), end_time=time(17))
         shifts_before = list(Shift.objects.order_by("pk").values())
+        helpers_before = list(HelpShift.objects.order_by("pk").values())
         original_create = Shift.objects.create
         create_count = 0
 
@@ -322,3 +445,6 @@ class GenerateShiftsForStoreTests(TestCase):
 
         self.assertEqual(create_count, 2)
         self.assertEqual(list(Shift.objects.order_by("pk").values()), shifts_before)
+        self.assertEqual(
+            list(HelpShift.objects.order_by("pk").values()), helpers_before
+        )

@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from accounts.models import StoreMembership
 from .calendar_utils import get_calendar_context
-from .models import Shift, ShiftDisplayOrder
+from .models import HelpShift, Shift, ShiftDisplayOrder
 
 
 def order_overview_users(store, users):
@@ -137,16 +137,47 @@ def build_shift_overview_context(request, store, *, calendar_url_name=None):
             "hours_display": f"{total_minutes // 60}:{total_minutes % 60:02d}",
         })
 
-    total_minutes = sum(minutes_by_user.values())
+    monthly_help_shifts = list(HelpShift.objects.filter(
+        store=store, work_date__year=year, work_date__month=month,
+    ).order_by("name", "work_date", "start_time", "end_time", "pk"))
+    help_by_name_date = {}
+    help_names_by_date = {day["date"]: set() for day in month_days}
+    minutes_by_help = {}
+    for shift in monthly_help_shifts:
+        help_by_name_date.setdefault((shift.name, shift.work_date), []).append(shift)
+        help_names_by_date[shift.work_date].add(shift.name)
+        duration = datetime.combine(shift.work_date, shift.end_time) - datetime.combine(shift.work_date, shift.start_time)
+        minutes_by_help[shift.name] = minutes_by_help.get(shift.name, 0) + max(0, int(duration.total_seconds() // 60))
+
+    help_rows = []
+    for name in sorted(minutes_by_help):
+        cells = [{
+            "date": day["date"], "shifts": help_by_name_date.get((name, day["date"]), []),
+            "url": day["url"],
+        } for day in month_days]
+        total_minutes = minutes_by_help[name]
+        help_rows.append({
+            "name": name, "cells": cells,
+            "working_days": sum(bool(cell["shifts"]) for cell in cells),
+            "shift_count": sum(len(cell["shifts"]) for cell in cells),
+            "total_minutes": total_minutes,
+            "hours_display": f"{total_minutes // 60}:{total_minutes % 60:02d}",
+        })
+
+    total_minutes = sum(minutes_by_user.values()) + sum(minutes_by_help.values())
     return {
         **calendar_context,
         "store": store,
         "month_days": month_days,
         "rows": rows,
+        "help_rows": help_rows,
         "days_count": len(month_days),
-        "day_staff_counts": [len(staff_by_date[day["date"]]) for day in month_days],
-        "total_shifts": len(monthly_shifts),
+        "day_staff_counts": [len(staff_by_date[day["date"]]) + len(help_names_by_date[day["date"]]) for day in month_days],
+        "total_shifts": len(monthly_shifts) + len(monthly_help_shifts),
+        "total_help_shifts": len(monthly_help_shifts),
+        "scheduled_help_count": len(help_rows),
+        "scheduled_people_count": len(scheduled_users) + len(help_rows),
         "scheduled_staff_count": len(scheduled_users),
-        "total_working_days": sum(row["working_days"] for row in rows),
+        "total_working_days": sum(row["working_days"] for row in rows + help_rows),
         "total_hours_display": f"{total_minutes // 60}:{total_minutes % 60:02d}",
     }

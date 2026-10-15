@@ -9,7 +9,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from shifts.forms import AvailabilityForm
-from shifts.models import Availability, Requirement, Shift
+from shifts.models import Availability, Requirement, Shift, HelpShift
+from .help_forms import HelpShiftForm
 from accounts.models import StaffInvitation, Store, StoreMembership
 from .forms import (
     AvailabilityShiftForm, OutsideAvailabilityShiftForm, ShiftForm,
@@ -279,6 +280,9 @@ def shift_list(request):
     shift_dates = set(
         monthly_shifts.values_list("work_date", flat=True)
     )
+    shift_dates.update(HelpShift.objects.filter(
+        store=store, work_date__year=year, work_date__month=month,
+    ).values_list("work_date", flat=True))
 
     for week in calendar_context["calendar_weeks"]:
         for day in week:
@@ -324,7 +328,7 @@ def shift_list(request):
         if request.method == "POST" else None
     )
     form = AvailabilityShiftForm(
-        request.POST if request.method == "POST" and submitted_mode != "outside" else None,
+        request.POST if request.method == "POST" and submitted_mode not in ("outside", "help") else None,
         store=store, selected_date=selected_date, initial={"work_date": selected_date},
     )
     outside_form = OutsideAvailabilityShiftForm(
@@ -332,15 +336,26 @@ def shift_list(request):
         store=store, selected_date=selected_date,
         initial={"work_date": selected_date}, prefix="outside",
     )
+    help_form = HelpShiftForm(
+        request.POST if request.method == "POST" and submitted_mode == "help" else None,
+        store=store, selected_date=selected_date,
+        initial={"work_date": selected_date}, prefix="help",
+    )
+    help_shifts = HelpShift.objects.filter(store=store, work_date=selected_date)
 
     if request.method == "POST":
+        if submitted_mode == "help":
+            if help_form.is_valid():
+                help_shift = help_form.save()
+                messages.success(request, "ヘルプのシフトを追加しました。")
+                return redirect(_shift_calendar_url(help_shift.work_date))
         submitted_form = outside_form if submitted_mode == "outside" else form
-        if submitted_mode not in ("availability", "outside"):
+        if submitted_mode not in ("availability", "outside", "help"):
             submitted_form.is_valid()
             submitted_form.add_error(
                 None, "追加方法が不正です。画面の追加ボタンから操作してください。"
             )
-        elif submitted_form.is_valid():
+        elif submitted_mode != "help" and submitted_form.is_valid():
             shift = submitted_form.save(commit=False)
             shift.store = store
             shift.user = shift.membership.user
@@ -378,6 +393,8 @@ def shift_list(request):
             "shifts": shifts,
             "form": form,
             "outside_form": outside_form,
+            "help_form": help_form,
+            "help_shifts": help_shifts,
             "availability_autofill": availability_autofill,
         },
     )

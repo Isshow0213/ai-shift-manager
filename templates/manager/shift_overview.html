@@ -63,10 +63,12 @@
     <section class="stat-card">
       <p class="stat-label">登録済みシフト</p>
       <div class="stat-value">{{ total_shifts }}<small>件</small></div>
+      {% if total_help_shifts %}<p class="help-shift-stat-detail">うちヘルプ {{ total_help_shifts }}件</p>{% endif %}
     </section>
     <section class="stat-card">
-      <p class="stat-label">勤務予定の従業員</p>
-      <div class="stat-value">{{ scheduled_staff_count }}<small>人</small></div>
+      <p class="stat-label">勤務予定の人数</p>
+      <div class="stat-value">{{ scheduled_people_count }}<small>人</small></div>
+      {% if scheduled_help_count %}<p class="help-shift-stat-detail">うちヘルプ {{ scheduled_help_count }}人</p>{% endif %}
     </section>
     <section class="stat-card">
       <p class="stat-label">延べ勤務日数</p>
@@ -83,6 +85,7 @@
       <h2>{{ year }}年{{ month }}月のシフト表</h2>
       <div class="overview-legend" aria-label="シフトの表示について">
         <span>作成方法：手動 / 自動生成</span>
+        {% if help_rows %}<span><i class="help-shift-badge">ヘルプ</i>名前を手入力した応援</span>{% endif %}
         <span>色：シフトごとの設定</span>
         <span><i class="overview-legend-dash" aria-hidden="true">—</i>勤務登録なし</span>
       </div>
@@ -109,10 +112,10 @@
     {% endif %}
     <div class="overview-scroll" tabindex="0" role="region" aria-label="{{ year }}年{{ month }}月の店舗全員のシフト表。左右にスクロールできます。" aria-describedby="overview-board-help">
       <table class="shift-overview-table">
-        <caption class="overview-sr-only">{{ store.name }} {{ year }}年{{ month }}月のシフト一覧。行は従業員、列は勤務日です。</caption>
+        <caption class="overview-sr-only">{{ store.name }} {{ year }}年{{ month }}月のシフト一覧。行は従業員とヘルプ、列は勤務日です。</caption>
         <thead>
           <tr>
-            <th scope="col" class="overview-staff-column">従業員</th>
+            <th scope="col" class="overview-staff-column">従業員・ヘルプ</th>
             {% for day in month_days %}
               <th scope="col" class="overview-day-header{% if day.is_saturday %} is-saturday{% endif %}{% if day.is_sunday %} is-sunday{% endif %}{% if day.is_today %} is-today{% endif %}">
                 <a class="overview-day-link" href="{{ day.url }}" aria-label="{{ day.date|date:'n月j日' }}{{ day.weekday }}曜日のシフトを作成">
@@ -163,13 +166,47 @@
               <td class="overview-person-total"><strong>{{ row.hours_display }}</strong></td>
             </tr>
           {% empty %}
+            {% if not help_rows %}
             <tr>
               <th scope="row" class="overview-staff-column overview-empty-row">対象の従業員がいません</th>
               {% for day in month_days %}<td class="overview-shift-cell"><span class="overview-no-shift">—</span></td>{% endfor %}
               <td class="overview-person-total">0日</td><td class="overview-person-total">0:00</td>
             </tr>
+            {% endif %}
           {% endfor %}
         </tbody>
+        {% if help_rows %}
+        <tbody class="overview-help-rows">
+          {% for row in help_rows %}
+            <tr class="help-shift-row">
+              <th scope="row" class="overview-staff-column">
+                <div class="overview-person">
+                  <span class="avatar overview-avatar" aria-hidden="true">{{ row.name|slice:':1' }}</span>
+                  <div class="overview-person-details">
+                    <span class="overview-user-name">{{ row.name }}</span>
+                    <span class="help-shift-badge">ヘルプ</span>
+                  </div>
+                </div>
+              </th>
+              {% for cell in row.cells %}
+                <td class="overview-shift-cell{% if cell.date.weekday == 5 or cell.date.weekday == 6 %} is-weekend{% endif %}{% if cell.date == today %} is-today{% endif %}">
+                  {% for help_shift in cell.shifts %}
+                    <a class="overview-shift {{ help_shift.display_color_class }}" href="{% url 'manager_help_shift_edit' help_shift.pk %}" aria-label="{{ row.name }} {{ cell.date|date:'n月j日' }} {{ help_shift.start_time|time:'H:i' }}〜{{ help_shift.end_time|time:'H:i' }}のヘルプシフトを編集"{% if help_shift.note %} aria-describedby="overview-help-note-{{ help_shift.pk }}"{% endif %}>
+                      <span class="overview-shift-time">{{ help_shift.start_time|time:"H:i" }}<span aria-hidden="true">–</span>{{ help_shift.end_time|time:"H:i" }}</span>
+                      <span class="overview-shift-method">ヘルプ</span>
+                      {% if help_shift.note %}<span id="overview-help-note-{{ help_shift.pk }}" class="shift-note overview-shift-note">{{ help_shift.note }}</span>{% endif %}
+                    </a>
+                  {% empty %}
+                    <a class="overview-no-shift" href="{{ cell.url }}" aria-label="{{ row.name }} {{ cell.date|date:'n月j日' }}は勤務登録なし。この日のシフトを作成">—</a>
+                  {% endfor %}
+                </td>
+              {% endfor %}
+              <td class="overview-person-total"><strong>{{ row.working_days }}</strong><span class="overview-unit">日</span><small>{{ row.shift_count }}件</small></td>
+              <td class="overview-person-total"><strong>{{ row.hours_display }}</strong></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        {% endif %}
         <tfoot>
           <tr>
             <th scope="row" class="overview-staff-column">出勤人数</th>

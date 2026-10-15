@@ -234,6 +234,52 @@
       </form>
     </section>
 
+    <section class="panel detail-panel manual-panel help-shift-panel">
+      <div class="panel-heading">
+        <h3><span class="section-icon manual-icon"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg></span>ヘルプのシフトを追加</h3>
+      </div>
+      <form method="post" data-help-shift-form>
+        {% csrf_token %}
+        <input type="hidden" name="shift_mode" value="help">
+        {{ help_form.work_date.as_hidden }}
+        {% if help_form.non_field_errors %}<div class="field-error" role="alert">{{ help_form.non_field_errors }}</div>{% endif %}
+        {% if help_form.work_date.errors %}<div class="field-error" role="alert">{{ help_form.work_date.errors }}</div>{% endif %}
+        <div class="manual-fields">
+          <div class="field staff-field">
+            <label for="{{ help_form.name.id_for_label }}">ヘルプの名前</label>
+            {{ help_form.name }}
+            <p class="field-help">従業員登録をせずに、応援に来る人の名前を入力できます。</p>
+            {% if help_form.name.errors %}<div class="field-error" role="alert">{{ help_form.name.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            <label for="{{ help_form.start_time.id_for_label }}">開始時刻</label>
+            {{ help_form.start_time }}
+            {% if help_form.start_time.errors %}<div class="field-error" role="alert">{{ help_form.start_time.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            <label for="{{ help_form.end_time.id_for_label }}">終了時刻</label>
+            {{ help_form.end_time }}
+            {% if help_form.end_time.errors %}<div class="field-error" role="alert">{{ help_form.end_time.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="manual-extra-fields">
+          <div class="field">
+            {{ help_form.display_color.label_tag }}
+            {{ help_form.display_color }}
+            {% if help_form.display_color.help_text %}<p class="field-help">{{ help_form.display_color.help_text }}</p>{% endif %}
+            {% if help_form.display_color.errors %}<div class="field-error" role="alert">{{ help_form.display_color.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            {{ help_form.note.label_tag }}
+            {{ help_form.note }}
+            {% if help_form.note.help_text %}<p class="field-help">{{ help_form.note.help_text }}</p>{% endif %}
+            {% if help_form.note.errors %}<div class="field-error" role="alert">{{ help_form.note.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <button type="submit" class="button button-primary manual-submit">ヘルプのシフトを追加する</button>
+      </form>
+    </section>
+
     <section class="panel detail-panel">
       <div class="panel-heading">
         <h3><span class="section-icon shift-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span>この日の登録済みシフト</h3>
@@ -253,9 +299,22 @@
                   <a class="button button-danger button-small" href="{% url 'manager_shift_delete' shift.id %}" aria-label="{{ shift.user.full_name_japanese }}のシフトを削除">削除</a>
                 </div></td>
               </tr>
-            {% empty %}
-              <tr><td colspan="5" class="empty-state">この日のシフトはまだありません。</td></tr>
             {% endfor %}
+            {% for help_shift in help_shifts %}
+              <tr class="help-shift-row">
+                <td>{{ help_shift.name }} <span class="help-shift-badge">ヘルプ</span>{% if help_shift.note %}<p class="shift-note shift-list-note">{{ help_shift.note }}</p>{% endif %}</td>
+                <td><span class="shift-list-time {{ help_shift.display_color_class }}">{{ help_shift.start_time|time:"H:i" }}</span></td>
+                <td><span class="shift-list-time {{ help_shift.display_color_class }}">{{ help_shift.end_time|time:"H:i" }}</span></td>
+                <td><span class="method-badge manual-badge">手動</span></td>
+                <td><div class="shift-list-actions">
+                  <a class="button button-secondary button-small" href="{% url 'manager_help_shift_edit' help_shift.pk %}" aria-label="{{ help_shift.name }}のヘルプシフトを編集">編集</a>
+                  <a class="button button-danger button-small" href="{% url 'manager_help_shift_delete' help_shift.pk %}" aria-label="{{ help_shift.name }}のヘルプシフトを削除">削除</a>
+                </div></td>
+              </tr>
+            {% endfor %}
+            {% if not shifts and not help_shifts %}
+              <tr><td colspan="5" class="empty-state">この日のシフトはまだありません。</td></tr>
+            {% endif %}
           </tbody>
         </table>
       </div>

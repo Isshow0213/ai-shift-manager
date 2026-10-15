@@ -3,7 +3,7 @@ from datetime import date
 from django.db import transaction
 
 from accounts.models import Store
-from shifts.models import Availability, Requirement, Shift
+from shifts.models import Availability, HelpShift, Requirement, Shift
 
 
 @transaction.atomic
@@ -36,6 +36,11 @@ def generate_shifts_for_store(store_id, work_date):
             "user_id", "start_time", "end_time"
         )
     )
+    help_shifts = list(
+        HelpShift.objects.filter(store=store, work_date=work_date).values_list(
+            "name", "start_time", "end_time"
+        )
+    )
 
     for requirement in requirements:
         covered_users = {
@@ -44,8 +49,17 @@ def generate_shifts_for_store(store_id, work_date):
             if start_time <= requirement.start_time
             and end_time >= requirement.end_time
         }
+        covered_helpers = {
+            name
+            for name, start_time, end_time in help_shifts
+            if start_time <= requirement.start_time
+            and end_time >= requirement.end_time
+        }
         remaining_count = max(
-            0, requirement.required_staff_count - len(covered_users)
+            0,
+            requirement.required_staff_count
+            - len(covered_users)
+            - len(covered_helpers),
         )
 
         candidates = Availability.objects.filter(

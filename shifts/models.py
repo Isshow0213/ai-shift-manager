@@ -169,6 +169,42 @@ class Shift(models.Model):
             f"{self.start_time}-{self.end_time}"
         )
 
+class HelpShift(models.Model):
+    """アカウントを作らず、名前を入力して登録するヘルプ勤務。"""
+
+    DISPLAY_COLOR_CHOICES = Shift.DISPLAY_COLOR_CHOICES
+
+    store = models.ForeignKey(
+        "accounts.Store", on_delete=models.CASCADE, related_name="help_shifts",
+    )
+    name = models.CharField("ヘルプの名前", max_length=150)
+    work_date = models.DateField("日付")
+    start_time = models.TimeField("開始時刻")
+    end_time = models.TimeField("終了時刻")
+    note = models.TextField("メモ", max_length=500, blank=True, default="")
+    display_color = models.CharField(
+        "表示色", max_length=8, choices=DISPLAY_COLOR_CHOICES, blank=True, default="",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_generated = False
+
+    class Meta:
+        ordering = ["work_date", "start_time", "pk"]
+        verbose_name = "ヘルプのシフト"
+        verbose_name_plural = "ヘルプのシフト"
+        constraints = [models.CheckConstraint(
+            condition=models.Q(end_time__gt=models.F("start_time")),
+            name="help_shift_end_after_start",
+        )]
+
+    @property
+    def display_color_class(self):
+        return Shift.display_color_class.fget(self)
+
+    def __str__(self):
+        return f"{self.name} {self.work_date} {self.start_time}-{self.end_time}"
+
+
 class ShiftDisplayOrder(models.Model):
     """店舗の全体シフト表で共有する従業員の表示順。"""
 

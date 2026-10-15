@@ -1,0 +1,27 @@
+{% extends "manager/base.html" %}
+{% load i18n %}
+
+{% block title %}ヘルプのシフトを削除 | シフト管理{% endblock %}
+{% block page_title %}ヘルプのシフトを削除{% endblock %}
+
+{% block content %}
+<section class="panel help-shift-delete">
+  <div class="panel-heading"><h2>このヘルプのシフトを削除しますか？</h2></div>
+  <div class="panel-body">
+    <dl class="help-shift-delete-summary">
+      <div><dt>名前</dt><dd>{{ help_shift.name }} <span class="help-shift-badge">ヘルプ</span></dd></div>
+      <div><dt>日付</dt><dd>{% language "ja" %}{{ help_shift.work_date|date:"Y年n月j日（D）" }}{% endlanguage %}</dd></div>
+      <div><dt>勤務時間</dt><dd>{{ help_shift.start_time|time:"H:i" }}〜{{ help_shift.end_time|time:"H:i" }}</dd></div>
+      <div><dt>店舗</dt><dd>{{ store.name }}</dd></div>
+      {% if help_shift.note %}<div><dt>メモ</dt><dd class="shift-note">{{ help_shift.note }}</dd></div>{% endif %}
+    </dl>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-actions">
+        <a class="button button-secondary" href="{{ calendar_url }}">キャンセル</a>
+        <button class="button button-danger" type="submit">ヘルプのシフトを削除する</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

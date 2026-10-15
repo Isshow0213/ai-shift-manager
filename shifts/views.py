@@ -18,7 +18,7 @@ from accounts.shift_access import (
 from scheduler.services import generate_shifts_for_store
 
 from .forms import AvailabilityForm, ManagerRequirementForm, ShiftGenerationForm, StoreOperatingHoursForm, SubmissionDeadlineForm
-from .models import Availability, Requirement, RequirementTimePreset, Shift, StoreOperatingHours, StoreSubmissionDeadline
+from .models import Availability, Requirement, RequirementTimePreset, Shift, HelpShift, StoreOperatingHours, StoreSubmissionDeadline
 from .calendar_utils import get_calendar_context
 from .overview import build_shift_overview_context
 from .requirement_bulk_forms import BulkRequirementForm, DAY_TYPES, RequirementTimeSlotFormSet, RequirementCategoryMemoForm
@@ -339,6 +339,9 @@ def dashboard(request):
         store=store,
         work_date__year=year,
         work_date__month=month,
+    ).count()
+    shifts_count += HelpShift.objects.filter(
+        store=store, work_date__year=year, work_date__month=month,
     ).count()
 
     return render(

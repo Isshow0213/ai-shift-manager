@@ -2,6 +2,7 @@ from django.urls import path
 
 from shifts import views as shift_views
 from . import views as manager_views
+from . import help_views
 
 
 urlpatterns = [
@@ -24,4 +25,6 @@ urlpatterns = [
     path("shifts/overview/order/", manager_views.shift_order_update, name="manager_shift_order_update"),
     path("shifts/<int:shift_id>/edit/", manager_views.shift_edit, name="manager_shift_edit"),
     path("shifts/<int:shift_id>/delete/", manager_views.shift_delete, name="manager_shift_delete"),
+    path("help-shifts/<int:shift_id>/edit/", help_views.help_shift_edit, name="manager_help_shift_edit"),
+    path("help-shifts/<int:shift_id>/delete/", help_views.help_shift_delete, name="manager_help_shift_delete"),
 ]

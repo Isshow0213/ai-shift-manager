@@ -4,6 +4,7 @@ from .models import (
     Availability,
     Requirement,
     Shift,
+    HelpShift,
     StoreOperatingHours,
     StoreSubmissionDeadline,
     AvailabilityChangeNotification,
@@ -65,6 +66,13 @@ class ShiftAdmin(admin.ModelAdmin):
         "work_date",
         "is_generated",
     )
+
+
+@admin.register(HelpShift)
+class HelpShiftAdmin(admin.ModelAdmin):
+    list_display = ("name", "store", "work_date", "start_time", "end_time", "note")
+    list_filter = ("store", "work_date")
+    search_fields = ("name", "note", "store__name")
 
 
 @admin.register(StoreOperatingHours)

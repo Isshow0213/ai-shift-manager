@@ -1,0 +1,36 @@
+{% extends "manager/base.html" %}
+{% load static i18n %}
+
+{% block title %}ヘルプのシフトを編集 | シフト管理{% endblock %}
+{% block page_title %}ヘルプのシフトを編集{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+{% endblock %}
+
+{% block content %}
+<section class="panel help-shift-editor">
+  <div class="panel-heading">
+    <h2>{{ help_shift.name }} <span class="help-shift-badge">ヘルプ</span></h2>
+  </div>
+  <form class="panel-body" method="post">
+    {% csrf_token %}
+    <p class="help-shift-editor-note">名前・勤務日時・メモ・表示色を変更できます。</p>
+    {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="form-grid">
+      {% for field in form %}
+        <div class="field{% if field.name == 'note' %} help-shift-field-full{% endif %}">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}<div class="field-error" role="alert">{{ field.errors }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="form-actions">
+      <a class="button button-secondary" href="{{ calendar_url }}">カレンダーへ戻る</a>
+      <button class="button button-primary" type="submit">変更を保存する</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
