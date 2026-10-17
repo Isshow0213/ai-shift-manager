@@ -203,6 +203,8 @@ class ShiftForm(forms.ModelForm):
 
 
 class ShiftCreationForm(ShiftForm):
+    requires_availability = True
+
     confirm_outside_availability = forms.BooleanField(
         label="希望時間外の登録確認", required=False, initial=False,
         widget=forms.HiddenInput(),
@@ -213,7 +215,11 @@ class ShiftCreationForm(ShiftForm):
         kwargs["include_managers"] = True
         kwargs["only_available_staff"] = False
         super().__init__(*args, selected_date=selected_date, **kwargs)
-        if self.store is not None and selected_date is not None:
+        if (
+            self.requires_availability
+            and self.store is not None
+            and selected_date is not None
+        ):
             self.fields["membership"].queryset = self.fields["membership"].queryset.filter(
                 pk__in=eligible_membership_ids(self.store, selected_date),
             )
@@ -228,6 +234,8 @@ class ShiftCreationForm(ShiftForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        if not self.requires_availability:
+            return cleaned_data
         membership = cleaned_data.get("membership")
         work_date = cleaned_data.get("work_date")
         start_time, end_time = cleaned_data.get("start_time"), cleaned_data.get("end_time")
@@ -249,4 +257,12 @@ class AvailabilityShiftForm(ShiftCreationForm):
 
 
 class OutsideAvailabilityShiftForm(ShiftCreationForm):
-    pass
+    requires_availability = False
+
+    confirm_outside_availability = forms.BooleanField(
+        label="希望外の登録確認", required=True, initial=False,
+        widget=forms.HiddenInput(),
+        error_messages={
+            "required": "希望外のシフトを追加するには、本人への確認後、確認画面で承認してください。",
+        },
+    )

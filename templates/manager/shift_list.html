@@ -208,7 +208,7 @@
           <div class="field staff-field">
             <label for="{{ outside_form.membership.id_for_label }}">スタッフ</label>
             {{ outside_form.membership }}
-            <p class="field-help">月の希望を提出し、この日に出勤可能な店長・スタッフが対象です。希望時間外で登録するときは、本人に確認したうえで警告画面から登録してください。</p>
+            <p class="field-help">この店舗の有効な店長・スタッフ全員を選べます。未提出・休み希望の日も、本人に確認したうえで確認画面から登録できます。</p>
             <p class="field-help" data-availability-summary aria-live="polite"></p>
             {% if outside_form.membership.errors %}<div class="field-error" role="alert">{{ outside_form.membership.errors }}</div>{% endif %}
           </div>

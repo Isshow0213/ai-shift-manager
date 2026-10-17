@@ -7,6 +7,7 @@
       const membership = form.querySelector('[name="membership"], [name$="-membership"]');
       const startTime = form.querySelector('[name="start_time"], [name$="-start_time"]');
       const endTime = form.querySelector('[name="end_time"], [name$="-end_time"]');
+      const alwaysConfirm = form.hasAttribute('data-outside-shift-form');
       const source = document.getElementById(form.dataset.availabilitySource || 'manual-shift-availabilities');
       let data;
       try {
@@ -59,10 +60,12 @@
           && data.all_day_membership_ids.map(String).includes(membership.value);
         const outside = !allDay && (!slots || !timePattern.test(start) || !timePattern.test(end)
           || !coversTime(slots, start, end));
-        if (outside) {
+        if (alwaysConfirm || outside) {
           const name = membership && membership.selectedOptions[0] ? membership.selectedOptions[0].textContent.trim() : '選択したスタッフ';
           const desired = slots && slots.length ? slots.map((slot) => `${slot.start_time}〜${slot.end_time}`).join('、') : '確認できません';
-          const warning = `希望時間外のシフトです\n\n${name}さんの希望時間：${desired}\n登録する時間：${start}〜${end}\n\n本人への確認はお済みですか？\n確認済みの場合は「OK」で登録してください。`;
+          const warning = alwaysConfirm
+            ? `希望外のシフトですがよろしいですか？\n\nスタッフ：${name}\n登録する時間：${start}〜${end}\n\n本人への確認はお済みですか？\n確認済みの場合は「OK」で登録してください。`
+            : `希望時間外のシフトです\n\n${name}さんの希望時間：${desired}\n登録する時間：${start}〜${end}\n\n本人への確認はお済みですか？\n確認済みの場合は「OK」で登録してください。`;
           if (!window.confirm(warning)) {
             event.preventDefault();
             return;

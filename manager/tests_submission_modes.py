@@ -54,7 +54,7 @@ class ManagerSubmissionModeTests(TestCase):
             values = {f"outside-{key}": value for key, value in values.items()}
         return {"shift_mode": mode, **values}
 
-    def test_both_manual_forms_exclude_unsubmitted_day_off_and_unavailable_people(self):
+    def test_only_wish_form_excludes_unsubmitted_day_off_and_unavailable_people(self):
         unsubmitted = self.member("manager_unsubmitted")
         self.availability(unsubmitted, None)
         empty_attendance = self.member("manager_empty_attendance")
@@ -77,23 +77,71 @@ class ManagerSubmissionModeTests(TestCase):
         response = self.client.get(self.calendar_url)
 
         self.assertEqual(response.status_code, 200)
-        for form_name in ["form", "outside_form"]:
-            with self.subTest(form=form_name):
-                self.assertEqual(set(response.context[form_name].fields["membership"].queryset),
-                                 {limited, all_day, attendance})
+        self.assertEqual(
+            set(response.context["form"].fields["membership"].queryset),
+            {limited, all_day, attendance},
+        )
+        self.assertEqual(
+            set(response.context["outside_form"].fields["membership"].queryset),
+            {
+                self.manager_membership, unsubmitted, empty_attendance, draft,
+                day_off, limited, all_day, attendance,
+            },
+        )
 
-    def test_unsubmitted_or_day_off_cannot_be_forged_even_with_confirmation(self):
+    def test_wish_form_rejects_unsubmitted_or_day_off_even_with_confirmation(self):
         unsubmitted = self.member("manager_forged_unsubmitted")
         day_off = self.member("manager_forged_day_off", mode="day_off")
         DayOffRequest.objects.create(submission=self.submission(day_off), work_date=self.work_date)
         for membership in [unsubmitted, day_off]:
-            for mode in ["availability", "outside"]:
-                with self.subTest(member=membership.pk, mode=mode):
-                    response = self.client.post(self.calendar_url, self.data(membership, mode=mode, confirm=True))
-                    self.assertEqual(response.status_code, 200)
-                    form_name = "form" if mode == "availability" else "outside_form"
-                    self.assertTrue(response.context[form_name].errors)
-                    self.assertFalse(Shift.objects.exists())
+            with self.subTest(member=membership.pk):
+                response = self.client.post(self.calendar_url, self.data(membership, confirm=True))
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.context["form"].errors.get("membership"))
+                self.assertFalse(Shift.objects.exists())
+
+    def test_confirmed_outside_shift_accepts_unsubmitted_day_off_empty_and_draft_without_changing_requests(self):
+        unsubmitted = self.member("outside_unsubmitted")
+        empty_attendance = self.member("outside_empty_attendance")
+        self.submission(empty_attendance)
+        draft = self.member("outside_draft", mode="day_off")
+        self.availability(draft, self.submission(draft, submitted=False))
+        day_off = self.member("outside_day_off", mode="day_off")
+        day_off_request = DayOffRequest.objects.create(
+            submission=self.submission(day_off), work_date=self.work_date,
+        )
+        original_submissions = list(ShiftSubmission.objects.order_by("pk").values_list(
+            "pk", "submission_mode", "is_submitted", "submitted_at",
+        ))
+        original_availability_ids = list(Availability.objects.order_by("pk").values_list("pk", flat=True))
+
+        for membership in [unsubmitted, empty_attendance, draft, day_off]:
+            with self.subTest(member=membership.pk):
+                response = self.client.post(
+                    self.calendar_url, self.data(membership, mode="outside", start="08:00", confirm=True),
+                )
+
+                self.assertRedirects(response, self.calendar_url, fetch_redirect_response=False)
+                shift = Shift.objects.get()
+                self.assertEqual(shift.membership, membership)
+                self.assertEqual(shift.user_id, membership.user_id)
+                self.assertEqual(shift.store, self.store)
+                self.assertEqual((shift.start_time, shift.end_time), (time(8), time(22)))
+                self.assertEqual(shift.note, "本人に確認済み")
+                self.assertEqual(shift.display_color, "blue")
+                self.assertFalse(shift.is_generated)
+                shift.delete()
+
+        self.assertEqual(
+            list(ShiftSubmission.objects.order_by("pk").values_list(
+                "pk", "submission_mode", "is_submitted", "submitted_at",
+            )), original_submissions,
+        )
+        self.assertEqual(
+            list(Availability.objects.order_by("pk").values_list("pk", flat=True)),
+            original_availability_ids,
+        )
+        self.assertTrue(DayOffRequest.objects.filter(pk=day_off_request.pk).exists())
 
     def test_all_day_person_can_be_added_without_an_availability_record(self):
         membership = self.member("manager_empty_day_off", mode="day_off")
