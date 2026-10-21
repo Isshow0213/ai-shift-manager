@@ -182,6 +182,7 @@ class Shift(models.Model):
         ("green", "緑"),
         ("red", "赤"),
         ("orange", "オレンジ"),
+        ("yellow", "黄色"),
         ("purple", "紫"),
         ("pink", "ピンク"),
         ("gray", "グレー"),

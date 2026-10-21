@@ -1,7 +1,10 @@
+import re
 from datetime import date, time
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.contrib.staticfiles import finders
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils.html import escape
 
@@ -9,6 +12,27 @@ from accounts.models import Company, Store, StoreMembership
 from scheduler.services import generate_shifts_for_store
 from shifts.models import Availability, Requirement, Shift
 from shifts.testing import submitted_availability
+
+
+class ShiftDisplayPaletteTests(SimpleTestCase):
+    def test_every_selectable_color_has_a_complete_shared_palette(self):
+        palette_path = finders.find("manager/shift_details.css")
+        self.assertIsNotNone(palette_path)
+        rules = dict(re.findall(
+            r"\.shift-color-([a-z]+)\s*\{([^}]*)\}",
+            Path(palette_path).read_text(),
+        ))
+
+        for color, label in Shift.DISPLAY_COLOR_CHOICES:
+            if not color:
+                continue
+            with self.subTest(color=color):
+                self.assertIn(color, rules)
+                declarations = set(re.findall(r"(--shift-[a-z]+)\s*:", rules[color]))
+                self.assertTrue(
+                    {"--shift-color", "--shift-background", "--shift-border"} <= declarations,
+                    f"{label}の文字・背景・枠線の色が定義されていません。",
+                )
 
 
 class ShiftDetailsTests(TestCase):
@@ -96,12 +120,12 @@ class ShiftDetailsTests(TestCase):
         self.assertEqual(shift.display_color_class, "shift-color-purple")
         shift.is_generated = False
         self.assertEqual(shift.display_color_class, "shift-color-blue")
-        for color in ["blue", "green", "red", "orange", "purple", "pink", "gray"]:
+        for color in ["blue", "green", "red", "yellow", "orange", "purple", "pink", "gray"]:
             with self.subTest(color=color):
                 shift.display_color = color
                 self.assertEqual(shift.display_color_class, f"shift-color-{color}")
         for generated in [True, False]:
-            for invalid_color in ["yellow", 'blue" onclick="alert(1)', "BLUE"]:
+            for invalid_color in ["cyan", 'blue" onclick="alert(1)', "BLUE"]:
                 with self.subTest(generated=generated, color=invalid_color):
                     shift.is_generated = generated
                     shift.display_color = invalid_color
@@ -137,7 +161,7 @@ class ShiftDetailsTests(TestCase):
                 self.assertEqual(form.fields["note"].max_length, 500)
                 self.assertEqual(
                     {value for value, label in form.fields["display_color"].choices},
-                    {"", "blue", "green", "red", "orange", "purple", "pink", "gray"},
+                    {"", "blue", "green", "red", "yellow", "orange", "purple", "pink", "gray"},
                 )
                 self.assertContains(response, 'name="note"')
                 self.assertContains(response, 'name="display_color"')
@@ -148,7 +172,7 @@ class ShiftDetailsTests(TestCase):
     def test_edit_saves_each_color_and_note_and_changes_generated_shift_to_manual(self):
         shift = self.make_shift(is_generated=True)
 
-        for color in ["blue", "green", "red", "orange", "purple", "pink", "gray"]:
+        for color in ["blue", "green", "red", "yellow", "orange", "purple", "pink", "gray"]:
             with self.subTest(color=color):
                 note = f"{color}のヘルプ先メモ"
                 response = self.client.post(
@@ -205,7 +229,7 @@ class ShiftDetailsTests(TestCase):
         ]:
             for field, value in [
                 ("note", "あ" * 501),
-                ("display_color", "yellow"),
+                ("display_color", "cyan"),
                 ("display_color", 'pink" onclick="alert(1)'),
             ]:
                 with self.subTest(url=url, field=field, value=value):
@@ -297,6 +321,30 @@ class ShiftDetailsTests(TestCase):
         own_shift.refresh_from_db()
         self.assertEqual(own_shift.note, note)
         self.assertEqual(own_shift.display_color, "pink")
+
+    def test_saved_red_and_yellow_colors_reach_confirmed_shifts_and_overviews(self):
+        for color, start, end in [("red", "09:00", "10:00"), ("yellow", "11:00", "12:00")]:
+            with self.subTest(color=color):
+                response = self.client.post(self.calendar_url, self.post_data(
+                    start_time=start, end_time=end, display_color=color,
+                ))
+                self.assertRedirects(response, self.calendar_url, fetch_redirect_response=False)
+                self.assertEqual(Shift.objects.latest("pk").display_color, color)
+
+        query = {**self.month_query, "date": self.work_date.isoformat(), "store": self.store.pk}
+        for user, name in [
+            (self.manager, "manager_shift_list"),
+            (self.manager, "manager_shift_overview"),
+            (self.staff, "shift_list"),
+            (self.staff, "availability_list"),
+            (self.staff, "store_shift_overview"),
+        ]:
+            with self.subTest(view=name):
+                self.client.force_login(user)
+                response = self.client.get(reverse(name), query)
+                self.assertContains(response, "shift-color-red")
+                self.assertContains(response, "shift-color-yellow")
+                self.assertContains(response, "manager/shift_details.")
 
     def test_generation_defaults_and_edited_details_survive_regeneration(self):
         Requirement.objects.create(

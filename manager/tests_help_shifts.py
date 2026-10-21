@@ -124,6 +124,30 @@ class HelpShiftTests(TestCase):
         self.assertEqual(help_shift.display_color, "")
         self.assertEqual(help_shift.display_color_class, "shift-color-blue")
 
+    def test_red_and_yellow_help_colors_save_and_render_in_shift_tables(self):
+        for color in ("red", "yellow"):
+            with self.subTest(color=color):
+                name = f"{color}のヘルプ"
+                response = self.client.post(self.calendar_url, self.help_data(
+                    name=name, display_color=color,
+                ))
+                self.assertRedirects(response, self.calendar_url, fetch_redirect_response=False)
+                help_shift = HelpShift.objects.get(name=name)
+                self.assertEqual(help_shift.display_color, color)
+                self.assertEqual(help_shift.display_color_class, f"shift-color-{color}")
+
+        query = {**self.month_query, "date": self.work_date.isoformat(), "store": self.store.pk}
+        for user, name in (
+            (self.manager, "manager_shift_list"),
+            (self.manager, "manager_shift_overview"),
+            (self.staff, "store_shift_overview"),
+        ):
+            with self.subTest(view=name):
+                self.client.force_login(user)
+                response = self.client.get(reverse(name), query)
+                self.assertContains(response, "shift-color-red")
+                self.assertContains(response, "shift-color-yellow")
+
     def test_creation_cannot_submit_a_different_day_than_selected_calendar_day(self):
         before = self.snapshots()
 
@@ -144,7 +168,7 @@ class HelpShiftTests(TestCase):
     def test_invalid_help_input_does_not_create_any_shift(self):
         cases = (
             ("name", ""), ("name", "   "), ("name", "名" * 151),
-            ("note", "あ" * 501), ("display_color", "yellow"),
+            ("note", "あ" * 501), ("display_color", "cyan"),
             ("work_date", "0001-01-01"), ("work_date", "9999-12-31"),
             ("work_date", "2030-02-30"), ("start_time", "24:00"),
             ("end_time", "09:00"), ("end_time", "08:59"),
@@ -225,7 +249,7 @@ class HelpShiftTests(TestCase):
     def test_invalid_edit_preserves_existing_help_record(self):
         help_shift = self.make_help()
         before = self.snapshots()
-        for field, value in (("name", " "), ("note", "あ" * 501), ("end_time", "08:00"), ("display_color", "yellow")):
+        for field, value in (("name", " "), ("note", "あ" * 501), ("end_time", "08:00"), ("display_color", "cyan")):
             with self.subTest(field=field):
                 response = self.client.post(self.edit_url(help_shift), self.help_data(
                     prefixed=False, **{field: value},
