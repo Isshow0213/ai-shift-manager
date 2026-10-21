@@ -80,9 +80,9 @@
     </section>
   </div>
 
-  <section class="panel overview-board">
+  <section class="panel overview-board" id="overview-board" data-overview-board aria-labelledby="overview-board-title">
     <div class="panel-heading overview-board-heading">
-      <h2>{{ year }}年{{ month }}月のシフト表</h2>
+      <h2 id="overview-board-title">{{ year }}年{{ month }}月のシフト表</h2>
       <div class="overview-legend" aria-label="シフトの表示について">
         <span>作成方法：手動 / 自動生成</span>
         {% if help_rows %}<span><i class="help-shift-badge">ヘルプ</i>名前を手入力した応援</span>{% endif %}
@@ -90,6 +90,7 @@
         <span><i class="overview-legend-dash" aria-hidden="true">—</i>勤務登録なし</span>
       </div>
     </div>
+    {% include 'shifts/_overview_display_controls.html' %}
     <p class="overview-board-help" id="overview-board-help">日付をクリックすると、その日のシフトを作成できます。勤務時間をクリックすると、シフトを編集できます。</p>
     <form class="overview-order-form" method="post" action="{% url 'manager_shift_order_update' %}?year={{ year }}&amp;month={{ month }}" data-shift-order-form data-order-target="shift-order-rows">
       {% csrf_token %}

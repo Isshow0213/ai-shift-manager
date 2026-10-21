@@ -99,15 +99,16 @@
     </section>
   </div>
 
-  <section class="panel overview-board">
+  <section class="panel overview-board" id="overview-board" data-overview-board aria-labelledby="overview-board-title">
     <div class="panel-heading overview-board-heading">
-      <h2>{{ year }}年{{ month }}月の全体シフト表</h2>
+      <h2 id="overview-board-title">{{ year }}年{{ month }}月の全体シフト表</h2>
       <div class="overview-legend" aria-label="シフトの表示について">
         <span>色：シフトごとの設定</span>
         {% if help_rows %}<span><i class="help-shift-badge">ヘルプ</i>応援の勤務予定</span>{% endif %}
         <span><i class="overview-legend-dash" aria-hidden="true">—</i>勤務登録なし</span>
       </div>
     </div>
+    {% include 'shifts/_overview_display_controls.html' %}
     <p class="overview-board-help" id="overview-board-help">左右にスクロールして、店舗の確定シフトを確認できます。自分の行には「自分」と表示しています。</p>
     {% if not total_shifts %}
       <p class="overview-empty-month">この月の確定シフトはまだ登録されていません。登録されると、この表に表示されます。</p>

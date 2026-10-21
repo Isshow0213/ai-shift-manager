@@ -18,6 +18,25 @@
 .overview-board { overflow: hidden; }
 .overview-board-heading { flex-wrap: wrap; }
 .overview-board-heading h2 { font-size: 17px; }
+.overview-display-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--border); background: #fbfcfe; }
+.overview-display-controls[hidden] { display: none; }
+.overview-zoom-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.overview-zoom-value { min-width: 48px; color: #344056; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: center; }
+.overview-display-controls .button { min-height: 36px; }
+.overview-display-controls .button:disabled { opacity: .45; cursor: default; }
+.overview-fullscreen-button { margin-left: auto; }
+.overview-fullscreen-open { overflow: hidden; }
+.overview-fullscreen-open body { overflow: hidden; }
+.overview-board.is-fullscreen { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; width: 100%; height: 100%; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); border: 0; border-radius: 0; background: var(--surface); }
+.overview-board.is-fullscreen > * { flex-shrink: 0; }
+.overview-board.is-fullscreen .overview-board-heading { padding: 12px 16px; }
+.overview-board.is-fullscreen .overview-display-controls { padding: 8px 16px; }
+.overview-board.is-fullscreen .overview-legend, .overview-board.is-fullscreen .overview-board-help, .overview-board.is-fullscreen .overview-empty-month, .overview-board.is-fullscreen .overview-order-help { display: none; }
+.overview-board.is-fullscreen .overview-order-form { gap: 8px; margin: 8px 16px; padding: 8px 12px; }
+.overview-board.is-fullscreen .overview-order-copy { flex-basis: 180px; }
+.overview-board.is-fullscreen .overview-order-title { margin: 0; }
+.overview-board.is-fullscreen .overview-order-status { margin-top: 3px; }
+.overview-board.is-fullscreen .overview-scroll { flex: 1 1 0; min-height: 0; max-height: none; }
 .overview-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12px; }
 .overview-legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .overview-legend-dash { color: #a5afbe; font-style: normal; }
@@ -103,6 +122,10 @@ a.overview-no-shift:hover { color: var(--blue); background: #f0f5ff; border-radi
   .overview-stats .overview-hours-value small { font-size: 10px; }
   .overview-legend { gap: 10px; font-size: 11px; }
   .overview-board-help { padding: 13px 16px; font-size: 11px; }
+  .overview-display-controls { padding: 12px 16px; gap: 10px; }
+  .overview-zoom-controls { gap: 6px; }
+  .overview-zoom-value { min-width: 42px; font-size: 12px; }
+  .overview-display-controls .button { min-height: 44px; padding: 6px 9px; font-size: 11px; }
   .overview-order-form { margin: 0 16px 14px; padding: 12px; gap: 12px; }
   .overview-order-copy { flex-basis: 100%; }
   .overview-order-help, .overview-order-status { font-size: 11px; }
