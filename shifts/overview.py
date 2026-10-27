@@ -67,6 +67,7 @@ def build_shift_overview_context(request, store, *, calendar_url_name=None):
                     "day": work_date.day,
                     "weekday": weekdays[work_date.weekday()],
                     "is_today": day["is_today"],
+                    "is_holiday": day["is_holiday"],
                     "is_weekend": work_date.weekday() >= 5,
                     "is_saturday": work_date.weekday() == 5,
                     "is_sunday": work_date.weekday() == 6,

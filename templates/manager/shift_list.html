@@ -44,7 +44,7 @@
         {% for day in week %}
           {% if day.is_current_month %}
             <a href="{{ day.url }}"
-               class="calendar-day{% if day.date.weekday == 5 %} saturday{% elif day.date.weekday == 6 %} sunday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}"
+               class="calendar-day{% if day.date.weekday == 5 %} saturday{% elif day.date.weekday == 6 %} sunday{% endif %}{% if day.is_holiday %} is-holiday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}"
                aria-label="{{ day.date|date:'n月j日' }}{% if day.is_today %} 今日{% endif %}{% if day.has_availability %} 希望あり{% endif %}{% if day.has_requirement %} 必要人数あり{% endif %}{% if day.has_shift %} シフトあり{% endif %}{% if not day.has_availability and not day.has_requirement and not day.has_shift %} 登録なし{% endif %}"
                {% if day.is_selected %}aria-current="date"{% endif %}>
               <span class="day-number">{{ day.day }}</span>

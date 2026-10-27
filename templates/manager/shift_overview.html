@@ -118,7 +118,7 @@
           <tr>
             <th scope="col" class="overview-staff-column">従業員・ヘルプ</th>
             {% for day in month_days %}
-              <th scope="col" class="overview-day-header{% if day.is_saturday %} is-saturday{% endif %}{% if day.is_sunday %} is-sunday{% endif %}{% if day.is_today %} is-today{% endif %}">
+              <th scope="col" class="overview-day-header{% if day.is_saturday %} is-saturday{% endif %}{% if day.is_sunday %} is-sunday{% endif %}{% if day.is_holiday %} is-holiday{% endif %}{% if day.is_today %} is-today{% endif %}">
                 <a class="overview-day-link" href="{{ day.url }}" aria-label="{{ day.date|date:'n月j日' }}{{ day.weekday }}曜日のシフトを作成">
                   <span class="overview-day-number">{{ day.day }}</span>
                   <span class="overview-weekday">{{ day.weekday }}</span>

@@ -71,8 +71,9 @@
 .overview-day-number { font-size: 15px; font-weight: 650; }
 .overview-weekday { font-size: 11px; font-weight: 500; }
 .overview-day-header.is-saturday .overview-day-link { color: #4275cd; background: #f0f5ff; }
-.overview-day-header.is-sunday .overview-day-link { color: #dc6576; background: #fff4f5; }
+.overview-day-header.is-sunday .overview-day-link, .overview-day-header.is-holiday .overview-day-link { color: #dc6576; background: #fff4f5; }
 .overview-day-header.is-today .overview-day-link { color: var(--blue); background: #eaf1ff; box-shadow: inset 0 -3px var(--blue); }
+.overview-day-header.is-holiday .overview-day-link { color: #dc6576; }
 .overview-person { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .overview-avatar { flex: 0 0 28px; width: 28px; height: 28px; font-size: 12px; }
 .overview-person-details { min-width: 0; }

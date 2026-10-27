@@ -4,6 +4,10 @@ from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from jpholiday import JPHoliday
+
+
+holiday_calendar = JPHoliday()
 
 
 def get_calendar_context(request, markers=None):
@@ -62,6 +66,7 @@ def get_calendar_context(request, markers=None):
                 "is_current_month": day.month == month,
                 "is_today": day == today,
                 "is_selected": day == selected_date,
+                "is_holiday": holiday_calendar.is_holiday(day),
                 "url": f"?year={year}&month={month}&date={day.isoformat()}",
             }
 

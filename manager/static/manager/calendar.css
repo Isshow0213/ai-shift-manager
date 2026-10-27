@@ -10,12 +10,13 @@
 .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(112px, auto); gap: 5px; }
 .calendar-day { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 11px 3px 8px; border: 1px solid #e4e9f2; border-radius: 10px; background: #fff; color: #172033; text-decoration: none; transition: background .15s, border-color .15s, box-shadow .15s; }
 .calendar-day.saturday { background: #f6f9ff; color: #215df5; }
-.calendar-day.sunday { background: #fff5f6; color: #fa324b; border-color: #fbe4e8; }
+.calendar-day.sunday, .calendar-day.is-holiday { background: #fff5f6; color: #fa324b; border-color: #fbe4e8; }
 .calendar-day:hover { background: #f2f6ff; border-color: #a6bdff; }
 .calendar-day.is-muted { background: #f3f5f8; border-color: #f1f3f7; color: #9aa5b6; }
 .calendar-day.is-today { border: 2px solid #182236; padding: 10px 2px 7px; }
 .calendar-day.is-selected, .calendar-day.is-selected:hover { background: linear-gradient(145deg, #f2f7ff, #e8efff); color: #164fd6; border: 2px solid #2462ff; padding: 10px 2px 7px; box-shadow: inset 0 0 0 2px #d5e3ff; }
 .day-number { font-size: 16px; font-weight: 650; line-height: 1.4; }
+.calendar-day.is-holiday .day-number { color: #fa324b; }
 .day-status-list { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100%; margin-top: 13px; }
 .day-status-list.compact-statuses { gap: 3px; margin-top: 8px; }
 .compact-statuses .calendar-badge { padding-top: 2px; padding-bottom: 2px; font-size: 10px; line-height: 1.3; }
