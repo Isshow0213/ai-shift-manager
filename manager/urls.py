@@ -21,6 +21,7 @@ urlpatterns = [
     path("staff/invitations/new/", manager_views.staff_invite_create, name="manager_staff_invite_create"),
     path("staff/invitations/<int:invitation_id>/revoke/", manager_views.staff_invite_revoke, name="manager_staff_invite_revoke"),
     path("shifts/", manager_views.shift_list, name="manager_shift_list"),
+    path("shifts/staffing-warning/", manager_views.staffing_warning_update, name="manager_staffing_warning_update"),
     path("shifts/overview/", manager_views.shift_overview, name="manager_shift_overview"),
     path("shifts/overview/order/", manager_views.shift_order_update, name="manager_shift_order_update"),
     path("shifts/<int:shift_id>/edit/", manager_views.shift_edit, name="manager_shift_edit"),

@@ -9,6 +9,18 @@ from shifts.eligibility import eligible_membership_ids, get_eligibility
 User = get_user_model()
 
 
+class StaffingWarningForm(forms.Form):
+    work_date = forms.DateField(input_formats=["%Y-%m-%d"])
+    action = forms.ChoiceField(choices=[("dismiss", "解除"), ("restore", "再表示")])
+    staffing_signature = forms.RegexField(regex=r"\A[0-9a-f]{64}\Z")
+
+    def clean_work_date(self):
+        work_date = self.cleaned_data["work_date"]
+        if not 2 <= work_date.year <= 9998:
+            raise forms.ValidationError("日付は2年〜9998年の範囲で指定してください。")
+        return work_date
+
+
 class StaffRankForm(forms.Form):
     rank = forms.ChoiceField(
         label="ランク", choices=StoreMembership.RANK_CHOICES,

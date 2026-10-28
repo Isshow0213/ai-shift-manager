@@ -44,11 +44,12 @@
         {% for day in week %}
           {% if day.is_current_month %}
             <a href="{{ day.url }}"
-               class="calendar-day{% if day.date.weekday == 5 %} saturday{% elif day.date.weekday == 6 %} sunday{% endif %}{% if day.is_holiday %} is-holiday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}"
-               aria-label="{{ day.date|date:'n月j日' }}{% if day.is_today %} 今日{% endif %}{% if day.has_availability %} 希望あり{% endif %}{% if day.has_requirement %} 必要人数あり{% endif %}{% if day.has_shift %} シフトあり{% endif %}{% if not day.has_availability and not day.has_requirement and not day.has_shift %} 登録なし{% endif %}"
+               class="calendar-day{% if day.date.weekday == 5 %} saturday{% elif day.date.weekday == 6 %} sunday{% endif %}{% if day.is_holiday %} is-holiday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}{% if day.show_staffing_warning %} has-staffing-warning{% elif day.staffing_warning_dismissed %} is-staffing-confirmed{% endif %}"
+               aria-label="{{ day.date|date:'n月j日' }}{% if day.is_today %} 今日{% endif %}{% if day.show_staffing_warning %} 人数不足、最大{{ day.max_staffing_shortfall }}人不足{% elif day.staffing_warning_dismissed %} 人数は店長確認済み{% endif %}{% if day.has_availability %} 希望あり{% endif %}{% if day.has_requirement %} 必要人数あり{% endif %}{% if day.has_shift %} シフトあり{% endif %}{% if not day.has_availability and not day.has_requirement and not day.has_shift %} 登録なし{% endif %}"
                {% if day.is_selected %}aria-current="date"{% endif %}>
               <span class="day-number">{{ day.day }}</span>
-              <span class="day-status-list{% if day.has_availability and day.has_requirement and day.has_shift %} compact-statuses{% endif %}">
+              <span class="day-status-list{% if day.show_staffing_warning or day.staffing_warning_dismissed %} compact-statuses{% elif day.has_availability and day.has_requirement and day.has_shift %} compact-statuses{% endif %}">
+                {% if day.show_staffing_warning %}<span class="calendar-badge staffing-warning-badge"><span aria-hidden="true">⚠&nbsp;</span>人数不足</span>{% elif day.staffing_warning_dismissed %}<span class="calendar-badge staffing-confirmed-badge">確認済み</span>{% endif %}
                 {% if day.has_availability %}<span class="calendar-badge availability-badge">希望あり</span>{% endif %}
                 {% if day.has_requirement %}<span class="calendar-badge requirement-badge">必要人数あり</span>{% endif %}
                 {% if day.has_shift %}<span class="calendar-badge shift-badge">シフトあり</span>{% endif %}
@@ -65,6 +66,8 @@
     </div>
 
     <div class="calendar-legend" aria-label="カレンダーの凡例">
+      <span><i class="legend-dot staffing-warning-dot"></i>人数不足</span>
+      <span><i class="legend-dot staffing-confirmed-dot"></i>店長確認済み</span>
       <span><i class="legend-dot availability-dot"></i>希望あり</span>
       <span><i class="legend-dot requirement-dot"></i>必要人数あり</span>
       <span><i class="legend-dot shift-dot"></i>シフトあり</span>
@@ -113,6 +116,40 @@
         </table>
       </div>
     </section>
+
+    {% if selected_staffing.has_shortage %}
+      <section class="staffing-status-panel{% if selected_staffing.is_warning_dismissed %} is-confirmed{% endif %}" aria-labelledby="staffing-status-heading">
+        <h3 id="staffing-status-heading">{% if selected_staffing.is_warning_dismissed %}<span aria-hidden="true">✓</span> 店長確認済み{% else %}<span aria-hidden="true">⚠</span> 必要人数に達していません{% endif %}</h3>
+        <p>{% if selected_staffing.is_warning_dismissed %}この人数で足りていることを店長が確認し、警告を解除しています。{% else %}次の時間帯で人数が不足しています。登録人数にはヘルプも含みます。{% endif %}</p>
+        <div class="table-wrap">
+          <table class="data-table staffing-shortage-table">
+            <caption class="sr-only">設定した必要人数に対する時間帯ごとの不足</caption>
+            <thead><tr><th scope="col">時間帯</th><th scope="col">必要</th><th scope="col">登録</th><th scope="col">不足</th></tr></thead>
+            <tbody>
+              {% for shortage in selected_staffing.shortages %}
+                <tr><td>{{ shortage.start_time|time:"H:i" }}〜{{ shortage.end_time|time:"H:i" }}</td><td>{{ shortage.required_staff_count }}人</td><td>{{ shortage.scheduled_staff_count }}人</td><td><strong>{{ shortage.shortfall_count }}人</strong></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if selected_staffing.is_warning_dismissed %}
+          <p class="staffing-confirmation-meta">{{ selected_staffing.dismissal.dismissed_at|date:"n月j日 H:i" }}{% if selected_staffing.dismissal.dismissed_by %} · {{ selected_staffing.dismissal.dismissed_by.full_name_japanese }}{% endif %} 確認</p>
+        {% endif %}
+        <form method="post" action="{% url 'manager_staffing_warning_update' %}" class="staffing-warning-form">
+          {% csrf_token %}
+          <input type="hidden" name="work_date" value="{{ selected_date|date:'Y-m-d' }}">
+          <input type="hidden" name="staffing_signature" value="{{ selected_staffing.staffing_signature }}">
+          {% if selected_staffing.is_warning_dismissed %}
+            <input type="hidden" name="action" value="restore">
+            <button type="submit" class="button button-secondary">警告を再表示する</button>
+          {% else %}
+            <input type="hidden" name="action" value="dismiss">
+            <button type="submit" class="button staffing-dismiss-button">この人数で足りている（警告を解除）</button>
+          {% endif %}
+        </form>
+        <p class="staffing-status-help">必要人数・勤務する人・勤務時間が変わると、警告を再表示します。</p>
+      </section>
+    {% endif %}
 
     <section class="panel detail-panel">
       <div class="panel-heading">

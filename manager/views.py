@@ -4,18 +4,23 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from shifts.forms import AvailabilityForm
-from shifts.models import Availability, Requirement, Shift, HelpShift, DayOffRequest, StoreOperatingHours
+from shifts.models import (
+    Availability, Requirement, Shift, HelpShift, DayOffRequest, StoreOperatingHours,
+    StaffingWarningDismissal,
+)
+from shifts.staffing import build_staffing_statuses, get_staffing_status
 from shifts.eligibility import EligibilityIndex, get_month_submission, submitted_availability_dates
 from .help_forms import HelpShiftForm
 from accounts.models import StaffInvitation, Store, StoreMembership
 from .forms import (
     AvailabilityShiftForm, OutsideAvailabilityShiftForm, ShiftForm,
-    StaffDesiredShiftsForm, StaffPermissionsForm, StaffRankForm,
+    StaffDesiredShiftsForm, StaffPermissionsForm, StaffRankForm, StaffingWarningForm,
 )
 from shifts.calendar_utils import get_calendar_context
 from shifts.overview import build_shift_overview_context, save_overview_order
@@ -258,36 +263,43 @@ def shift_list(request):
         work_date__month=month,
     ).select_related("user")
 
-    monthly_requirements = Requirement.objects.filter(
+    monthly_requirements = list(Requirement.objects.filter(
         store=store,
         work_date__year=year,
         work_date__month=month,
-    )
+    ))
 
-    monthly_shifts = Shift.objects.filter(
+    monthly_shifts = list(Shift.objects.filter(
         store=store,
         work_date__year=year,
         work_date__month=month,
+    ))
+    monthly_help_shifts = list(HelpShift.objects.filter(
+        store=store, work_date__year=year, work_date__month=month,
+    ))
+    monthly_dismissals = StaffingWarningDismissal.objects.filter(
+        store=store, work_date__year=year, work_date__month=month,
+    ).select_related("dismissed_by")
+    staffing_statuses = build_staffing_statuses(
+        monthly_requirements, monthly_shifts, monthly_help_shifts, monthly_dismissals,
     )
 
     availability_dates = submitted_availability_dates(store, year, month)
 
-    requirement_dates = set(
-        monthly_requirements.values_list("work_date", flat=True)
-    )
+    requirement_dates = {requirement.work_date for requirement in monthly_requirements}
 
-    shift_dates = set(
-        monthly_shifts.values_list("work_date", flat=True)
-    )
-    shift_dates.update(HelpShift.objects.filter(
-        store=store, work_date__year=year, work_date__month=month,
-    ).values_list("work_date", flat=True))
+    shift_dates = {shift.work_date for shift in monthly_shifts}
+    shift_dates.update(shift.work_date for shift in monthly_help_shifts)
 
     for week in calendar_context["calendar_weeks"]:
         for day in week:
             day["has_availability"] = day["date"] in availability_dates
             day["has_requirement"] = day["date"] in requirement_dates
             day["has_shift"] = day["date"] in shift_dates
+            staffing = staffing_statuses.get(day["date"])
+            day["show_staffing_warning"] = bool(staffing and staffing["show_warning"])
+            day["staffing_warning_dismissed"] = bool(staffing and staffing["is_warning_dismissed"])
+            day["max_staffing_shortfall"] = staffing["max_shortfall"] if staffing else 0
 
     availabilities = Availability.objects.for_store(store).filter(
         work_date=selected_date,
@@ -420,6 +432,7 @@ def shift_list(request):
             "help_form": help_form,
             "help_shifts": help_shifts,
             "availability_autofill": availability_autofill,
+            "selected_staffing": staffing_statuses.get(selected_date),
         },
     )
 
@@ -435,6 +448,41 @@ def _manager_membership(user):
     return StoreMembership.objects.filter(
         user=user, role="manager", is_active=True
     ).select_related("store").first()
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def staffing_warning_update(request):
+    manager_membership = _manager_membership(request.user)
+    if manager_membership is None:
+        raise PermissionDenied
+
+    form = StaffingWarningForm(request.POST)
+    if not form.is_valid():
+        return HttpResponseBadRequest("入力内容が正しくありません。カレンダーから操作してください。")
+
+    store = manager_membership.store
+    work_date = form.cleaned_data["work_date"]
+    if form.cleaned_data["action"] == "restore":
+        StaffingWarningDismissal.objects.filter(store=store, work_date=work_date).delete()
+        messages.success(request, "この日の人数不足の警告を再表示しました。")
+    else:
+        staffing = get_staffing_status(store, work_date)
+        if not staffing or not staffing["has_shortage"]:
+            messages.info(request, "この日は必要人数を下回っていません。")
+        elif staffing["staffing_signature"] != form.cleaned_data["staffing_signature"]:
+            messages.warning(request, "シフトまたは必要人数が変更されています。現在の内容を確認してから警告を解除してください。")
+        else:
+            StaffingWarningDismissal.objects.update_or_create(
+                store=store, work_date=work_date,
+                defaults={
+                    "staffing_signature": staffing["staffing_signature"],
+                    "dismissed_by": request.user,
+                },
+            )
+            messages.success(request, "この人数で足りていると確認し、この日の警告を解除しました。")
+    return redirect(_shift_calendar_url(work_date))
 
 
 @login_required

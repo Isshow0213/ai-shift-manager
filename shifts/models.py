@@ -360,3 +360,26 @@ class AvailabilityChangeNotification(models.Model):
 
     def __str__(self):
         return f"Changed availability for {self.availability.user} on {self.availability.work_date}"
+
+
+class StaffingWarningDismissal(models.Model):
+    """店長が確認した日の配置内容を記録し、変更後の警告は抑制しない。"""
+
+    store = models.ForeignKey(
+        "accounts.Store", on_delete=models.CASCADE,
+        related_name="staffing_warning_dismissals",
+    )
+    work_date = models.DateField("対象日")
+    staffing_signature = models.CharField("確認した配置内容", max_length=64)
+    dismissed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="staffing_warning_dismissals",
+    )
+    dismissed_at = models.DateTimeField("確認日時", auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=["store", "work_date"], name="unique_store_staffing_warning_dismissal",
+        )]
+        verbose_name = "人数不足警告の解除"
+        verbose_name_plural = "人数不足警告の解除"
