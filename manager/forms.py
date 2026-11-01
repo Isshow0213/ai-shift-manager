@@ -1,5 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.core import signing
+from django.db.models import Q
 
 from accounts.models import StoreMembership
 from shifts.models import Availability, Shift
@@ -211,6 +213,101 @@ class ShiftForm(forms.ModelForm):
                 self.add_error(
                     None, "この従業員には、同じ時間帯に重なるシフトが登録されています。"
                 )
+        return cleaned_data
+
+
+class OverviewShiftForm(ShiftForm):
+    confirmation_salt = "manager.overview.outside-confirmation"
+    confirmation_max_age = 15 * 60
+
+    confirm_outside = forms.BooleanField(
+        label="本人に確認し、この希望外の日時で登録することを確認しました",
+        required=False,
+    )
+    outside_confirmation_token = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    def __init__(self, *args, store=None, **kwargs):
+        super().__init__(
+            *args, store=store, include_managers=True,
+            only_available_staff=False, **kwargs,
+        )
+        self.outside_confirmation_required = False
+        self.outside_confirmation_message = ""
+        if self.is_bound:
+            self.data = self.data.copy()
+        # An existing shift remains editable after its employee is deactivated.
+        # Inactive employees cannot be chosen for a new shift or reassignment.
+        if store is not None and self.instance.pk and self.instance.membership_id:
+            self.fields["membership"].queryset = StoreMembership.objects.filter(
+                Q(is_active=True, user__is_active=True, role__in=["staff", "manager"])
+                | Q(pk=self.instance.membership_id),
+                store=store,
+            ).select_related("user", "store").order_by(
+                "user__last_name", "user__first_name", "user__username",
+            )
+        self.fields["work_date"].widget.attrs.update(min="0002-01-01", max="9998-12-31")
+
+    def clean_work_date(self):
+        work_date = self.cleaned_data["work_date"]
+        if not 2 <= work_date.year <= 9998:
+            raise forms.ValidationError("日付は2年〜9998年の範囲で指定してください。")
+        return work_date
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Show the outside-wish confirmation only after the normal input and
+        # overlap checks succeed. It must never stand in for these checks.
+        if self.errors:
+            return cleaned_data
+        membership = cleaned_data.get("membership")
+        work_date = cleaned_data.get("work_date")
+        start_time = cleaned_data.get("start_time")
+        end_time = cleaned_data.get("end_time")
+        if membership and work_date and start_time and end_time and start_time < end_time:
+            eligibility = get_eligibility(membership, work_date)
+            if eligibility.covers(start_time, end_time):
+                return cleaned_data
+
+            payload = {
+                "store": self.store.pk,
+                "membership": membership.pk,
+                "date": work_date.isoformat(),
+                "start": start_time.isoformat(),
+                "end": end_time.isoformat(),
+                "shift": self.instance.pk,
+            }
+            token = cleaned_data.get("outside_confirmation_token", "")
+            try:
+                confirmed_payload = signing.loads(
+                    token, salt=self.confirmation_salt, max_age=self.confirmation_max_age,
+                )
+            except (signing.BadSignature, ValueError, TypeError):
+                confirmed_payload = None
+            if confirmed_payload == payload and cleaned_data.get("confirm_outside"):
+                return cleaned_data
+
+            self.outside_confirmation_required = True
+            wished = "、".join(f"{start:%H:%M}〜{end:%H:%M}" for start, end in eligibility.intervals)
+            reason = (
+                f"希望時間：{wished}。" if wished else {
+                    "not_submitted": "この月の希望は未提出です。",
+                    "day_off": "この日は休み希望です。",
+                    "no_availability": "この日の出勤希望はありません。",
+                    "inactive": "この従業員は現在無効です。",
+                }.get(eligibility.reason, "この日時の出勤希望はありません。")
+            )
+            self.outside_confirmation_message = (
+                f"{membership.user.full_name_japanese}さんの{work_date.year}年{work_date.month}月{work_date.day}日 "
+                f"{start_time:%H:%M}〜{end_time:%H:%M}は希望外です。{reason}"
+                "本人に確認したうえで、この日時で保存してください。"
+            )
+            self.data[self.add_prefix("outside_confirmation_token")] = signing.dumps(
+                payload, salt=self.confirmation_salt,
+            )
+            # Changing the employee/date/time invalidates the previous consent.
+            if confirmed_payload != payload:
+                self.data[self.add_prefix("confirm_outside")] = ""
+            self.add_error("confirm_outside", "確認後にチェックして、もう一度保存してください。")
         return cleaned_data
 
 

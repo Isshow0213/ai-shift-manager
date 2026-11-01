@@ -7,7 +7,7 @@
 
 {% block extra_css %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'manager/shift_overview.css' %}">
+  <link rel="stylesheet" href="{% static 'manager/shift_overview.css' %}?v=20261102-save-confirmation">
 {% endblock %}
 
 {% block content %}
@@ -87,11 +87,13 @@
         <span>作成方法：手動 / 自動生成</span>
         {% if help_rows %}<span><i class="help-shift-badge">ヘルプ</i>名前を手入力した応援</span>{% endif %}
         <span>色：シフトごとの設定</span>
+        <span><i class="overview-legend-preference" aria-hidden="true"></i>希望している日</span>
+        <span><i class="overview-legend-consecutive" aria-hidden="true">6連勤</i>6連勤以上</span>
         <span><i class="overview-legend-dash" aria-hidden="true">—</i>勤務登録なし</span>
       </div>
     </div>
     {% include 'shifts/_overview_display_controls.html' %}
-    <p class="overview-board-help" id="overview-board-help">日付をクリックすると、その日のシフトを作成できます。勤務時間をクリックすると、シフトを編集できます。</p>
+    <p class="overview-board-help" id="overview-board-help">空欄のセルからシフトを作成し、登録済みの勤務時間から編集できます。希望時間があるセルでは、その時間を初期入力します。希望外の日時で保存する場合だけ確認が表示されます。連勤は他店舗の勤務と前月からの勤務も含め、6連勤以上で表示します。</p>
     <form class="overview-order-form" method="post" action="{% url 'manager_shift_order_update' %}?year={{ year }}&amp;month={{ month }}" data-shift-order-form data-order-target="shift-order-rows">
       {% csrf_token %}
       <div data-order-fields hidden>
@@ -151,16 +153,24 @@
                 </div>
               </th>
               {% for cell in row.cells %}
-                <td class="overview-shift-cell{% if cell.date.weekday == 5 or cell.date.weekday == 6 %} is-weekend{% endif %}{% if cell.date == today %} is-today{% endif %}">
+                <td data-overview-cell data-membership="{{ row.membership.pk }}" data-person="{{ row.user.full_name_japanese }}" data-can-create="{{ row.is_active|yesno:'true,false' }}" data-date="{{ cell.date|date:'Y-m-d' }}" class="overview-shift-cell{% if cell.date.weekday == 5 or cell.date.weekday == 6 %} is-weekend{% endif %}{% if cell.date == today %} is-today{% endif %}">
                   {% for shift in cell.shifts %}
-                    <a class="overview-shift {{ shift.display_color_class }}" href="{% url 'manager_shift_edit' shift.pk %}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }} {{ shift.start_time|time:'H:i' }}〜{{ shift.end_time|time:'H:i' }}の{% if shift.is_generated %}自動生成{% else %}手動{% endif %}シフトを編集"{% if shift.note %} aria-describedby="overview-shift-note-{{ shift.pk }}"{% endif %}>
+                    <a data-overview-edit data-id="{{ shift.pk }}" data-membership="{{ shift.membership_id|default_if_none:'' }}" data-start="{{ shift.start_time|time:'H:i' }}" data-end="{{ shift.end_time|time:'H:i' }}" data-color="{{ shift.display_color }}" data-note="{{ shift.note }}" class="overview-shift {{ shift.display_color_class }}" href="{% url 'manager_shift_edit' shift.pk %}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }} {{ shift.start_time|time:'H:i' }}〜{{ shift.end_time|time:'H:i' }}の{% if shift.is_generated %}自動生成{% else %}手動{% endif %}シフトを編集"{% if shift.note %} aria-describedby="overview-shift-note-{{ shift.pk }}"{% endif %}>
                       <span class="overview-shift-time">{{ shift.start_time|time:"H:i" }}<span aria-hidden="true">–</span>{{ shift.end_time|time:"H:i" }}</span>
                       <span class="overview-shift-method">{% if shift.is_generated %}自動生成{% else %}手動{% endif %}</span>
                       {% if shift.note %}<span id="overview-shift-note-{{ shift.pk }}" class="shift-note overview-shift-note">{{ shift.note }}</span>{% endif %}
                     </a>
                   {% empty %}
-                    <a class="overview-no-shift" href="{{ cell.url }}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }}は勤務登録なし。この日のシフトを作成">—</a>
+                    {% if not cell.unmet_preference %}<a class="overview-no-shift" data-overview-create href="{{ cell.url }}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }}は勤務登録なし。この日のシフトを作成">—</a>{% endif %}
                   {% endfor %}
+                  {% if cell.unmet_preference %}
+                    {% if cell.shifts %}
+                      <span class="overview-preference">{{ cell.unmet_preference }}</span>
+                    {% else %}
+                      <a class="overview-preference" data-overview-create href="{{ cell.url }}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }} {{ cell.unmet_preference }}。この日のシフトを作成">{{ cell.unmet_preference }}</a>
+                    {% endif %}
+                  {% endif %}
+                  {% if cell.consecutive_days %}<span class="overview-consecutive">{{ cell.consecutive_days }}連勤</span>{% endif %}
                 </td>
               {% endfor %}
               <td class="overview-person-total"><strong>{{ row.working_days }}</strong><span class="overview-unit">日</span><small>{{ row.shift_count }}件</small></td>
@@ -218,12 +228,61 @@
         </tfoot>
       </table>
     </div>
+    {{ overview_wish_times|json_script:"overview-wish-times" }}
+    <dialog id="overview-editor" class="overview-editor" aria-labelledby="overview-editor-title" aria-describedby="overview-editor-help" data-open="{{ overview_form_open|yesno:'true,false' }}">
+      <div class="overview-editor-heading">
+        <div>
+          <p class="overview-editor-eyebrow">全体シフト</p>
+          <h2 id="overview-editor-title">シフトの作成・編集</h2>
+        </div>
+        <button type="button" class="overview-editor-close" data-overview-close aria-label="入力画面を閉じる" hidden>×</button>
+      </div>
+      <form method="post" action="{% url 'manager_shift_overview' %}?year={{ year }}&amp;month={{ month }}" data-overview-editor-form>
+        {% csrf_token %}
+        <input type="hidden" name="shift_id" value="{{ overview_shift_id }}">
+        <p id="overview-editor-help" class="overview-editor-help">従業員と勤務日時を確認して保存してください。保存したシフトは「手動」になります。</p>
+        {% if overview_form.errors and not overview_show_confirmation %}<div class="field-error overview-editor-errors" role="alert" data-overview-errors>入力内容を確認してください。{{ overview_form.non_field_errors }}</div>{% endif %}
+        {% for field in overview_form.hidden_fields %}{{ field }}{% endfor %}
+        <div class="form-grid overview-editor-fields">
+          {% for field in overview_form.visible_fields %}
+            {% if field.name != 'confirm_outside' %}
+              <div class="field{% if field.name == 'note' %} overview-editor-wide{% endif %}">
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+                {% if field.errors %}<div class="field-error" role="alert" data-overview-errors>{{ field.errors }}</div>{% endif %}
+              </div>
+              {% if field.name == 'work_date' %}
+                <div class="field overview-editor-wide" data-overview-wish-slot-field hidden>
+                  <label for="overview-wish-slot">希望時間帯</label>
+                  <select id="overview-wish-slot" data-overview-wish-slot></select>
+                </div>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% if overview_show_confirmation %}
+          <section class="overview-editor-confirm" data-overview-confirmation aria-labelledby="overview-confirmation-title">
+            <h3 id="overview-confirmation-title">希望外のシフトです</h3>
+            <p>{{ overview_confirmation_message }}</p>
+            <label for="{{ overview_form.confirm_outside.id_for_label }}">{{ overview_form.confirm_outside }} {{ overview_form.confirm_outside.label }}</label>
+            {% if overview_form.confirm_outside.errors %}<div class="field-error" role="alert" data-overview-errors>{{ overview_form.confirm_outside.errors }}</div>{% endif %}
+          </section>
+        {% endif %}
+        <div class="form-actions overview-editor-actions">
+          <button type="button" class="button button-secondary" data-overview-close hidden>キャンセル</button>
+          <noscript><a class="button button-secondary" href="{% url 'manager_shift_overview' %}?year={{ year }}&amp;month={{ month }}">キャンセル</a></noscript>
+          <button type="submit" class="button button-primary" data-overview-save>{% if overview_show_confirmation %}確認して保存する{% else %}保存する{% endif %}</button>
+        </div>
+      </form>
+    </dialog>
+    <noscript><style>.overview-editor:not([open]) { display: block; position: static; margin: 20px auto; }</style></noscript>
   </section>
 </div>
 {% endblock %}
 
 {% block extra_js %}
   {{ block.super }}
-  <script src="{% static 'manager/shift_overview.js' %}" defer></script>
+  <script src="{% static 'manager/shift_overview.js' %}?v=20261102-save-confirmation" defer></script>
   <script src="{% static 'manager/shift_order.js' %}" defer></script>
 {% endblock %}
