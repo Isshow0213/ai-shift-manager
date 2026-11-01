@@ -336,13 +336,13 @@ class ShiftOverviewTests(TestCase):
         self.assertEqual(list(StoreMembership.objects.order_by("pk").values()), before_memberships)
         self.assertEqual(list(get_user_model().objects.order_by("pk").values()), before_users)
 
-    def test_post_is_rejected_without_modifying_shifts(self):
+    def test_invalid_post_does_not_modify_shifts(self):
         self.make_shift(membership=self.membership)
         before = list(Shift.objects.order_by("pk").values())
 
         response = self.client.post(self.url, {"year": "2028", "month": "2"})
 
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(list(Shift.objects.order_by("pk").values()), before)
 
     def test_staff_and_inactive_managers_cannot_view_overview(self):

@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 from accounts.models import StoreMembership
 from shifts.models import Availability, Shift
@@ -211,6 +212,50 @@ class ShiftForm(forms.ModelForm):
                 self.add_error(
                     None, "この従業員には、同じ時間帯に重なるシフトが登録されています。"
                 )
+        return cleaned_data
+
+
+class OverviewShiftForm(ShiftForm):
+    confirm_outside = forms.BooleanField(
+        label="希望外の場合、本人への確認を済ませました",
+        required=False,
+    )
+
+    def __init__(self, *args, store=None, **kwargs):
+        super().__init__(
+            *args, store=store, include_managers=True,
+            only_available_staff=False, **kwargs,
+        )
+        # An existing shift remains editable after its employee is deactivated.
+        # Inactive employees cannot be chosen for a new shift or reassignment.
+        if store is not None and self.instance.pk and self.instance.membership_id:
+            self.fields["membership"].queryset = StoreMembership.objects.filter(
+                Q(is_active=True, user__is_active=True, role__in=["staff", "manager"])
+                | Q(pk=self.instance.membership_id),
+                store=store,
+            ).select_related("user", "store").order_by(
+                "user__last_name", "user__first_name", "user__username",
+            )
+        self.fields["work_date"].widget.attrs.update(min="0002-01-01", max="9998-12-31")
+
+    def clean_work_date(self):
+        work_date = self.cleaned_data["work_date"]
+        if not 2 <= work_date.year <= 9998:
+            raise forms.ValidationError("日付は2年〜9998年の範囲で指定してください。")
+        return work_date
+
+    def clean(self):
+        cleaned_data = super().clean()
+        membership = cleaned_data.get("membership")
+        work_date = cleaned_data.get("work_date")
+        start_time = cleaned_data.get("start_time")
+        end_time = cleaned_data.get("end_time")
+        if membership and work_date and start_time and end_time and start_time < end_time:
+            eligibility = get_eligibility(membership, work_date)
+            if not eligibility.covers(start_time, end_time) and not cleaned_data.get("confirm_outside"):
+                self.add_error("confirm_outside", (
+                    "希望外のシフトです。本人に確認し、確認済みにチェックしてください。"
+                ))
         return cleaned_data
 
 
