@@ -125,7 +125,7 @@
   });
 
   board.addEventListener('keydown', (event) => {
-    if (!expanded) return;
+    if (!expanded || board.querySelector('#overview-editor[open]')) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       exitFullscreen();
@@ -146,4 +146,83 @@
 
   setZoom(100);
   controls.hidden = false;
+})();
+
+(() => {
+  const dialog = document.querySelector('#overview-editor');
+  if (!dialog || typeof dialog.showModal !== 'function') return;
+
+  const form = dialog.querySelector('[data-overview-editor-form]');
+  const title = dialog.querySelector('#overview-editor-title');
+  const save = dialog.querySelector('[data-overview-save]');
+  const membership = form.elements.membership;
+  let returnFocus = null;
+
+  function normalizeDate(value) {
+    // HTML date controls require at least four digits for the year.
+    const parts = value.split('-');
+    parts[0] = parts[0].padStart(4, '0');
+    return parts.join('-');
+  }
+
+  function showEditor(trigger) {
+    returnFocus = trigger;
+    title.textContent = form.elements.shift_id.value ? 'シフトを編集' : 'シフトを作成';
+    save.disabled = false;
+    dialog.showModal();
+    const invalid = form.querySelector('[aria-invalid="true"]');
+    (invalid || membership).focus();
+  }
+
+  function openCell(cell, trigger, shift) {
+    const memberId = (shift && shift.dataset.membership) || cell.dataset.membership;
+    if (!memberId || (!shift && cell.dataset.canCreate !== 'true')) return false;
+
+    // Do not carry invalid values, confirmation, or errors into a different shift.
+    form.reset();
+    form.querySelectorAll('[data-overview-errors]').forEach(element => element.remove());
+    form.querySelectorAll('[aria-invalid]').forEach(element => element.removeAttribute('aria-invalid'));
+    membership.querySelectorAll('[data-overview-temporary-option]').forEach(option => option.remove());
+    if (!Array.from(membership.options).some(option => option.value === memberId)) {
+      if (!shift) return false;
+      const option = new Option(cell.dataset.person, memberId);
+      option.dataset.overviewTemporaryOption = '';
+      membership.add(option);
+    }
+    form.elements.shift_id.value = shift ? shift.dataset.id : '';
+    membership.value = memberId;
+    form.elements.work_date.value = normalizeDate(cell.dataset.date);
+    form.elements.start_time.value = shift ? shift.dataset.start : '';
+    form.elements.end_time.value = shift ? shift.dataset.end : '';
+    form.elements.display_color.value = shift ? shift.dataset.color : '';
+    form.elements.note.value = shift ? shift.dataset.note : '';
+    form.elements.confirm_outside.checked = false;
+    showEditor(trigger);
+    return true;
+  }
+
+  document.querySelectorAll('[data-overview-cell]').forEach(cell => {
+    cell.querySelectorAll('[data-overview-add]').forEach(button => { button.hidden = false; });
+    cell.addEventListener('click', event => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = event.target.closest('[data-overview-edit], [data-overview-add], .overview-no-shift');
+      // Clicking the cell itself edits the first shift; + always starts a new one.
+      const shift = target && target.matches('[data-overview-add], .overview-no-shift')
+        ? null : (target || cell.querySelector('[data-overview-edit]'));
+      const trigger = target || cell.querySelector('[data-overview-edit], .overview-no-shift, [data-overview-add]');
+      if (openCell(cell, trigger, shift)) event.preventDefault();
+    });
+  });
+
+  dialog.querySelectorAll('[data-overview-close]').forEach(button => {
+    button.hidden = false;
+    button.addEventListener('click', () => dialog.close());
+  });
+  // Let the native dialog own Escape and focus trapping, including in full screen.
+  dialog.addEventListener('keydown', event => { event.stopPropagation(); });
+  dialog.addEventListener('close', () => {
+    if (returnFocus && returnFocus.isConnected) returnFocus.focus({ preventScroll: true });
+  });
+  form.addEventListener('submit', () => { save.disabled = true; });
+  if (dialog.dataset.open === 'true') showEditor(null);
 })();

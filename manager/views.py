@@ -19,11 +19,12 @@ from shifts.eligibility import EligibilityIndex, get_month_submission, submitted
 from .help_forms import HelpShiftForm
 from accounts.models import StaffInvitation, Store, StoreMembership
 from .forms import (
-    AvailabilityShiftForm, OutsideAvailabilityShiftForm, ShiftForm,
+    AvailabilityShiftForm, OutsideAvailabilityShiftForm, OverviewShiftForm, ShiftForm,
     StaffDesiredShiftsForm, StaffPermissionsForm, StaffRankForm, StaffingWarningForm,
 )
 from shifts.calendar_utils import get_calendar_context
 from shifts.overview import build_shift_overview_context, save_overview_order
+from shifts.overview_preferences import annotate_manager_overview
 
 @login_required
 @require_GET
@@ -543,19 +544,44 @@ def availability_edit(request, availability_id):
 
 
 @login_required
-@require_GET
+@require_http_methods(["GET", "POST"])
 def shift_overview(request):
     manager_membership = _manager_membership(request.user)
     if manager_membership is None:
         messages.error(request, "管理できる店舗がありません。")
         return redirect("manager_dashboard")
 
-    return render(
-        request, "manager/shift_overview.html",
-        build_shift_overview_context(
-            request, manager_membership.store, calendar_url_name="manager_shift_list",
-        ),
+    store = manager_membership.store
+    instance = None
+    if request.method == "POST" and request.POST.get("shift_id"):
+        try:
+            shift_id = int(request.POST["shift_id"])
+            if not 0 < shift_id <= 9223372036854775807:
+                raise ValueError
+        except (TypeError, ValueError):
+            return HttpResponseBadRequest("シフトの指定が正しくありません。全体シフトから操作してください。")
+        instance = get_object_or_404(Shift, pk=shift_id, store=store)
+    form = OverviewShiftForm(
+        request.POST if request.method == "POST" else None,
+        instance=instance, store=store, auto_id="overview_%s",
     )
+    if request.method == "POST" and form.is_valid():
+        shift = form.save(commit=False)
+        shift.user = shift.membership.user
+        shift.store = store
+        shift.is_generated = False
+        shift.save()
+        messages.success(request, "シフトを保存しました。")
+        calendar_context = get_calendar_context(request)
+        return redirect(
+            f"{reverse('manager_shift_overview')}?year={calendar_context['year']}"
+            f"&month={calendar_context['month']}"
+        )
+    context = build_shift_overview_context(request, store, calendar_url_name="manager_shift_list")
+    annotate_manager_overview(context, store)
+    context.update(overview_form=form, overview_form_open=request.method == "POST",
+                   overview_shift_id=request.POST.get("shift_id", ""))
+    return render(request, "manager/shift_overview.html", context)
 
 
 @login_required
