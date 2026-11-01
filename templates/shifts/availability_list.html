@@ -8,13 +8,14 @@
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'shifts/submission_deadline.css' %}">
   <link rel="stylesheet" href="{% static 'shifts/submission.css' %}">
+  <link rel="stylesheet" href="{% static 'shifts/availability_calendar.css' %}?v=20261102-calendar-entry">
 {% endblock %}
 
 {% block content %}
   {% if show_submission_store_picker %}
     <section class="panel store-access-picker submission-store-picker" aria-label="希望を確認する店舗の選択">
       <h2>希望を確認する店舗</h2>
-      <form class="store-access-form" method="get" action="{% url 'availability_list' %}">
+      <form class="store-access-form" method="get" action="{% url 'availability_list' %}#availability-calendar">
         <input type="hidden" name="year" value="{{ year }}">
         <input type="hidden" name="month" value="{{ month }}">
         <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
@@ -66,14 +67,14 @@
     </section>
   {% endif %}
   <div class="shift-workspace employee-workspace">
-    <section class="panel calendar-panel employee-calendar" aria-label="シフト希望カレンダー">
+    <section id="availability-calendar" class="panel calendar-panel employee-calendar" aria-label="シフト希望カレンダー">
       <div class="calendar-toolbar">
-        <a class="button button-secondary month-button" href="?year={{ prev_year }}&amp;month={{ prev_month }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}">
+        <a class="button button-secondary month-button" href="?year={{ prev_year }}&amp;month={{ prev_month }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}#availability-calendar">
           <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>
           <span>前月</span>
         </a>
         <h2>{{ year }}年{{ month }}月</h2>
-        <a class="button button-secondary month-button" href="?year={{ next_year }}&amp;month={{ next_month }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}">
+        <a class="button button-secondary month-button" href="?year={{ next_year }}&amp;month={{ next_month }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}#availability-calendar">
           <span>翌月</span>
           <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
         </a>
@@ -97,7 +98,7 @@
         {% for week in calendar_weeks %}
           {% for day in week %}
             {% if day.is_current_month %}
-              <a class="calendar-day{% if forloop.counter == 6 %} saturday{% elif forloop.counter == 7 %} sunday{% endif %}{% if day.is_holiday %} is-holiday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}{% if day.submission_closed %} is-submission-closed{% endif %}" href="{{ day.url }}" aria-label="{% language 'ja' %}{{ day.date|date:'n月j日（D）' }}{% endlanguage %}、{% if is_day_off_mode %}{% if day.is_day_off %}休み希望{% elif day.availabilities %}時間指定{% else %}全時間帯OK{% endif %}{% else %}{% if day.availabilities %}出勤希望あり{% else %}出勤不可{% endif %}{% endif %}{% for availability in day.availabilities %}、希望{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}{% endfor %}{% if day.submission_closed %}、締切済み{% endif %}{% if day.is_today %}、今日{% endif %}{% if day.is_selected %}、選択中{% endif %}"{% if day.is_selected %} aria-current="date"{% endif %}>
+              <a class="calendar-day{% if forloop.counter == 6 %} saturday{% elif forloop.counter == 7 %} sunday{% endif %}{% if day.is_holiday %} is-holiday{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}{% if day.submission_closed %} is-submission-closed{% endif %}" href="{{ day.url }}{% if can_submit_for_selected_store and not day.submission_closed %}&amp;edit=1{% endif %}#availability-calendar" aria-label="{% language 'ja' %}{{ day.date|date:'n月j日（D）' }}{% endlanguage %}、{% if is_day_off_mode %}{% if day.is_day_off %}休み希望{% elif day.availabilities %}時間指定{% else %}全時間帯OK{% endif %}{% else %}{% if day.availabilities %}出勤希望あり{% else %}出勤不可{% endif %}{% endif %}{% for availability in day.availabilities %}、希望{{ availability.start_time|time:'H:i' }}〜{{ availability.end_time|time:'H:i' }}{% endfor %}{% if day.submission_closed %}、締切済み{% endif %}{% if day.is_today %}、今日{% endif %}{% if day.is_selected %}、選択中{% endif %}"{% if day.is_selected %} aria-current="date"{% endif %}>
                 <span class="day-number">{{ day.day }}</span>
                 <span class="day-status-list">
                   {% if is_day_off_mode %}
@@ -217,7 +218,7 @@
           {% else %}
             <h3>{% if is_day_off_mode %}休み・時間指定を設定できます{% else %}勤務できる時間を入力しましょう{% endif %}</h3>
             <p>{% if is_day_off_mode %}休みたい日や時間を制限したい日だけ変更してください。{% else %}選択日の開始時刻と終了時刻を入力してください。{% endif %}入力を終えたら、月の希望を提出してください。</p>
-            <a class="button button-primary" href="{% url 'availability_create' %}?date={{ selected_date|date:'Y-m-d' }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}">
+            <a class="button button-primary" href="{% url 'availability_list' %}?year={{ year }}&amp;month={{ month }}&amp;date={{ selected_date|date:'Y-m-d' }}{% if submission_store_id %}&amp;store={{ submission_store_id }}{% endif %}&amp;edit=1#availability-calendar">
               <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>{% if is_day_off_mode %}この日の設定を変更{% else %}この日の希望を入力{% endif %}
             </a>
           {% endif %}
@@ -231,4 +232,16 @@
       </div>
     </section>
   </div>
+  {% if calendar_form and can_submit_for_selected_store %}
+    {% if not submission_closed or calendar_form.is_bound %}
+      {% include 'shifts/_calendar_availability_form.html' with form=calendar_form %}
+    {% endif %}
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script src="{% static 'shifts/availability_quickfill.js' %}?v=20261102-calendar-entry" defer></script>
+  <script src="{% static 'shifts/submission.js' %}?v=20261102-calendar-entry" defer></script>
+  <script src="{% static 'shifts/availability_calendar.js' %}?v=20261102-calendar-entry" defer></script>
 {% endblock %}

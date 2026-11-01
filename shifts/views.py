@@ -22,6 +22,7 @@ from .forms import AvailabilityForm, ManagerRequirementForm, ShiftGenerationForm
 from .models import Availability, Requirement, RequirementTimePreset, Shift, HelpShift, ShiftSubmission, DayOffRequest, StoreOperatingHours, StoreSubmissionDeadline
 from .calendar_utils import get_calendar_context
 from .overview import build_shift_overview_context
+from .availability_entry import availability_time_suggestions, save_daily_availability
 from .requirement_bulk_forms import BulkRequirementForm, DAY_TYPES, RequirementTimeSlotFormSet, RequirementCategoryMemoForm
 from .requirement_bulk import apply_plan, build_plan
 from .requirement_settings import save_requirements
@@ -60,6 +61,12 @@ def availability_list(request):
 
     submission_deadline = get_store_submission_deadline(access_store)
     submission_now = timezone.now()
+    can_edit_day = bool(access_context["can_submit_for_selected_store"]
+                        and not monthly_context["month_submission_closed"])
+    if request.method == "POST" and not access_context["can_submit_for_selected_store"]:
+        raise PermissionDenied("この店舗へのシフト希望の提出権限がありません。")
+    calendar_form = None
+    calendar_form_open = False
 
     monthly_availabilities = Availability.objects.filter(
         user=request.user,
@@ -116,6 +123,38 @@ def availability_list(request):
         else "all_day" if monthly_context["is_day_off_mode"] else "unavailable"
     )
 
+    if access_context["can_submit_for_selected_store"]:
+        calendar_form = AvailabilityForm(
+            request.POST if request.method == "POST" else None,
+            initial={
+                "work_date": selected_date,
+                "day_status": selected_day_status if selected_day_status != "unavailable" else "available",
+            },
+            user=request.user, store=access_store, membership=membership,
+            submission_deadline=submission_deadline,
+            submission_mode=monthly_context["submission_mode"],
+            auto_id="calendar_%s",
+        )
+        calendar_form.fields["work_date"].widget.attrs["readonly"] = True
+        if request.method == "POST":
+            calendar_form_open = True
+            calendar_form.is_valid()
+            if calendar_form.cleaned_data.get("work_date") not in (None, selected_date):
+                calendar_form.add_error("work_date", "カレンダーで選択した日付の希望を入力してください。")
+            if save_daily_availability(
+                calendar_form, user=request.user, store=access_store, membership=membership,
+                submission_mode=monthly_context["submission_mode"],
+                month_closed=monthly_context["month_submission_closed"],
+            ):
+                messages.success(request, "希望を下書き保存しました。月の内容を確認して「提出する」を押してください。")
+                return redirect(submission_return_url(access_store, selected_date) + "#availability-calendar")
+        else:
+            calendar_form_open = can_edit_day and request.GET.get("edit") == "1"
+    entry_suggestions = (
+        availability_time_suggestions(request.user, access_store, selected_date)
+        if can_edit_day else {}
+    )
+
     return render(
         request,
         "shifts/availability_list.html",
@@ -125,6 +164,9 @@ def availability_list(request):
             **monthly_context,
             "selected_day_off": selected_day_off,
             "selected_day_status": selected_day_status,
+            "calendar_form": calendar_form,
+            "calendar_form_open": calendar_form_open,
+            **entry_suggestions,
             "day_off_days_count": len(day_off_dates),
             "time_limited_days_count": len(submitted_dates),
             "selected_availabilities": selected_availabilities,
@@ -178,34 +220,7 @@ def availability_create(request):
         else "all_day" if monthly_context["is_day_off_mode"] else "available"
     )
 
-    # 前回提出した希望時間を取得（最大5件）
-    all_previous_availabilities = Availability.objects.filter(
-        user=request.user,
-        work_date__lt=selected_date,
-    ).for_store(access_store)
-    all_previous_availabilities = all_previous_availabilities.order_by("-work_date", "-start_time")[:5]
-
-    # 重複時間を除外したユニークな前回の希望を取得
-    previous_availabilities_unique = []
-    seen_times = set()
-    for av in all_previous_availabilities:
-        time_key = (av.start_time, av.end_time)
-        if time_key not in seen_times:
-            previous_availabilities_unique.append(av)
-            seen_times.add(time_key)
-
-    # 店長が設定した必要時間を取得
-    requirements_for_date = Requirement.objects.filter(
-        store=access_store,
-        work_date=selected_date,
-    ).order_by("start_time")
-
-    operating_hours = StoreOperatingHours.objects.filter(store=access_store).first()
-    has_full_day_hours = bool(
-        operating_hours and operating_hours.start_time is not None
-        and operating_hours.end_time is not None
-        and operating_hours.start_time < operating_hours.end_time
-    )
+    entry_suggestions = availability_time_suggestions(request.user, access_store, selected_date)
 
     if request.method == "POST":
         form = AvailabilityForm(
@@ -213,42 +228,13 @@ def availability_create(request):
             membership=membership, store=access_store,
             submission_mode=monthly_context["submission_mode"],
         )
-        if form.is_valid():
-            if monthly_context["month_submission_closed"]:
-                form.add_error(None, "提出締切を過ぎているため、この月の希望は変更できません。")
-            else:
-                work_date = form.cleaned_data["work_date"]
-                with transaction.atomic():
-                    locked_membership = StoreMembership.objects.select_for_update().get(pk=membership.pk)
-                    submission = get_month_submission(locked_membership, work_date, create=True)
-                    if submission.submission_mode != monthly_context["submission_mode"]:
-                        form.add_error(None, "提出方式が変更されました。画面を再読み込みしてください。")
-                    else:
-                        day_status = form.cleaned_data["day_status"]
-                        day_availabilities = Availability.objects.filter(
-                            user=request.user, work_date=work_date,
-                        ).for_store(access_store)
-                        day_off_requests = DayOffRequest.objects.filter(
-                            submission=submission, work_date=work_date,
-                        )
-                        if day_status == "available":
-                            day_off_requests.delete()
-                            availability = form.save(commit=False)
-                            availability.user = request.user
-                            availability.membership = membership
-                            availability.store = access_store
-                            availability.submission = submission
-                            availability.save()
-                        else:
-                            day_availabilities.delete()
-                            if day_status == "day_off":
-                                DayOffRequest.objects.get_or_create(submission=submission, work_date=work_date)
-                            else:
-                                day_off_requests.delete()
-                        mark_submission_draft(submission)
-                if not form.errors:
-                    messages.success(request, "希望を下書き保存しました。月の内容を確認して「提出する」を押してください。")
-                    return redirect(submission_return_url(access_store, work_date))
+        if save_daily_availability(
+            form, user=request.user, store=access_store, membership=membership,
+            submission_mode=monthly_context["submission_mode"],
+            month_closed=monthly_context["month_submission_closed"],
+        ):
+            messages.success(request, "希望を下書き保存しました。月の内容を確認して「提出する」を押してください。")
+            return redirect(submission_return_url(access_store, form.cleaned_data["work_date"]))
     else:
         form = AvailabilityForm(
             initial={
@@ -272,10 +258,7 @@ def availability_create(request):
             "selected_date": selected_date,
             "selected_day_status": selected_day_status,
             "selected_day_off": selected_day_off,
-            "previous_availabilities_unique": previous_availabilities_unique,
-            "requirements_for_date": requirements_for_date,
-            "operating_hours": operating_hours,
-            "has_full_day_hours": has_full_day_hours,
+            **entry_suggestions,
             **submission_context(submission_deadline, selected_date),
             "submission_closed": monthly_context["month_submission_closed"],
         },
