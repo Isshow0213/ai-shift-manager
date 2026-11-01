@@ -5,7 +5,7 @@
 {% block page_title %}シフト提出設定{% endblock %}
 {% block extra_css %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'shifts/submission.css' %}">
+  <link rel="stylesheet" href="{% static 'shifts/submission.css' %}?v=20261102-default-times">
 {% endblock %}
 
 {% block content %}
@@ -27,7 +27,7 @@
   {% endif %}
   <section class="panel submission-settings-panel">
     <div class="panel-heading"><h2>普段使用する提出方式</h2></div>
-    <form method="post" class="panel-body">
+    <form method="post" class="panel-body" data-default-time-settings>
       {% csrf_token %}
       <p class="submission-settings-store">{{ access_store.name }}の提出方式を設定します。</p>
       {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
@@ -35,16 +35,38 @@
         {{ form.submission_mode }}
         {% if form.submission_mode.errors %}<div class="field-error" role="alert">{{ form.submission_mode.errors }}</div>{% endif %}
       </div>
+      <fieldset class="submission-default-times" data-default-time-fields data-has-errors="{% if form.default_start_time.errors or form.default_end_time.errors %}true{% else %}false{% endif %}"{% if form.submission_mode.value != 'day_off' and not form.default_start_time.errors and not form.default_end_time.errors %} hidden{% endif %}>
+        <legend>基本の希望時間（初期入力用・任意）</legend>
+        <p class="submission-default-times-help">休み以外の日に時間指定がない場合、管理画面であなたを選ぶと、この時間を初期入力します。昼担当は10:00〜15:00、夜担当は17:00〜23:00など、普段の時間を1枠設定できます。</p>
+        <div class="employee-form-fields">
+          <div class="field">
+            {{ form.default_start_time.label_tag }}
+            {{ form.default_start_time }}
+            {% if form.default_start_time.errors %}<div class="field-error" role="alert">{{ form.default_start_time.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            {{ form.default_end_time.label_tag }}
+            {{ form.default_end_time }}
+            {% if form.default_end_time.errors %}<div class="field-error" role="alert">{{ form.default_end_time.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <p class="submission-default-times-help">この時間は初期入力だけに使います。勤務可能な時間の制限や、自動生成の条件にはなりません。日付をまたぐ時間は設定できません。空欄に戻すと、これまでの初期入力に戻ります。</p>
+      </fieldset>
       <dl class="submission-mode-descriptions">
         <div><dt>出勤希望方式</dt><dd>出勤できる日と時間を選んで入力します。入力していない日は出勤不可になります。</dd></div>
         <div><dt>休み希望方式</dt><dd>休みたい日と、出勤できる時間を制限したい日だけ入力します。指定のない日は全時間帯で出勤可能になります。</dd></div>
       </dl>
-      <p class="submission-setting-notice">設定を変えても、提出済みの月の方式や内容は変わりません。未提出の月から新しい方式を使用します。</p>
+      <p class="submission-setting-notice">提出方式の変更は、未提出の月から使用します。基本時間の変更は、管理画面で次に選択したときの初期入力に反映されます。提出済みの希望や登録済みシフトは変更しません。</p>
       <div class="submission-actions">
         <a class="button button-secondary" href="{% url 'availability_list' %}?store={{ access_store.pk }}{% if year and month %}&amp;year={{ year }}&amp;month={{ month }}{% endif %}">カレンダーへ戻る</a>
-        <button class="button button-primary" type="submit">提出方式を保存</button>
+        <button class="button button-primary" type="submit">設定を保存</button>
       </div>
     </form>
   </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script src="{% static 'shifts/submission_settings.js' %}?v=20261102-default-times" defer></script>
 {% endblock %}

@@ -84,9 +84,17 @@ def annotate_manager_overview(context, store):
     lengths = _consecutive_lengths([row["user"].pk for row in rows], first, last)
 
     wish_times = {}
+    # Initial input values stay separate from submitted wishes and mismatch labels.
+    default_times = {}
     for row in rows:
         membership = row["membership"]
         submission = submissions.get(membership.pk) if membership else None
+        has_default_times = bool(
+            membership and membership.is_active and row["user"].is_active
+            and membership.default_start_time is not None
+            and membership.default_end_time is not None
+            and membership.default_start_time < membership.default_end_time
+        )
         for cell in row["cells"]:
             day = cell["date"]
             actual = _merge_intervals((shift.start_time, shift.end_time) for shift in cell["shifts"])
@@ -98,6 +106,14 @@ def annotate_manager_overview(context, store):
                     {"start_time": start.strftime("%H:%M"), "end_time": end.strftime("%H:%M")}
                     for start, end in preferred
                 ]
+            if (
+                submission and submission.submission_mode == "day_off"
+                and not is_day_off and not preferred and has_default_times
+            ):
+                default_times.setdefault(str(membership.pk), {})[day.isoformat()] = {
+                    "start_time": membership.default_start_time.strftime("%H:%M"),
+                    "end_time": membership.default_end_time.strftime("%H:%M"),
+                }
             if submission:
                 if submission.submission_mode == "day_off" and (submission.pk, day) in off:
                     if actual:
@@ -107,7 +123,15 @@ def annotate_manager_overview(context, store):
                 elif submission.submission_mode == "availability" and not preferred and actual:
                     label = "希望：出勤なし"
             cell["unmet_preference"] = label
+            all_day_available = bool(
+                submission and submission.submission_mode == "day_off"
+                and not is_day_off and not preferred and row["is_active"]
+                and membership.role in ("manager", "staff")
+            )
+            # Available all day is a submitted preference, not an unmet request.
+            cell["availability_label"] = label or ("全時間帯OK" if all_day_available else "")
             count = lengths.get((row["user"].pk, day), 0)
             cell["consecutive_days"] = count if cell["shifts"] and count >= 6 else 0
 
     context["overview_wish_times"] = wish_times
+    context["overview_default_times"] = default_times

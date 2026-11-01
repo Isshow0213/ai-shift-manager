@@ -48,3 +48,10 @@
   .submission-settings-panel .panel-heading, .submission-settings-panel .panel-body { padding: 18px 16px; }
   .day-status-options label, .submission-mode-options label { padding: 12px 10px; font-size: 13px; }
 }
+
+.submission-default-times { margin: 22px 0; min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 9px; }
+.submission-default-times[hidden] { display: none; }
+.submission-default-times legend { padding: 0 6px; color: var(--ink); font-size: 14px; font-weight: 650; }
+.submission-default-times-help { margin: 0 0 15px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+.submission-default-times-help:last-child { margin: 15px 0 0; }
+.submission-default-times input { width: 100%; min-width: 0; box-sizing: border-box; }

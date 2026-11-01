@@ -376,6 +376,6 @@
 {% block extra_js %}
   {{ block.super }}
   {{ availability_autofill|json_script:"manual-shift-availabilities" }}
-  <script src="{% static 'manager/shift_autofill.js' %}" defer></script>
+  <script src="{% static 'manager/shift_autofill.js' %}?v=20261102-personal-default-times" defer></script>
   <script src="{% static 'manager/shift_creation.js' %}" defer></script>
 {% endblock %}

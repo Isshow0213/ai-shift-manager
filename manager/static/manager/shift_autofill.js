@@ -54,8 +54,14 @@
       )).map((availability, index) => ({ ...availability, slotKey: String(index) })) : [];
       const allDay = Array.isArray(data.all_day_membership_ids)
         && data.all_day_membership_ids.map(String).includes(membership.value);
+      const defaultTimes = data.all_day_default_times && data.all_day_default_times[membership.value];
+      const personalDefault = allDay && defaultTimes
+        && timePattern.test(defaultTimes.start_time) && timePattern.test(defaultTimes.end_time)
+        && defaultTimes.start_time < defaultTimes.end_time ? defaultTimes : null;
       if (summary) {
-        summary.textContent = allDay ? 'この日は全時間帯で出勤可能です。' : '';
+        summary.textContent = allDay
+          ? `この日は全時間帯で出勤可能です。${personalDefault ? `基本時間（${personalDefault.start_time}〜${personalDefault.end_time}）を初期入力します。` : ''}`
+          : '';
       }
 
       slot.replaceChildren();
@@ -77,7 +83,7 @@
             start_time: data.all_day_start_time,
             end_time: data.all_day_end_time,
           } : null;
-        fillAvailability(allDay ? fullDay : currentSlots[0]);
+        fillAvailability(allDay ? (personalDefault || fullDay) : currentSlots[0]);
       }
     }
 

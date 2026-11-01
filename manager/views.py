@@ -383,6 +383,7 @@ def shift_list(request):
     eligibility_index = EligibilityIndex(store, selected_date)
     day_candidates = []
     all_day_membership_ids = []
+    all_day_default_times = {}
     for membership in eligibility_index.memberships:
         eligibility = eligibility_index.for_membership(membership)
         if eligibility.available:
@@ -393,6 +394,16 @@ def shift_list(request):
             })
             if eligibility.all_day:
                 all_day_membership_ids.append(str(membership.pk))
+                # Personal times suggest inputs without narrowing all-day eligibility.
+                if (
+                    membership.default_start_time is not None
+                    and membership.default_end_time is not None
+                    and membership.default_start_time < membership.default_end_time
+                ):
+                    all_day_default_times[str(membership.pk)] = {
+                        "start_time": membership.default_start_time.strftime("%H:%M"),
+                        "end_time": membership.default_end_time.strftime("%H:%M"),
+                    }
     hours = StoreOperatingHours.objects.filter(store=store).first()
     requirement_times = list(requirements)
     all_day_start = min((requirement.start_time for requirement in requirement_times), default=None)
@@ -406,6 +417,8 @@ def shift_list(request):
         "all_day_start_time": all_day_start.strftime("%H:%M") if all_day_start else "00:00",
         "all_day_end_time": all_day_end.strftime("%H:%M") if all_day_end else "23:59",
     }
+    if all_day_default_times:
+        availability_autofill["all_day_default_times"] = all_day_default_times
     for membership_id in all_day_membership_ids:
         availability_autofill["memberships"][membership_id] = []
     for availability in availabilities:

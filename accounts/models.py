@@ -161,6 +161,8 @@ class StoreMembership(models.Model):
         "シフト希望の提出方式", max_length=12,
         choices=SubmissionMode.choices, default=SubmissionMode.AVAILABILITY,
     )
+    default_start_time = models.TimeField("基本の開始時刻", null=True, blank=True)
+    default_end_time = models.TimeField("基本の終了時刻", null=True, blank=True)
     can_view_shifts = models.BooleanField("全体シフトの閲覧", default=True)
     can_submit_availability = models.BooleanField("シフト希望の提出", default=True)
     show_in_shift_overview = models.BooleanField("全体シフト表に表示", default=True)
@@ -169,6 +171,16 @@ class StoreMembership(models.Model):
 
     class Meta:
         unique_together = ("user", "store")
+        constraints = [models.CheckConstraint(
+            condition=(
+                models.Q(default_start_time__isnull=True, default_end_time__isnull=True)
+                | models.Q(
+                    default_start_time__isnull=False, default_end_time__isnull=False,
+                    default_start_time__lt=models.F("default_end_time"),
+                )
+            ),
+            name="store_membership_valid_default_times",
+        )]
 
     def __str__(self):
         return f"{self.user.username} / {self.store.name} / {self.role}"

@@ -161,13 +161,13 @@
                       {% if shift.note %}<span id="overview-shift-note-{{ shift.pk }}" class="shift-note overview-shift-note">{{ shift.note }}</span>{% endif %}
                     </a>
                   {% empty %}
-                    {% if not cell.unmet_preference %}<a class="overview-no-shift" data-overview-create href="{{ cell.url }}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }}は勤務登録なし。この日のシフトを作成">—</a>{% endif %}
+                    {% if not cell.availability_label %}<a class="overview-no-shift" data-overview-create href="{{ cell.url }}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }}は勤務登録なし。この日のシフトを作成">—</a>{% endif %}
                   {% endfor %}
-                  {% if cell.unmet_preference %}
+                  {% if cell.availability_label %}
                     {% if cell.shifts %}
-                      <span class="overview-preference">{{ cell.unmet_preference }}</span>
+                      <span class="overview-preference">{{ cell.availability_label }}</span>
                     {% else %}
-                      <a class="overview-preference" data-overview-create href="{{ cell.url }}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }} {{ cell.unmet_preference }}。この日のシフトを作成">{{ cell.unmet_preference }}</a>
+                      <a class="overview-preference" data-overview-create href="{{ cell.url }}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }} {{ cell.availability_label }}。この日のシフトを作成">{{ cell.availability_label }}</a>
                     {% endif %}
                   {% endif %}
                   {% if cell.consecutive_days %}<span class="overview-consecutive">{{ cell.consecutive_days }}連勤</span>{% endif %}
@@ -229,6 +229,7 @@
       </table>
     </div>
     {{ overview_wish_times|json_script:"overview-wish-times" }}
+    {{ overview_default_times|json_script:"overview-default-times" }}
     <dialog id="overview-editor" class="overview-editor" aria-labelledby="overview-editor-title" aria-describedby="overview-editor-help" data-open="{{ overview_form_open|yesno:'true,false' }}">
       <div class="overview-editor-heading">
         <div>
@@ -283,6 +284,6 @@
 
 {% block extra_js %}
   {{ block.super }}
-  <script src="{% static 'manager/shift_overview.js' %}?v=20261102-save-confirmation" defer></script>
+  <script src="{% static 'manager/shift_overview.js' %}?v=20261102-personal-default-times" defer></script>
   <script src="{% static 'manager/shift_order.js' %}" defer></script>
 {% endblock %}

@@ -160,12 +160,17 @@
   const slot = form.querySelector('[data-overview-wish-slot]');
   const confirmation = form.querySelector('[data-overview-confirmation]');
   const wishSource = document.getElementById('overview-wish-times');
+  const defaultSource = document.getElementById('overview-default-times');
   let wishTimes = {};
+  let defaultTimes = {};
   let currentSlots = [];
   let returnFocus = null;
 
   if (wishSource) {
     try { wishTimes = JSON.parse(wishSource.textContent) || {}; } catch { /* Keep manual entry available. */ }
+  }
+  if (defaultSource) {
+    try { defaultTimes = JSON.parse(defaultSource.textContent) || {}; } catch { /* Keep manual entry available. */ }
   }
 
   function clearConfirmation() {
@@ -204,7 +209,14 @@
       });
       slot.value = shouldFill && currentSlots.length ? '0' : (matchedIndex < 0 ? '' : String(matchedIndex));
     }
-    if (shouldFill) fillSlot(currentSlots[0]);
+    if (shouldFill) {
+      const memberDefaults = defaultTimes[membership.value];
+      const personalDefault = memberDefaults && memberDefaults[form.elements.work_date.value];
+      const validDefault = personalDefault
+        && timePattern.test(personalDefault.start_time) && timePattern.test(personalDefault.end_time)
+        && personalDefault.start_time < personalDefault.end_time ? personalDefault : null;
+      fillSlot(currentSlots[0] || validDefault);
+    }
   }
 
   function normalizeDate(value) {

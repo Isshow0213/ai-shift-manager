@@ -69,13 +69,22 @@ def submission_settings(request):
         raise PermissionDenied("この店舗へのシフト希望の提出権限がありません。")
     calendar_context = get_calendar_context(request)
     selected_date = calendar_context["selected_date"]
-    form = SubmissionSettingsForm(request.POST or None, instance=membership)
+    form = SubmissionSettingsForm(
+        request.POST if request.method == "POST" else None, instance=membership,
+    )
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             locked_membership = StoreMembership.objects.select_for_update().get(pk=membership.pk)
+            if not membership_has_permission(locked_membership, "can_submit_availability"):
+                raise PermissionDenied("この店舗へのシフト希望の提出権限がありません。")
             locked_membership.submission_mode = form.cleaned_data["submission_mode"]
-            locked_membership.save(update_fields=["submission_mode"])
-        messages.success(request, "提出方式を保存しました。提出済みの月の方式は変わりません。")
+            update_fields = ["submission_mode"]
+            if any(name in request.POST for name in ("default_start_time", "default_end_time")):
+                for name in ("default_start_time", "default_end_time"):
+                    setattr(locked_membership, name, form.cleaned_data[name])
+                    update_fields.append(name)
+            locked_membership.save(update_fields=update_fields)
+        messages.success(request, "提出方式と基本時間を保存しました。提出済みの月の方式は変わりません。")
         return redirect(
             f"{reverse('submission_settings')}?store={store.pk}&year={selected_date.year}"
             f"&month={selected_date.month}&date={selected_date.isoformat()}"
