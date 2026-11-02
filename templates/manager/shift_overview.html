@@ -84,7 +84,6 @@
     <div class="panel-heading overview-board-heading">
       <h2 id="overview-board-title">{{ year }}年{{ month }}月のシフト表</h2>
       <div class="overview-legend" aria-label="シフトの表示について">
-        <span>作成方法：手動 / 自動生成</span>
         {% if help_rows %}<span><i class="help-shift-badge">ヘルプ</i>名前を手入力した応援</span>{% endif %}
         <span>色：シフトごとの設定</span>
         <span><i class="overview-legend-preference" aria-hidden="true"></i>希望している日</span>
@@ -155,9 +154,9 @@
               {% for cell in row.cells %}
                 <td data-overview-cell data-membership="{{ row.membership.pk }}" data-person="{{ row.user.full_name_japanese }}" data-can-create="{{ row.is_active|yesno:'true,false' }}" data-date="{{ cell.date|date:'Y-m-d' }}" class="overview-shift-cell{% if cell.date.weekday == 5 or cell.date.weekday == 6 %} is-weekend{% endif %}{% if cell.date == today %} is-today{% endif %}">
                   {% for shift in cell.shifts %}
-                    <a data-overview-edit data-id="{{ shift.pk }}" data-membership="{{ shift.membership_id|default_if_none:'' }}" data-start="{{ shift.start_time|time:'H:i' }}" data-end="{{ shift.end_time|time:'H:i' }}" data-color="{{ shift.display_color }}" data-note="{{ shift.note }}" class="overview-shift {{ shift.display_color_class }}" href="{% url 'manager_shift_edit' shift.pk %}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }} {{ shift.start_time|time:'H:i' }}〜{{ shift.end_time|time:'H:i' }}の{% if shift.is_generated %}自動生成{% else %}手動{% endif %}シフトを編集"{% if shift.note %} aria-describedby="overview-shift-note-{{ shift.pk }}"{% endif %}>
+                    <a data-overview-edit data-id="{{ shift.pk }}" data-membership="{{ shift.membership_id|default_if_none:'' }}" data-start="{{ shift.start_time|time:'H:i' }}" data-end="{{ shift.end_time|time:'H:i' }}" data-color="{{ shift.display_color }}" data-note="{{ shift.note }}" class="overview-shift {{ shift.display_color_class }}" href="{% url 'manager_shift_edit' shift.pk %}" aria-label="{{ row.user.full_name_japanese }} {{ cell.date|date:'n月j日' }} {{ shift.start_time|time:'H:i' }}〜{{ shift.end_time|time:'H:i' }}の{% if shift.is_generated %}自動生成{% endif %}シフトを編集"{% if shift.note %} aria-describedby="overview-shift-note-{{ shift.pk }}"{% endif %}>
                       <span class="overview-shift-time">{{ shift.start_time|time:"H:i" }}<span aria-hidden="true">–</span>{{ shift.end_time|time:"H:i" }}</span>
-                      <span class="overview-shift-method">{% if shift.is_generated %}自動生成{% else %}手動{% endif %}</span>
+                      {% if shift.is_generated %}<span class="overview-shift-method">自動生成</span>{% endif %}
                       {% if shift.note %}<span id="overview-shift-note-{{ shift.pk }}" class="shift-note overview-shift-note">{{ shift.note }}</span>{% endif %}
                     </a>
                   {% empty %}
@@ -241,7 +240,7 @@
       <form method="post" action="{% url 'manager_shift_overview' %}?year={{ year }}&amp;month={{ month }}" data-overview-editor-form>
         {% csrf_token %}
         <input type="hidden" name="shift_id" value="{{ overview_shift_id }}">
-        <p id="overview-editor-help" class="overview-editor-help">従業員と勤務日時を確認して保存してください。保存したシフトは「手動」になります。</p>
+        <p id="overview-editor-help" class="overview-editor-help">従業員と勤務日時を確認して保存してください。</p>
         {% if overview_form.errors and not overview_show_confirmation %}<div class="field-error overview-editor-errors" role="alert" data-overview-errors>入力内容を確認してください。{{ overview_form.non_field_errors }}</div>{% endif %}
         {% for field in overview_form.hidden_fields %}{{ field }}{% endfor %}
         <div class="form-grid overview-editor-fields">

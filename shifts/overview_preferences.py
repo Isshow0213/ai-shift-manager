@@ -114,14 +114,8 @@ def annotate_manager_overview(context, store):
                     "start_time": membership.default_start_time.strftime("%H:%M"),
                     "end_time": membership.default_end_time.strftime("%H:%M"),
                 }
-            if submission:
-                if submission.submission_mode == "day_off" and (submission.pk, day) in off:
-                    if actual:
-                        label = "希望：休み"
-                elif preferred and preferred != actual:
-                    label = "希望：" + "、".join(f"{start:%H:%M}〜{end:%H:%M}" for start, end in preferred)
-                elif submission.submission_mode == "availability" and not preferred and actual:
-                    label = "希望：出勤なし"
+            if submission and not is_day_off and preferred and preferred != actual:
+                label = "希望：" + "、".join(f"{start:%H:%M}〜{end:%H:%M}" for start, end in preferred)
             cell["unmet_preference"] = label
             all_day_available = bool(
                 submission and submission.submission_mode == "day_off"

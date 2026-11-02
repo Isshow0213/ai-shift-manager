@@ -92,13 +92,17 @@ class OverviewPreferenceTests(TestCase):
         self.wish(start=18, end=17)
         self.assertEqual(self.cells()[1]["unmet_preference"], "希望：09:00〜17:00")
 
-    def test_day_off_conflict_only_when_shift_exists(self):
+    def test_day_off_has_no_label_even_when_shift_exists(self):
         self.submission.submission_mode = "day_off"
         self.submission.save()
         DayOffRequest.objects.create(submission=self.submission, work_date=date(2026, 10, 2))
-        self.assertEqual(self.cells()[1]["unmet_preference"], "")
+        cell = self.cells()[1]
+        self.assertEqual(cell["unmet_preference"], "")
+        self.assertEqual(cell["availability_label"], "")
         self.shift()
-        self.assertEqual(self.cells()[1]["unmet_preference"], "希望：休み")
+        cell = self.cells()[1]
+        self.assertEqual(cell["unmet_preference"], "")
+        self.assertEqual(cell["availability_label"], "")
         self.assertEqual(self.cells()[2]["unmet_preference"], "")
 
     def test_day_off_mode_all_day_eligibility_does_not_claim_unmet_time(self):
@@ -108,9 +112,11 @@ class OverviewPreferenceTests(TestCase):
         self.assertEqual(self.cells()[1]["unmet_preference"], "")
         self.assertEqual(self.cells()[2]["unmet_preference"], "")
 
-    def test_submitted_availability_with_no_wish_is_shown_for_registered_work(self):
+    def test_submitted_availability_with_no_wish_has_no_label_for_registered_work(self):
         self.shift()
-        self.assertEqual(self.cells()[1]["unmet_preference"], "希望：出勤なし")
+        cell = self.cells()[1]
+        self.assertEqual(cell["unmet_preference"], "")
+        self.assertEqual(cell["availability_label"], "")
 
     def test_other_store_wishes_are_not_used(self):
         other_submission = ShiftSubmission.objects.create(
